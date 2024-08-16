@@ -1,144 +1,182 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using Assets.Scripts;
-using Assets.Scripts.GridSystem;
+﻿using Assets.Scripts;
 using Assets.Scripts.Inventory;
 using Assets.Scripts.Objects;
-using Assets.Scripts.Objects.Entities;
-using Assets.Scripts.Objects.Items;
 using Assets.Scripts.UI;
-using BepInEx;
-using BepInEx.Bootstrap;
+using Assets.Scripts.Util;
 using HarmonyLib;
-using UnityEngine;
+using JetBrains.Annotations;
+using System;
+using System.Collections;
+using System.Reflection;
 
-namespace ZoopMod
-{
+namespace ZoopMod {
+	[HarmonyPatch(typeof(InventoryManager), "SetMultiConstructorItemPlacement")]
+	public class InventoryManagerSetMultiContstruct {
+		[UsedImplicitly]
+		public static void Prefix(InventoryManager __instance, MultiConstructor multiConstructorItem) {
+			if(ZoopUtility.isZooping) {
+				//ConsoleWindow.Print("detected: " + multiConstructorItem.PrefabHash);
+				ZoopUtility.StartZoop(__instance);
+			}
+		}
+	}
 
-    //Original creators: Elmotrix & jixxed
-    [BepInPlugin("Elmotrix.jixxed.Kastuk.ZoopMod", "Zoop Mod", "2024.06.08")]
-    // [BepInProcess("rocketstation.exe")]
-    //[BepInDependency("CreativeFreedom", BepInDependency.DependencyFlags.SoftDependency)]
-    //that dependency not works with StationeersMods
-    public class ZoopPatch : BaseUnityPlugin
-    {
-        public static KeyCode ZoopHold;// = KeyCode.LeftShift;
-        public static KeyCode ZoopSwitch;// = KeyCode.Z;
+	[HarmonyPatch(typeof(InventoryManager), "SetConstructorItemPlacement")]
+	public class InventoryManagerSetContstruct {
+		[UsedImplicitly]
+		public static void Prefix(InventoryManager __instance, Constructor constructorItem) {
+			if(ZoopUtility.isZooping) {
+				//ConsoleWindow.Print("detected: " + constructorItem.PrefabHash);
+				ZoopUtility.StartZoop(__instance);
+			}
+		}
+	}
 
-        public void Log(string line)
-        {
-            Debug.Log("[Zoop Mod]: " + line);
-        }
+	[HarmonyPatch(typeof(InventoryManager), "CancelPlacement")]
+	public class InventoryManagerCancelPlacement {
+		[UsedImplicitly]
+		public static void Prefix(InventoryManager __instance) {
+			if(ZoopUtility.isZooping) {
+				//Debug.Log("zoop canceled at CancelPlacement");
+				ZoopUtility.CancelZoop();
+				ZoopUtility.isZoopKeyPressed = false;
+			}
+		}
+	}
 
-        //Originial creators: Elmotrix & jixxed
-        private void Awake()
-        {
-            //foreach (var plugin in Chainloader.PluginInfos)
-            //{
-            //    var metadata = plugin.Value.Metadata;
-            //    if (metadata.GUID.Equals("CreativeFreedom"))
-            //    {
-            //        // found it
-            //        this.Log("Creative Freedom is detected. No more collision checks for zooping.");
-            //        CFree = true;
-            //        break;
-            //    }
-            //}
+	[HarmonyPatch(typeof(InventoryManager), "UpdatePlacement", new Type[] { typeof(Constructor) })]
+	public class InventoryManagerUpdatePlacementConstructor {
+		[UsedImplicitly]
+		public static bool Prefix(InventoryManager __instance) {
+			return !ZoopUtility.isZooping; //false prevents placing down item //NICE CHECK
+		}
+	}
 
-            ZoopPatch.Instance = this;
-            this.Log("Hello World");
-            try
-            {
-                var harmony = new Harmony("Elmotrix.jixxed.Kastuk.Zoop");
-                harmony.PatchAll();
-                this.Log("Patch succeeded");
-                KeyManager.OnControlsChanged += new KeyManager.Event(ControlsChangedEvent);
-                //ZoopConfig.Bind(this);
-                //BindValidate.ParseKey();
+	[HarmonyPatch(typeof(InventoryManager), "UpdatePlacement", new Type[] { typeof(Structure) })]
+	public class InventoryManagerUpdatePlacementStructure {
+		[UsedImplicitly]
+		public static bool Prefix(InventoryManager __instance) {
+			return !ZoopUtility.isZooping; //false prevents placing down item
+		}
+	}
 
-                //KeyManager.OnControlsChanged += new KeyManager.Event(ControlsChangedEvent);
-            }
+	[HarmonyPatch(typeof(InventoryManager), "WaitUntilDone",
+		new Type[] { typeof(InventoryManager.DelegateEvent), typeof(float), typeof(Structure) })]
+	public class InventoryManagerWaitUntilDone0 {
+		[UsedImplicitly]
+		public static void Prefix(InventoryManager __instance, InventoryManager.DelegateEvent onFinished,
+			ref float timeToWait,
+			Structure structure) {
+			if(!InventoryManager.IsAuthoringMode) {
+				if(ZoopUtility.structures.Count <= 0) {
+					timeToWait = Math.Min(timeToWait * 1, timeToWait * 10);
+				} else {
+					timeToWait = Math.Min(timeToWait * ZoopUtility.structures.Count, timeToWait * 10); //PROBLEM same time of placement for single pieces after zooping
+				}
+			} else timeToWait = 0f; //try to make it instant for creative tool
+		}
+	}
 
-            catch (Exception e)
-            {
-                this.Log("Patch Failed");
-                this.Log(e.ToString());
-            }
-        }
-        public static ZoopPatch Instance;
-        public static bool CFree = false;
+	[HarmonyPatch(typeof(InventoryManager), "PlacementMode")]
+	public class InventoryManagerPlacementMode {
+		//public static bool CFree = false;
+		[UsedImplicitly]
+		public static bool Prefix(InventoryManager __instance) {
+			if(GameManager.RunSimulation) //not let it work in multiplayer client, as it bring errors there
+			{
 
-        //private void ControlsChangedEvent()
-        //{
-        //    UnityEngine.Debug.Log("Keybinding Controls changed");
+				bool scrollUp = __instance.newScrollData > 0f;
+				bool scrollDown = __instance.newScrollData < 0f;
+				ZoopUtility.isZoopKeyPressed = KeyManager.GetButton(ZoopMod.ZoopHold);
+				bool secondary = KeyManager.GetMouseDown("Secondary");
+				bool primary = KeyManager.GetMouseDown("Primary");
+				bool spec = KeyManager.GetButtonDown(ZoopMod.ZoopSwitch);
+				bool addWaypoint = KeyManager.GetButtonDown(ZoopMod.ZoopAddWaypoint);
+				bool removeWaypoint = KeyManager.GetButtonDown(ZoopMod.ZoopRemoveWaypoint);
+				//bool place = KeyManager.GetButton(KeyMap.PrecisionPlace);
 
-        //    // Backpack keybindings
-        //    ZoopHold = KeyManager.GetKey("Zoop hold");
-        //    ZoopSwitch = KeyManager.GetKey("Zoop switch");
-        //}
+				if(ZoopUtility.isZoopKeyPressed && primary || spec) {
+					// Debug.Log("zoop must start now");
+					ZoopUtility.StartZoop(__instance);
+				}
 
+				if(addWaypoint && ZoopUtility.isZooping) {
+					ZoopUtility.AddWaypoint();
+				}
 
-        /* Track current player keybinding selection, event trigger after any 
-             * keybinding change.
-             */
-        private void ControlsChangedEvent()
-        {
-            UnityEngine.Debug.Log("Keybinding Controls changed");
-
-            ZoopHold = KeyManager.GetKey("Zoop Hold");
-            ZoopSwitch = KeyManager.GetKey("Zoop Switch");
-
-        }
-    }
-
-
-    //public static class ZoopConfig //Copy from Beef's Game Fixes
-    //{
-    //    public static string HoldZoop = "LeftShift";
-    //    public static string SwitchZoop = "Z";
-
-    //    public static void Bind(ZoopPatch zm)
-    //    {
-    //        HoldZoop = zm.Config.Bind("Keys", "Hold zoop key", "LeftShift", "In construction mode, hold this key then click primary action to start zooping. Possible key names is like LeftControl or V.").Value;
-    //        SwitchZoop = zm.Config.Bind("Keys", "Switch zoop key", "Z", "In construction mode. press this key once to start zooping.").Value;
-    //    }
-    //}
+				if(removeWaypoint && ZoopUtility.isZooping) {
+					ZoopUtility.RemoveLastWaypoint();
+				}
 
 
+				if(primary && ZoopUtility.isZooping && !ZoopUtility.isZoopKeyPressed) {
+					if(!ZoopUtility.HasError) {
+						//NotAuthoringMode.Completion = true; //try not let original InventoryManager.UsePrimaryComplete override completion for Authoring Tool
 
+						//CHANGE tried to evade authoring mode check, as zero placement time is it
+						if(!InventoryManager.IsAuthoringMode && (double)InventoryManager.ConstructionCursor.BuildPlacementTime > 0.0) {
+							float num1 = 1f;
+							//if (InventoryManager.ParentHuman.Suit == null)//((UnityEngine.Object)InventoryManager.ParentHuman.Suit == (UnityEngine.Object)null) //did make errors at stable update 24.04.2024
+							//    num1 += 0.2f; //whyyy make it longer in suit there...
+							//float num2 = Mathf.Clamp(num1, 0.2f, 5f); //nosuit make number bigger
 
-    //public static class BindValidate
-    //{
-    //    //public static KeyCode hold = KeyCode.LeftShift;
-    //    //public static KeyCode switcher = KeyCode.Z;
+							Type InventoryManagerType = typeof(InventoryManager);
+							var method = InventoryManagerType.GetMethod("WaitUntilDone",
+								BindingFlags.NonPublic | BindingFlags.Instance, null,
+								new Type[] { typeof(InventoryManager.DelegateEvent), typeof(float), typeof(Structure) },
+								null);
+							ZoopUtility.ActionCoroutine = __instance.StartCoroutine((IEnumerator)method.Invoke(__instance,
+								new Object[]
+								{
+								//new InventoryManager.DelegateEvent(() => UniTask.Run(async () => await ZoopUtility.BuildZoopAsync(__instance))),
+								new InventoryManager.DelegateEvent(() => ZoopUtility.BuildZoop(__instance)),
+								InventoryManager.ConstructionCursor.BuildPlacementTime / num1,//num2, //bigger number makes it spend less time
+                                InventoryManager.ConstructionCursor
+								})
+							);
+						} else
+							ZoopUtility.BuildZoop(__instance);
+						//UniTask.Run(async () => await ZoopUtility.BuildZoopAsync(__instance)); //not finishing line properly stop but don't know why with waypoints addition feature
+					}
 
-    //    public static void ParseKey()
-    //    {
-    //        KeyCode key1 = ZoopPatch.ZoopHold;
-    //        KeyCode key2 = ZoopPatch.ZoopSwitch;
-    //        try
-    //        {
-    //            key1 = (KeyCode)Enum.Parse(typeof(KeyCode), ZoopConfig.HoldZoop);
-    //        }
-    //        catch (Exception)
-    //        {
-    //            Debug.Log("Wrong KeyCode name in Zoop config: " + ZoopConfig.HoldZoop + ". Return to default LeftShift key");
-    //            ZoopConfig.HoldZoop = "LeftShift";
-    //        }
-    //        ZoopPatch.ZoopHold = key1;
-    //        try
-    //        {
-    //            key2 = (KeyCode)Enum.Parse(typeof(KeyCode), ZoopConfig.SwitchZoop);
-    //        }
-    //        catch (Exception)
-    //        {
-    //            Debug.Log("Wrong KeyCode name in Zoop config: " + ZoopConfig.SwitchZoop + ". Return to default Z key");
-    //            ZoopConfig.SwitchZoop = "Z";
-    //        }
-    //        ZoopPatch.ZoopSwitch = key2;
-    //    }
+					return !ZoopUtility.isZooping;
+				}
+
+				if(secondary)// || drop)
+				{
+					//Debug.Log("zoop canceled by rmb");
+					ZoopUtility.CancelZoop();
+				}
+
+				return !ZoopUtility.isZoopKeyPressed;
+			} else return true; //let normal building work in multiplayer client too.
+		}
+	}
+
+	[HarmonyPatch(typeof(ConstructionPanel), "SelectUp")]
+	public class ConstructionPanelSelectUp {
+		[UsedImplicitly]
+		public static bool Prefix() {
+			return !(ZoopUtility.isZoopKeyPressed);
+		}
+	}
+
+	[HarmonyPatch(typeof(ConstructionPanel), "SelectDown")]
+	public class ConstructionPanelSelectDown {
+		[UsedImplicitly]
+		public static bool Prefix() {
+			return !(ZoopUtility.isZoopKeyPressed);
+		}
+	}
+
+	[HarmonyPatch(typeof(CursorManager), "SetSelectionColor")]
+	public class CursorManagerSetSelectionColor {
+		[UsedImplicitly]
+		public static void Postfix() {
+			if(ZoopUtility.isZooping) {
+				CursorManager.CursorSelectionRenderer.material.color =
+					ZoopUtility.lineColor.SetAlpha(InventoryManager.Instance.CursorAlphaInteractable);
+			}
+		}
+	}
 }
-

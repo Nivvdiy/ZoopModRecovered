@@ -396,4 +396,5 @@ FodyWeavers.xsd
 
 # JetBrains Rider
 *.sln.iml
-/Zoop/ZoopPatch - Copy.cs
+* - Copy.cs
+Zoop*\-*.cs

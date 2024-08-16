@@ -1,0 +1,13 @@
+<Project>
+	<PropertyGroup>
+		<!-- Définir les chemins par défaut pour les dépendances -->
+		<StationeersPath Condition=" '$(StationeersPath)' == '' ">H:\SteamLibrary\steamapps\common\Stationeers</StationeersPath>
+		<BepInExPath Condition=" '$(BepInExPath)' == '' ">$(StationeersPath)\BepInEx</BepInExPath>
+		<ManagedPath Condition=" '$(ManagedPath)' == '' ">$(StationeersPath)\rocketstation_Data\Managed</ManagedPath>
+		<ModPath Condition=" '$(ModPath)' == '' ">H:\SteamLibrary\steamapps\workshop\content\544550</ModPath>
+		<CreativeFreedomPath Condition=" '$(CreativeFreedomPath)' == '' ">$(ModPath)\3193624149</CreativeFreedomPath>
+		<ProgSignPath Condition=" '$(ProgSignPath)' == '' ">$(ModPath)\2923135966</ProgSignPath>
+		<PackagesPath Condition=" '$(PackagesPath)' == '' ">..\packages</PackagesPath>
+		<ModFolder Condition=" '$(ModFolder)' == '' ">D:\Documents\My Games\Stationeers\mods</ModFolder>
+	</PropertyGroup>
+</Project>
