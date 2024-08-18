@@ -1,5 +1,6 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project Sdk="Microsoft.NET.Sdk" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+
 	<!-- General Property Group -->
 	<PropertyGroup>
 		<Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
@@ -11,6 +12,7 @@
 		<AllowUnsafeBlocks>true</AllowUnsafeBlocks>
 		<TargetFrameworkVersion>v4.8</TargetFrameworkVersion>
 	</PropertyGroup>
+
 	<!-- Debug Configuration -->
 	<PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
 		<DebugSymbols>true</DebugSymbols>
@@ -21,6 +23,7 @@
 		<WarningLevel>4</WarningLevel>
 		<Prefer32Bit>false</Prefer32Bit>
 	</PropertyGroup>
+
 	<!-- Release Configuration -->
 	<PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
 		<DebugType>pdbonly</DebugType>
@@ -30,15 +33,18 @@
 		<WarningLevel>4</WarningLevel>
 		<Prefer32Bit>false</Prefer32Bit>
 	</PropertyGroup>
+
+	<!-- Import Props -->
 	<Import Project="$(SolutionDir)ZoopMod.VS.props" />
+
 	<!-- References -->
 	<ItemGroup>
 		<!-- System References -->
+		<Reference Include="ConfigurationManager">
+		  <HintPath>H:\SteamLibrary\steamapps\workshop\content\544550\3017371375\Scripts\ConfigurationManager.dll</HintPath>
+		</Reference>
 		<Reference Include="System" />
 		<Reference Include="System.Core" />
-		<Reference Include="System.Threading.Tasks.Extensions, Version=4.2.0.1, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51, processorArchitecture=MSIL">
-			<HintPath>$(PackagesPath)\System.Threading.Tasks.Extensions.4.5.4\lib\net461\System.Threading.Tasks.Extensions.dll</HintPath>
-		</Reference>
 		<Reference Include="System.Xml.Linq" />
 		<Reference Include="System.Data.DataSetExtensions" />
 		<Reference Include="Microsoft.CSharp" />
@@ -47,19 +53,47 @@
 		<Reference Include="System.Net.Http" />
 		<Reference Include="System.Windows.Forms" />
 		<Reference Include="System.Xml" />
+		<Reference Include="System.Threading.Tasks.Extensions, Version=4.2.0.1, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51, processorArchitecture=MSIL">
+			<HintPath>$(NuGetPackagesPath)\System.Threading.Tasks.Extensions.4.5.4\lib\net461\System.Threading.Tasks.Extensions.dll</HintPath>
+		</Reference>
+
 		<!-- Unity References -->
+		<Reference Include="Unity.TextMeshPro">
+			<HintPath>$(UnityManagedPath)\Unity.TextMeshPro.dll</HintPath>
+		</Reference>
 		<Reference Include="UnityEngine">
-			<HintPath>$(ManagedPath)\UnityEngine.dll</HintPath>
+			<HintPath>$(UnityManagedPath)\UnityEngine.dll</HintPath>
+		</Reference>
+		<Reference Include="UnityEngine.AnimationModule">
+			<HintPath>$(UnityManagedPath)\UnityEngine.AnimationModule.dll</HintPath>
 		</Reference>
 		<Reference Include="UnityEngine.CoreModule">
-			<HintPath>$(ManagedPath)\UnityEngine.CoreModule.dll</HintPath>
+			<HintPath>$(UnityManagedPath)\UnityEngine.CoreModule.dll</HintPath>
+		</Reference>
+		<Reference Include="UnityEngine.ImageConversionModule">
+			<HintPath>$(UnityManagedPath)\UnityEngine.ImageConversionModule.dll</HintPath>
 		</Reference>
 		<Reference Include="UnityEngine.InputModule">
-			<HintPath>$(ManagedPath)\UnityEngine.InputModule.dll</HintPath>
+			<HintPath>$(UnityManagedPath)\UnityEngine.InputModule.dll</HintPath>
+		</Reference>
+		<Reference Include="UnityEngine.TextRenderingModule">
+			<HintPath>$(UnityManagedPath)\UnityEngine.TextRenderingModule.dll</HintPath>
 		</Reference>
 		<Reference Include="UnityEngine.UI">
-			<HintPath>$(ManagedPath)\UnityEngine.UI.dll</HintPath>
+			<HintPath>$(UnityManagedPath)\UnityEngine.UI.dll</HintPath>
 		</Reference>
+		<Reference Include="UnityEngine.UIModule">
+			<HintPath>$(UnityManagedPath)\UnityEngine.UIModule.dll</HintPath>
+		</Reference>
+		<Reference Include="Assembly-CSharp, Version=0.2.4945.22425, Culture=neutral, processorArchitecture=MSIL">
+			<SpecificVersion>False</SpecificVersion>
+			<HintPath>$(UnityManagedPath)\Assembly-CSharp.dll</HintPath>
+		</Reference>
+		<Reference Include="UniTask, Version=2.3.3.0, Culture=neutral, PublicKeyToken=7a576c6e8fde454a, processorArchitecture=MSIL">
+			<SpecificVersion>False</SpecificVersion>
+			<HintPath>$(UnityManagedPath)\UniTask.dll</HintPath>
+		</Reference>
+
 		<!-- Mono References -->
 		<Reference Include="Mono.Cecil">
 			<HintPath>$(BepInExPath)\core\Mono.Cecil.dll</HintPath>
@@ -79,6 +113,7 @@
 		<Reference Include="MonoMod.Utils">
 			<HintPath>$(BepInExPath)\core\MonoMod.Utils.dll</HintPath>
 		</Reference>
+
 		<!-- Harmony/BepInEx References -->
 		<Reference Include="0Harmony">
 			<HintPath>$(BepInExPath)\core\0Harmony.dll</HintPath>
@@ -96,15 +131,8 @@
 		<Reference Include="HarmonyXInterop">
 			<HintPath>$(BepInExPath)\core\HarmonyXInterop.dll</HintPath>
 		</Reference>
+
 		<!-- Other References -->
-		<Reference Include="Assembly-CSharp, Version=0.2.4945.22425, Culture=neutral, processorArchitecture=MSIL">
-			<SpecificVersion>False</SpecificVersion>
-			<HintPath>$(ManagedPath)\Assembly-CSharp.dll</HintPath>
-		</Reference>
-		<Reference Include="UniTask, Version=2.3.3.0, Culture=neutral, PublicKeyToken=7a576c6e8fde454a, processorArchitecture=MSIL">
-			<SpecificVersion>False</SpecificVersion>
-			<HintPath>$(ManagedPath)\UniTask.dll</HintPath>
-		</Reference>
 		<Reference Include="StationeersMods">
 			<HintPath>$(BepInExPath)\plugins\StationeersMods\StationeersMods.dll</HintPath>
 		</Reference>
@@ -112,36 +140,43 @@
 			<HintPath>$(BepInExPath)\plugins\StationeersMods\StationeersMods.Interface.dll</HintPath>
 			<Private>False</Private>
 		</Reference>
-		<!-- Other Mods -->
 		<Reference Include="CreativeFreedom, Version=1.0.0.0, Culture=neutral, processorArchitecture=MSIL">
 			<SpecificVersion>False</SpecificVersion>
-			<HintPath>$(CreativeFreedomPath)\CreativeFreedom.dll</HintPath>
-			<Private>False</Private>
-		</Reference>
-		<Reference Include="ProgrammableSignMod">
-			<HintPath>$(ProgSignPath)\ProgrammableSignMod.dll</HintPath>
-			<Private>False</Private>
-		</Reference>
-		<Reference Include="FloppyDiskMod">
-			<HintPath>H:\SteamLibrary\steamapps\workshop\content\544550\2925407689\FloppyDiskMod.dll</HintPath>
+			<HintPath>$(CreativeFreedomModPath)\CreativeFreedom.dll</HintPath>
 			<Private>False</Private>
 		</Reference>
 	</ItemGroup>
-	<Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
+
 	<!-- Compile Items -->
 	<ItemGroup>
 		<_CopyItemsGameData Include="$(ProjectDir)\GameData\**\*.*" />
 		<_CopyItemsAbout Include="$(ProjectDir)\About\**\*.*" />
 	</ItemGroup>
-	<!-- Post-Build Events -->
-	<Target Name="AfterBuild">
-		<Exec Command='"B:\pdb2mdb.exe" "$(ProjectDir)\bin\Debug\$(ModName).dll"' Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' " />
-		<RemoveDir Directories="$(ModFolder)\$(ModName)" />
-		<Copy SourceFiles="$(ProjectDir)\$(ModName).info" DestinationFolder="$(ModFolder)\$(ModName)" ContinueOnError="false" />
-		<Copy SourceFiles="$(ProjectDir)\bin\Debug\$(ModName).dll" DestinationFolder="$(ModFolder)\$(ModName)" ContinueOnError="true" />
-		<Copy SourceFiles="@(_CopyItemsGameData)" DestinationFolder="$(ModFolder)\$(ModName)\GameData\%(RecursiveDir)" ContinueOnError="true" />
-		<Copy SourceFiles="@(_CopyItemsAbout)" DestinationFolder="$(ModFolder)\$(ModName)\About\%(RecursiveDir)" ContinueOnError="true" />
-		<Copy SourceFiles="$(ProjectDir)\bin\Debug\$(ModName).pdb" DestinationFolder="$(ModFolder)\$(ModName)" ContinueOnError="true" Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' " />
-		<Copy SourceFiles="$(ProjectDir)\bin\Debug\$(ModName).dll.mdb" DestinationFolder="$(ModFolder)\$(ModName)" ContinueOnError="true" Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' " />
+
+	<!-- Folder Structure -->
+	<ItemGroup>
+		<Folder Include="GameData\Images\" />
+	</ItemGroup>
+
+	<!-- Update Version On Release -->
+	<Target Name="RunUpdateVersionScript" BeforeTargets="BeforeBuild" Condition=" '$(Configuration)' == 'Release' ">
+		<Message Importance="High" Text="Update version" />
+		<Exec Command="powershell -NonInteractive -executionpolicy Unrestricted -command &quot;&amp; { .\UpdateVersion.ps1 } &quot;" />
 	</Target>
+
+	<!-- Post-Build Events -->
+	<Target Name="CustomAfterBuild" AfterTargets="Build">
+		<Message Importance="High" Text="Start building project files" />
+		<Exec Command="&quot;B:\pdb2mdb.exe&quot; &quot;$(ProjectDir)\bin\Debug\$(ModName).dll&quot;" Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' " />
+		<RemoveDir Directories="$(StationeersModOutputFolder)\$(ModName)" />
+		<Copy SourceFiles="$(ProjectDir)\$(ModName).info" DestinationFolder="$(StationeersModOutputFolder)\$(ModName)" ContinueOnError="false" />
+		<Copy SourceFiles="$(ProjectDir)\bin\Debug\$(ModName).dll" DestinationFolder="$(StationeersModOutputFolder)\$(ModName)" ContinueOnError="true" />
+		<Copy SourceFiles="@(_CopyItemsGameData)" DestinationFolder="$(StationeersModOutputFolder)\$(ModName)\GameData\%(RecursiveDir)" ContinueOnError="true" />
+		<Copy SourceFiles="@(_CopyItemsAbout)" DestinationFolder="$(StationeersModOutputFolder)\$(ModName)\About\%(RecursiveDir)" ContinueOnError="true" />
+		<Copy SourceFiles="$(ProjectDir)\bin\Debug\$(ModName).dll.mdb" DestinationFolder="$(StationeersModOutputFolder)\$(ModName)" ContinueOnError="true" Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' " />
+	</Target>
+
+	<!-- Import CSharp Targets -->
+	<Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
+
 </Project>
