@@ -440,11 +440,8 @@ namespace ZoopMod {
 				_cancellationToken = null;
 				ClearStructureCache();
 				previousCurrentPos = null;
-				//ZoopUtility.structures = new List<Structure>(); 
 				ZoopUtility.structures.Clear(); //try to reset a list of structures for single piece placing
 				waypoints.Clear();
-				//Structure structure = new Structure();
-				//ZoopUtility.structures.Add(structure); //just add single to return vanilla time of cable\pipe\chute placement
 			}
 
 			if(InventoryManager.ConstructionCursor != null)

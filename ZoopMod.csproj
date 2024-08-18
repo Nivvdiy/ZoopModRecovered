@@ -47,15 +47,27 @@
 		<Reference Include="System.Net.Http" />
 		<Reference Include="System.Windows.Forms" />
 		<Reference Include="System.Xml" />
+		<Reference Include="Unity.TextMeshPro">
+		  <HintPath>H:\SteamLibrary\steamapps\common\Stationeers\rocketstation_Data\Managed\Unity.TextMeshPro.dll</HintPath>
+		</Reference>
 		<!-- Unity References -->
 		<Reference Include="UnityEngine">
 			<HintPath>$(ManagedPath)\UnityEngine.dll</HintPath>
 		</Reference>
+		<Reference Include="UnityEngine.AnimationModule">
+		  <HintPath>H:\SteamLibrary\steamapps\common\Stationeers\rocketstation_Data\Managed\UnityEngine.AnimationModule.dll</HintPath>
+		</Reference>
 		<Reference Include="UnityEngine.CoreModule">
 			<HintPath>$(ManagedPath)\UnityEngine.CoreModule.dll</HintPath>
 		</Reference>
+		<Reference Include="UnityEngine.ImageConversionModule">
+		  <HintPath>H:\SteamLibrary\steamapps\common\Stationeers\rocketstation_Data\Managed\UnityEngine.ImageConversionModule.dll</HintPath>
+		</Reference>
 		<Reference Include="UnityEngine.InputModule">
 			<HintPath>$(ManagedPath)\UnityEngine.InputModule.dll</HintPath>
+		</Reference>
+		<Reference Include="UnityEngine.TextRenderingModule">
+		  <HintPath>H:\SteamLibrary\steamapps\common\Stationeers\rocketstation_Data\Managed\UnityEngine.TextRenderingModule.dll</HintPath>
 		</Reference>
 		<Reference Include="UnityEngine.UI">
 			<HintPath>$(ManagedPath)\UnityEngine.UI.dll</HintPath>
@@ -118,13 +130,8 @@
 			<HintPath>$(CreativeFreedomPath)\CreativeFreedom.dll</HintPath>
 			<Private>False</Private>
 		</Reference>
-		<Reference Include="ProgrammableSignMod">
-			<HintPath>$(ProgSignPath)\ProgrammableSignMod.dll</HintPath>
-			<Private>False</Private>
-		</Reference>
-		<Reference Include="FloppyDiskMod">
-			<HintPath>H:\SteamLibrary\steamapps\workshop\content\544550\2925407689\FloppyDiskMod.dll</HintPath>
-			<Private>False</Private>
+		<Reference Include="UnityEngine.UIModule">
+		  <HintPath>H:\SteamLibrary\steamapps\common\Stationeers\rocketstation_Data\Managed\UnityEngine.UIModule.dll</HintPath>
 		</Reference>
 	</ItemGroup>
 	<Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
@@ -133,15 +140,17 @@
 		<_CopyItemsGameData Include="$(ProjectDir)\GameData\**\*.*" />
 		<_CopyItemsAbout Include="$(ProjectDir)\About\**\*.*" />
 	</ItemGroup>
+	<ItemGroup>
+	  <Folder Include="GameData\Images\" />
+	</ItemGroup>
 	<!-- Post-Build Events -->
 	<Target Name="AfterBuild">
-		<Exec Command='"B:\pdb2mdb.exe" "$(ProjectDir)\bin\Debug\$(ModName).dll"' Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' " />
+		<Exec Command="&quot;B:\pdb2mdb.exe&quot; &quot;$(ProjectDir)\bin\Debug\$(ModName).dll&quot;" Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' " />
 		<RemoveDir Directories="$(ModFolder)\$(ModName)" />
 		<Copy SourceFiles="$(ProjectDir)\$(ModName).info" DestinationFolder="$(ModFolder)\$(ModName)" ContinueOnError="false" />
 		<Copy SourceFiles="$(ProjectDir)\bin\Debug\$(ModName).dll" DestinationFolder="$(ModFolder)\$(ModName)" ContinueOnError="true" />
 		<Copy SourceFiles="@(_CopyItemsGameData)" DestinationFolder="$(ModFolder)\$(ModName)\GameData\%(RecursiveDir)" ContinueOnError="true" />
 		<Copy SourceFiles="@(_CopyItemsAbout)" DestinationFolder="$(ModFolder)\$(ModName)\About\%(RecursiveDir)" ContinueOnError="true" />
-		<Copy SourceFiles="$(ProjectDir)\bin\Debug\$(ModName).pdb" DestinationFolder="$(ModFolder)\$(ModName)" ContinueOnError="true" Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' " />
 		<Copy SourceFiles="$(ProjectDir)\bin\Debug\$(ModName).dll.mdb" DestinationFolder="$(ModFolder)\$(ModName)" ContinueOnError="true" Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' " />
 	</Target>
 </Project>

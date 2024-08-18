@@ -72,6 +72,7 @@ namespace ZoopMod {
 					timeToWait = Math.Min(timeToWait * 1, timeToWait * 10);
 				} else {
 					timeToWait = Math.Min(timeToWait * ZoopUtility.structures.Count, timeToWait * 10); //PROBLEM same time of placement for single pieces after zooping
+					//switch(ZoopConfig.GetDifficulty())
 				}
 			} else timeToWait = 0f; //try to make it instant for creative tool
 		}

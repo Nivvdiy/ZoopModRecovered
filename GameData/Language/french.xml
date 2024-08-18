@@ -3,6 +3,10 @@
 	<Name>French</Name>
 	<Code>FR</Code>
 	<Font>font_extended</Font>
-	<Things>
-	</Things>
+	<Interface>
+		<Record>
+			<Key>SettingsMenuZoop</Key>
+			<Value>Zoop</Value>
+		</Record>
+	</Interface>
 </Language>

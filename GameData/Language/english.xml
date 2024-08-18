@@ -3,6 +3,10 @@
 	<Name>English</Name>
 	<Code>EN</Code>
 	<Font>font_english</Font>
-	<Things>
-	</Things>
+	<Interface>
+		<Record>
+			<Key>SettingsMenuZoop</Key>
+			<Value>Zoop</Value>
+		</Record>
+	</Interface>
 </Language>
