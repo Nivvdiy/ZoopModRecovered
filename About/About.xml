@@ -50,18 +50,16 @@
 
 		[b]Works for:[/b]
 		[list]
-		[*]"Tutorials & Helper Hints" update (August 5, 2024)
+		[*]"Tutorials and Helper Hints" update (August 5, 2024)
 		[*]"Bug Fixing" update (August 13, 2024)
 		[/list]
 	</Description>
 	<InGameDescription>
-		<![CDATA[
-        <size="30"><color=#ffa500>ZoopMod</color></size>
-        <b>WARNING:</b> <color=#ff0000>This mod requires the StationeersMods Plugin and BepInEx to function properly.</color>
-        Make sure you are unsubscribed from any previous versions. Installation details are available at <b><u><color=#00ccff>https://github.com/jixxed/StationeersMods</color></u></b>.
+		<![CDATA[<size="30"><color=#ffa500>ZoopMod</color></size>
+<b>WARNING:</b> <color=#ff0000>This mod requires the StationeersMods Plugin and BepInEx to function properly.</color>
+Make sure you are unsubscribed from any previous versions. Installation details are available at <b><u><color=#00ccff>https://github.com/jixxed/StationeersMods</color></u></b>.
 
-        ZoopMod allows you to build long lines of cables, pipes, or chutes between two points in a single action. Easily add waypoints to extend your construction lines without merging networks.
-    ]]>
+ZoopMod allows you to build long lines of cables, pipes, or chutes between two points in a single action. Easily add waypoints to extend your construction lines without merging networks.]]>
 	</InGameDescription>
 	<Tags />
 </ModMetadata>

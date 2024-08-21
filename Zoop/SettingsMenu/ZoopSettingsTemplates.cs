@@ -1,9 +1,14 @@
 ﻿using Assets.Scripts.UI;
+using Assets.Scripts.Util;
+using ColorBlindUtility.UGUI;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using TMPro;
+using UI;
 using UnityEngine;
 using UnityEngine.UI;
-using ColorBlindUtility.UGUI;
-using TMPro;
-using System.IO;
+using static System.Windows.Forms.VisualStyles.VisualStyleElement.TextBox;
 
 namespace ZoopMod.Zoop.SettingsMenu {
 	public class ZoopSettingsTemplates {
@@ -21,22 +26,17 @@ namespace ZoopMod.Zoop.SettingsMenu {
 			}
 		}
 
-		public GameObject GetMenuSettingButton(string localizationKey, Transform parent) {
-			return GetMenuSettingButton(localizationKey, parent, localizationKey);
-		}
-
-		public GameObject GetMenuSettingButtonWithImage(string localizationKey, Transform parent, string iconFileName) {
-			return GetMenuSettingButton(localizationKey, parent, localizationKey, iconFileName);
-		}
-
 		public GameObject GetMenuSettingButton(string localizationKey, Transform parent, string buttonName, string iconFileName = null) {
+			return null;
+		}
+
+		public GameObject GetMenuSettingButtonOld(string localizationKey, Transform parent, string buttonName, string iconFileName = null) {
 			// Define the resources for the toggle
 			DefaultControls.Resources toggleResources = new DefaultControls.Resources();
 
 			// Copy background and checkmark from the template button
 			GameObject templateButton = parent.Find("ButtonGameplay").gameObject;
-			toggleResources.background = templateButton.GetComponent<Image>().sprite;  // Assuming this is the correct sprite
-																					   // Set checkmark resource here if needed
+			toggleResources.background = templateButton.GetComponent<Image>().sprite;
 
 			// Create a new Toggle button using the DefaultControls
 			GameObject newButton = DefaultControls.CreateToggle(toggleResources);
@@ -193,5 +193,199 @@ namespace ZoopMod.Zoop.SettingsMenu {
 				}
 			}
 		}
+
+		public MainMenuPage TransformPanelSettingsToWorkshopStyle(MainMenuPage panelSettings) {
+			MainMenuPage panelWorkshopMods = GameObject.FindObjectsOfType<MainMenuPage>(true).FirstOrDefault(page => page.gameObject.name == "PanelWorkshopMods");
+			// Localiser les GameObjects sources et cibles
+			Transform sourceButtonList = panelWorkshopMods.transform.Find("ModList");
+			Transform sourceWindow = sourceButtonList?.Find("Window");
+			Transform sourceScrollbar = sourceButtonList?.Find("Scrollbar");
+			Transform sourceDynamicGrid = sourceWindow?.Find("DynamicGrid");
+
+			if(sourceButtonList == null || sourceWindow == null || sourceScrollbar == null || sourceDynamicGrid == null) {
+				Debug.LogError("Source GameObjects not found in PanelWorkshopMods.");
+				return null;
+			}
+
+			// Créer les GameObjects cibles sous PanelSettings
+			Transform panelServerWindow = panelSettings.transform.Find("PanelServerWindow");
+
+			if(panelServerWindow == null) {
+				Debug.LogError("PanelServerWindow not found in PanelSettings.");
+				return null;
+			}
+
+			Transform oldButtonGrid = panelServerWindow.Find("ButtonGrid");
+			if(oldButtonGrid == null) {
+				Debug.LogError("ButtonGrid not found in PanelSettings.");
+				return null;
+			}
+
+			// Créer le nouveau ButtonList, Window et Scrollbar
+			GameObject buttonListGO = new GameObject("ButtonList");
+			buttonListGO.transform.SetParent(panelServerWindow, false);
+
+			GameObject windowGO = new GameObject("Window");
+			windowGO.transform.SetParent(buttonListGO.transform, false);
+
+			GameObject scrollbarGO = new GameObject("Scrollbar");
+			scrollbarGO.transform.SetParent(buttonListGO.transform, false);
+
+			// Copier les composants
+			RectTransform rectButtonList = CopyAndAddComponent<RectTransform>(sourceButtonList, buttonListGO);
+			CopyAndAddComponent<CanvasRenderer>(oldButtonGrid, buttonListGO);
+			CopyAndAddComponent<Image>(oldButtonGrid, buttonListGO);
+			CopyAndAddComponent<ColorBlindImage>(oldButtonGrid, buttonListGO);
+			CopyAndAddComponent<ColorBlindUtility.UGUI.ColorBlindUtility>(oldButtonGrid, buttonListGO);
+			CopyAndAddComponent<ScrollRect>(sourceButtonList, buttonListGO);
+
+			RectTransform rectWindow = CopyAndAddComponent<RectTransform>(sourceWindow, windowGO);
+			CopyAndAddComponent<CanvasRenderer>(sourceWindow, windowGO);
+			CopyAndAddComponent<Image>(sourceWindow, windowGO);
+			CopyAndAddComponent<UnityEngine.UI.Mask>(sourceWindow, windowGO);
+			CopyAndAddComponent<RectMask2D>(sourceWindow, windowGO);
+			CopyAndAddComponent<ColorBlindImage>(sourceWindow, windowGO);
+			CopyAndAddComponent<ColorBlindUtility.UGUI.ColorBlindUtility>(sourceWindow, windowGO);
+
+			// Créer le "Sliding Area" pour la scrollbar
+			GameObject slidingAreaGO = new GameObject("Sliding Area");
+			slidingAreaGO.transform.SetParent(scrollbarGO.transform, false);
+
+			// Copier les composants du "Sliding Area"
+			CopyAndAddComponent<RectTransform>(sourceScrollbar.Find("Sliding Area"), slidingAreaGO).anchoredPosition = new Vector2(0, 0);
+
+			// Créer le "Handle" pour le "Sliding Area"
+			GameObject handleGO = new GameObject("Handle");
+			handleGO.transform.SetParent(slidingAreaGO.transform, false);
+
+			// Copier les composants du "Handle"
+			Transform sourceHandle = sourceScrollbar.Find("Sliding Area/Handle");
+			if(sourceHandle != null) {
+				CopyAndAddComponent<RectTransform>(sourceHandle, handleGO).anchoredPosition = new Vector2(0, 0);
+				CopyAndAddComponent<CanvasRenderer>(sourceHandle, handleGO);
+				CopyAndAddComponent<Image>(sourceHandle, handleGO);
+				CopyAndAddComponent<ColorBlindImage>(sourceHandle, handleGO);
+				CopyAndAddComponent<ColorBlindUtility.UGUI.ColorBlindUtility>(sourceHandle, handleGO);
+			}
+
+			// Copier les composants de la scrollbar
+			RectTransform rectScrollbar = CopyAndAddComponent<RectTransform>(sourceScrollbar, scrollbarGO);
+			CopyAndAddComponent<CanvasRenderer>(sourceScrollbar, scrollbarGO);
+			CopyAndAddComponent<Image>(sourceScrollbar, scrollbarGO);
+			CopyAndAddComponent<Scrollbar>(sourceScrollbar, scrollbarGO).handleRect = handleGO.GetComponent<RectTransform>();
+			CopyAndAddComponent<ColorBlindImage>(sourceScrollbar, scrollbarGO);
+			CopyAndAddComponent<ColorBlindUtility.UGUI.ColorBlindUtility>(sourceScrollbar, scrollbarGO);
+
+			// Créer le nouveau ButtonGrid basé sur DynamicGrid
+			GameObject newButtonGrid = new GameObject("ButtonGrid");
+			newButtonGrid.transform.SetParent(windowGO.transform, false);
+
+			// Copier les composants de DynamicGrid vers le nouveau ButtonGrid
+			CopyAndAddComponent<RectTransform>(sourceDynamicGrid, newButtonGrid).anchoredPosition = new Vector2(0, 0);
+			CopyAndAddComponent<GridLayoutGroup>(sourceDynamicGrid, newButtonGrid);
+			CopyAndAddComponent<ContentSizeFitter>(sourceDynamicGrid, newButtonGrid);
+
+			// Récupérer et appliquer le ToggleGroup de l'ancien ButtonGrid
+			ToggleGroup oldToggleGroup = oldButtonGrid.GetComponent<ToggleGroup>();
+			ToggleGroup newToggleGroup = null;
+			if(oldToggleGroup != null) {
+				newToggleGroup = newButtonGrid.AddComponent<ToggleGroup>();
+				CopyComponentValues(oldToggleGroup, newToggleGroup);
+			}
+
+			// Déplacer tous les enfants de l'ancien ButtonGrid vers le nouveau ButtonGrid
+			List<Transform> children = new List<Transform>();
+			Rect buttonSize = Rect.zero;
+			foreach(Transform child in oldButtonGrid) {
+				children.Add(child);
+				if(buttonSize == Rect.zero) {
+					buttonSize = child.GetComponent<RectTransform>().rect;
+				}
+			}
+
+			foreach(Transform child in children) {
+				child.SetParent(newButtonGrid.transform, false);
+				Toggle toggle = child.GetComponent<Toggle>();
+				if(toggle != null)
+					toggle.group = newToggleGroup ?? null;
+			}
+
+			// Configurer le ScrollRect pour le nouveau ButtonGrid
+			ScrollRect scrollRect = buttonListGO.GetComponent<ScrollRect>();
+			scrollRect.content = newButtonGrid.GetComponent<RectTransform>();
+			scrollRect.viewport = windowGO.GetComponent<RectTransform>();
+			scrollRect.verticalScrollbar = scrollbarGO.GetComponent<Scrollbar>();
+			scrollRect.horizontal = false;
+			scrollRect.vertical = true;
+
+			Vector2 oldOffsetMax = oldButtonGrid.GetComponent<RectTransform>().offsetMax;
+			Vector2 oldOffsetMin = oldButtonGrid.GetComponent<RectTransform>().offsetMin;
+
+			rectWindow.anchorMax = Vector2.up;
+			rectWindow.offsetMax = new Vector2(buttonSize.width, 0);
+			rectWindow.offsetMin = new Vector2(0, 0);
+
+			rectScrollbar.anchorMin = Vector2.right;
+			rectScrollbar.offsetMax = new Vector2(0, rectWindow.offsetMax.y);
+			rectScrollbar.offsetMin = new Vector2(-10, rectWindow.offsetMin.y);
+
+			rectButtonList.anchorMax = Vector2.up;
+			rectButtonList.offsetMax = new Vector2(oldOffsetMin.x + buttonSize.width + rectScrollbar.rect.width + 5, oldOffsetMax.y);
+			rectButtonList.offsetMin = new Vector2(oldOffsetMin.x, sourceButtonList.GetComponent<RectTransform>().offsetMin.y);
+
+			newButtonGrid.GetComponent<GridLayoutGroup>().cellSize = buttonSize.size;
+
+			// Supprimer l'ancien ButtonGrid
+			Object.DestroyImmediate(oldButtonGrid.gameObject);
+
+			/*AddOutlineToPanel(windowGO.gameObject, Color.cyan);
+			AddOutlineToPanel(buttonListGO.gameObject, Color.green);
+			AddOutlineToPanel(sourceButtonList.gameObject, Color.green);
+			AddOutlineToPanel(sourceWindow.gameObject, Color.cyan);
+			AddOutlineToPanel(scrollbarGO.gameObject, Color.yellow);
+			AddOutlineToPanel(sourceScrollbar.gameObject, Color.yellow);*/
+
+			return panelSettings;
+		}
+		public void AddOutlineToPanel(GameObject panel, Color color, float thickness = 2f) {
+			// Créer les quatre images pour simuler l'outline
+			CreateOutlineEdge(panel, "TopOutline", color, thickness, new Vector2(0, 1), new Vector2(1, 1), new Vector2(0, thickness));
+			CreateOutlineEdge(panel, "BottomOutline", color, thickness, new Vector2(0, 0), new Vector2(1, 0), new Vector2(0, thickness));
+			CreateOutlineEdge(panel, "LeftOutline", color, thickness, new Vector2(0, 0), new Vector2(0, 1), new Vector2(thickness, 0));
+			CreateOutlineEdge(panel, "RightOutline", color, thickness, new Vector2(1, 0), new Vector2(1, 1), new Vector2(thickness, 0));
+		}
+
+		private void CreateOutlineEdge(GameObject parent, string name, Color color, float thickness, Vector2 anchorMin, Vector2 anchorMax, Vector2 sizeDelta) {
+			// Créer un nouvel objet pour l'outline edge
+			GameObject outlineEdge = new GameObject(name);
+			outlineEdge.transform.SetParent(parent.transform, false);
+
+			// Ajouter un composant Image
+			Image image = outlineEdge.AddComponent<Image>();
+			image.color = color;
+
+			// Ajuster le RectTransform pour correspondre à la bordure spécifique
+			RectTransform rectTransform = outlineEdge.GetComponent<RectTransform>();
+			rectTransform.anchorMin = anchorMin;
+			rectTransform.anchorMax = anchorMax;
+			rectTransform.sizeDelta = sizeDelta;
+
+			Color transparent = color;
+			transparent.SetAlpha(0.3f);
+			Outline outline = parent.AddComponent<Outline>();
+			outline.useGraphicAlpha = true;
+			outline.effectColor = transparent;
+		}
+
+		private T CopyAndAddComponent<T>(Transform source, GameObject destination) where T : Component {
+			T sourceComponent = source.GetComponent<T>();
+			if(sourceComponent != null) {
+				T destinationComponent = destination.AddComponent<T>();
+				CopyComponentValues(sourceComponent, destinationComponent);
+				return destination.GetComponent<T>();
+			}
+			return null;
+		}
+
 	}
 }
