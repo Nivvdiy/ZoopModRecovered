@@ -4,199 +4,123 @@ using ColorBlindUtility.UGUI;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using TMPro;
 using UI;
 using UnityEngine;
 using UnityEngine.UI;
-using static System.Windows.Forms.VisualStyles.VisualStyleElement.TextBox;
 
 namespace ZoopMod.Zoop.SettingsMenu {
 	public class ZoopSettingsTemplates {
 
-		// Singleton instance
 		private static ZoopSettingsTemplates _instance;
-
-		// Property to access the singleton instance
+		private static readonly object instanceLock = new object();
 		public static ZoopSettingsTemplates Instance {
 			get {
 				if(_instance == null) {
-					_instance = new ZoopSettingsTemplates();
+					lock(instanceLock) {
+						if(_instance == null) {
+							_instance = new ZoopSettingsTemplates();
+						}
+					}
 				}
 				return _instance;
 			}
 		}
 
-		public GameObject GetMenuSettingButton(string localizationKey, Transform parent, string buttonName, string iconFileName = null) {
-			return null;
-		}
+		private ZoopSettingsTemplates() {}
 
-		public GameObject GetMenuSettingButtonOld(string localizationKey, Transform parent, string buttonName, string iconFileName = null) {
-			// Define the resources for the toggle
+		#region Menu Button Creation
+
+		public GameObject AddNewMenuSettingButton(string localizationKey, Transform parent, string buttonName, string iconFileName = null) {
+
 			DefaultControls.Resources toggleResources = new DefaultControls.Resources();
 
-			// Copy background and checkmark from the template button
-			GameObject templateButton = parent.Find("ButtonGameplay").gameObject;
-			toggleResources.background = templateButton.GetComponent<Image>().sprite;
+			Transform sourceButton = parent.Find("ButtonGameplay");
+			if(sourceButton == null) {
+				Debug.LogError("ButtonGameplay not found in PanelSettings");
+			}
+			toggleResources.background = sourceButton.GetComponent<Image>().sprite;
 
-			// Create a new Toggle button using the DefaultControls
-			GameObject newButton = DefaultControls.CreateToggle(toggleResources);
-			newButton.name = "Button" + buttonName;
-			newButton.transform.SetParent(parent, false);
-
-			CopyComponentValues(templateButton.GetComponent<Toggle>(), newButton.GetComponent<Toggle>());
-
-			CopyComponentValues(templateButton.GetComponent<RectTransform>(), newButton.GetComponent<RectTransform>());
-
-			// Add required components from the template to the new button
-			AddComponent<CanvasRenderer>(templateButton, newButton);
-			AddComponent<Image>(templateButton, newButton);
-			AddComponent<Animator>(templateButton, newButton);
-			AddComponent<UIAudioComponent>(templateButton, newButton);
-			AddComponent<ColorBlindImage>(templateButton, newButton);
-			AddComponent<ColorBlindUtility.UGUI.ColorBlindUtility>(templateButton, newButton);
-
-			// Remove default children created by DefaultControls
-			foreach(Transform child in newButton.transform) {
+			GameObject newButtonGo = DefaultControls.CreateToggle(toggleResources);
+			foreach(Transform child in newButtonGo.transform) {
 				Object.Destroy(child.gameObject);
 			}
 
-			// Create and add the new children matching the template's structure
-			CreateChildWithComponents(newButton.transform, "Toggled", templateButton.transform.Find("Toggled"));
-			CreateChildWithComponents(newButton.transform, "ButtonIcon", templateButton.transform.Find("ButtonIcon"));
-			CreateChildWithComponents(newButton.transform, "ButtonText", templateButton.transform.Find("ButtonText"));
+			newButtonGo.name = "Button" + buttonName;
+			newButtonGo.transform.SetParent(parent, false);
+			Toggle newButtonToggle = CopyComponentValues<Toggle>(sourceButton, newButtonGo);
+			CopyComponentValues<RectTransform>(sourceButton, newButtonGo);
+			CopyAndAddComponent<CanvasRenderer>(sourceButton, newButtonGo);
+			Image newButtonImg = CopyAndAddComponent<Image>(sourceButton, newButtonGo);
+			CopyAndAddComponent<Animator>(sourceButton, newButtonGo);
+			CopyAndAddComponent<UIAudioComponent>(sourceButton, newButtonGo);
+			CopyAndAddComponent<ColorBlindImage>(sourceButton, newButtonGo);
+			CopyAndAddComponent<ColorBlindUtility.UGUI.ColorBlindUtility>(sourceButton, newButtonGo);
 
-			Toggle newToggle = newButton.GetComponent<Toggle>();
+			Transform sourceToggled = sourceButton.Find("Toggled");
+			GameObject toggledGO = new GameObject("Toggled");
+			toggledGO.transform.SetParent(newButtonGo.transform, false);
+			CopyAndAddComponent<RectTransform>(sourceToggled, toggledGO);
+			Image toggledImg = CopyAndAddComponent<Image>(sourceToggled, toggledGO);
+			CopyAndAddComponent<ColorBlindImage>(sourceToggled, toggledGO);
+			CopyAndAddComponent<ColorBlindUtility.UGUI.ColorBlindUtility>(sourceToggled, toggledGO);
 
-			newToggle.graphic = newButton.transform.Find("Toggled").GetComponent<Image>();
-			newToggle.isOn = false;
-			newToggle.image = newButton.GetComponent<Image>();
-			newToggle.targetGraphic = newButton.GetComponent<Image>();
+			Transform sourceButtonIcon = sourceButton.Find("ButtonIcon");
+			GameObject buttonIconGO = new GameObject("ButtonIcon");
+			buttonIconGO.transform.SetParent(newButtonGo.transform, false);
+			CopyAndAddComponent<RectTransform>(sourceButtonIcon, buttonIconGO);
+			Image buttonIconImg = CopyAndAddComponent<Image>(sourceButtonIcon, buttonIconGO);
+			CopyAndAddComponent<ColorBlindImage>(sourceButtonIcon, buttonIconGO);
+			CopyAndAddComponent<ColorBlindUtility.UGUI.ColorBlindUtility>(sourceButtonIcon, buttonIconGO);
+
+			Transform sourceButtonText = sourceButton.Find("ButtonText");
+			GameObject buttonTextGO = new GameObject("ButtonText");
+			buttonTextGO.transform.SetParent(newButtonGo.transform, false);
+			CopyAndAddComponent<RectTransform>(sourceButtonText, buttonTextGO);
+			TextMeshProUGUI buttonTextTMP = CopyAndAddComponent<TextMeshProUGUI>(sourceButtonText, buttonTextGO);
+			LocalizedText buttonTextLocalizedText = CopyAndAddComponent<LocalizedText>(sourceButtonText, buttonTextGO);
+
+			newButtonToggle.graphic = toggledImg;
+			newButtonToggle.isOn = false;
+			newButtonToggle.image = newButtonImg;
+			newButtonToggle.targetGraphic = newButtonImg;
 
 			// Modify the text and localization
-			LocalizedText localizedText = newButton.GetComponentInChildren<LocalizedText>();
-			if(localizedText != null) {
-				localizedText.TextMesh = newButton.GetComponentInChildren<TextMeshProUGUI>();
-				localizedText.StringKey = localizationKey;
-				localizedText.Refresh();
+			if(buttonTextLocalizedText != null) {
+				buttonTextLocalizedText.TextMesh = buttonTextTMP;
+				buttonTextLocalizedText.StringKey = localizationKey;
+				buttonTextLocalizedText.Refresh();
 			}
 
 			// Load the icon from a PNG file if provided
 			if(!string.IsNullOrEmpty(iconFileName)) {
-				Image iconImage = newButton.transform.Find("ButtonIcon")?.GetComponent<Image>();
-				if(iconImage != null) {
+				if(buttonIconImg != null) {
 					Sprite iconSprite = LoadSpriteFromFile(iconFileName, 32, 32);
 					if(iconSprite != null) {
-						iconImage.overrideSprite = iconSprite;
-						iconImage.sprite = iconSprite;
-						iconImage.enabled = true;
+						buttonIconImg.overrideSprite = iconSprite;
+						buttonIconImg.sprite = iconSprite;
+						buttonIconImg.enabled = true;
 					}
 				} else {
 					Debug.LogError("ButtonIcon Image component not found.");
 				}
 			} else {
 				// Disable icon if no valid file is provided
-				newButton.transform.Find("ButtonIcon").GetComponent<Image>().enabled = false;
+				buttonIconImg.enabled = false;
 			}
 
-			return newButton;
+			return newButtonGo;
 		}
 
-		private Sprite LoadSpriteFromFile(string fileName, int expectedWidth, int expectedHeight, float pixelsPerUnit = 100.0f) {
+		#endregion
 
-			string modPath = Path.GetDirectoryName(Instance.GetType().Assembly.Location);
-			string filePath = Path.Combine(modPath, "GameData", "Images", fileName+".png");
+		#region Panel Transformation
+		public void AddScrollBarToSettingsMenu(ref MainMenuPage panelSettings) {
 
-			if(!File.Exists(filePath)) {
-				Debug.LogError("File does not exist.");
-				return null;
-			} else if(!Path.GetExtension(filePath).Equals(".png")) {
-				Debug.LogError("File is not a PNG");
-				return null;
-			}
-
-			byte[] fileData = File.ReadAllBytes(filePath);
-			Texture2D texture = new Texture2D(2, 2);
-			ImageConversion.LoadImage(texture, fileData);
-
-			// Resize to 32x32 if necessary
-			if(texture.width != expectedWidth || texture.height != expectedHeight) {
-				Rescale(texture, expectedWidth, expectedHeight);
-			}
-			Sprite sprite = Sprite.Create(texture, new Rect(0, 0, texture.width, texture.height), new Vector2(0.5f, 0.5f), pixelsPerUnit);
-			sprite.name = fileName;
-			return sprite;
-		}
-
-		public static void Rescale(Texture2D tex, int newWidth, int newHeight) {
-			Texture2D newTex = new Texture2D(newWidth, newHeight);
-			float ratioX = (float)tex.width / newWidth;
-			float ratioY = (float)tex.height / newHeight;
-			float ratio = Mathf.Min(ratioX, ratioY);
-
-			int finalWidth = Mathf.FloorToInt(tex.width / ratio);
-			int finalHeight = Mathf.FloorToInt(tex.height / ratio);
-
-			for(int y = 0; y < newHeight; y++) {
-				for(int x = 0; x < newWidth; x++) {
-					float xSample = x * ratio;
-					float ySample = y * ratio;
-
-					newTex.SetPixel(x, y, tex.GetPixelBilinear(xSample / tex.width, ySample / tex.height));
-				}
-			}
-			newTex.Apply();
-
-			tex.Reinitialize(newWidth, newHeight);
-			tex.SetPixels(newTex.GetPixels());
-			tex.Apply();
-		}
-
-		private static void CreateChildWithComponents(Transform parent, string childName, Transform template) {
-			GameObject child = new GameObject(childName);
-			child.transform.SetParent(parent);
-
-			foreach(Component component in template.GetComponents<Component>()) {
-				System.Type componentType = component.GetType();
-				Component newComponent = child.AddComponent(componentType);
-				CopyComponentValues(component, newComponent);
-			}
-		}
-
-		private static void AddComponent<T>(GameObject source, GameObject destination) where T : Component {
-			T sourceComponent = source.GetComponent<T>();
-			if(sourceComponent != null) {
-				T destinationComponent = destination.AddComponent<T>();
-				CopyComponentValues(sourceComponent, destinationComponent);
-			}
-		}
-
-		private static void CopyComponentValues(Component original, Component copy) {
-			var type = original.GetType();
-
-			// Copy fields
-			var fields = type.GetFields(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-			foreach(var field in fields) {
-				if(!field.Name.Equals("name") && !field.Name.Contains("parent") && !field.Name.Equals("onValueChanged")) {
-					field.SetValue(copy, field.GetValue(original));
-				}
-			}
-
-			// Copy properties
-			var properties = type.GetProperties(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-			foreach(var property in properties) {
-				if(property.CanWrite && property.GetMethod != null && property.SetMethod != null && !property.Name.Contains("parent") && !property.Name.Equals("name") && !property.Name.Equals("onValueChanged")) {
-					try {
-						property.SetValue(copy, property.GetValue(original));
-					} catch {
-						Debug.LogWarning($"Failed to copy property {property.Name} from {original} to {copy}");
-					}
-				}
-			}
-		}
-
-		public MainMenuPage TransformPanelSettingsToWorkshopStyle(MainMenuPage panelSettings) {
 			MainMenuPage panelWorkshopMods = GameObject.FindObjectsOfType<MainMenuPage>(true).FirstOrDefault(page => page.gameObject.name == "PanelWorkshopMods");
-			// Localiser les GameObjects sources et cibles
+
+			// Find Source GameObjects from workshopPanel
 			Transform sourceButtonList = panelWorkshopMods.transform.Find("ModList");
 			Transform sourceWindow = sourceButtonList?.Find("Window");
 			Transform sourceScrollbar = sourceButtonList?.Find("Scrollbar");
@@ -204,24 +128,24 @@ namespace ZoopMod.Zoop.SettingsMenu {
 
 			if(sourceButtonList == null || sourceWindow == null || sourceScrollbar == null || sourceDynamicGrid == null) {
 				Debug.LogError("Source GameObjects not found in PanelWorkshopMods.");
-				return null;
+				return;
 			}
 
-			// Créer les GameObjects cibles sous PanelSettings
+			// Find Panel which contain buttons
 			Transform panelServerWindow = panelSettings.transform.Find("PanelServerWindow");
 
 			if(panelServerWindow == null) {
 				Debug.LogError("PanelServerWindow not found in PanelSettings.");
-				return null;
+				return;
 			}
 
 			Transform oldButtonGrid = panelServerWindow.Find("ButtonGrid");
 			if(oldButtonGrid == null) {
 				Debug.LogError("ButtonGrid not found in PanelSettings.");
-				return null;
+				return;
 			}
 
-			// Créer le nouveau ButtonList, Window et Scrollbar
+			// Create ButtonList, Window and Scrollbar
 			GameObject buttonListGO = new GameObject("ButtonList");
 			buttonListGO.transform.SetParent(panelServerWindow, false);
 
@@ -231,7 +155,7 @@ namespace ZoopMod.Zoop.SettingsMenu {
 			GameObject scrollbarGO = new GameObject("Scrollbar");
 			scrollbarGO.transform.SetParent(buttonListGO.transform, false);
 
-			// Copier les composants
+			// Copy components from source templates
 			RectTransform rectButtonList = CopyAndAddComponent<RectTransform>(sourceButtonList, buttonListGO);
 			CopyAndAddComponent<CanvasRenderer>(oldButtonGrid, buttonListGO);
 			CopyAndAddComponent<Image>(oldButtonGrid, buttonListGO);
@@ -247,18 +171,13 @@ namespace ZoopMod.Zoop.SettingsMenu {
 			CopyAndAddComponent<ColorBlindImage>(sourceWindow, windowGO);
 			CopyAndAddComponent<ColorBlindUtility.UGUI.ColorBlindUtility>(sourceWindow, windowGO);
 
-			// Créer le "Sliding Area" pour la scrollbar
+			// Create slidingArea and handle for scrollbar
 			GameObject slidingAreaGO = new GameObject("Sliding Area");
 			slidingAreaGO.transform.SetParent(scrollbarGO.transform, false);
-
-			// Copier les composants du "Sliding Area"
 			CopyAndAddComponent<RectTransform>(sourceScrollbar.Find("Sliding Area"), slidingAreaGO).anchoredPosition = new Vector2(0, 0);
 
-			// Créer le "Handle" pour le "Sliding Area"
 			GameObject handleGO = new GameObject("Handle");
 			handleGO.transform.SetParent(slidingAreaGO.transform, false);
-
-			// Copier les composants du "Handle"
 			Transform sourceHandle = sourceScrollbar.Find("Sliding Area/Handle");
 			if(sourceHandle != null) {
 				CopyAndAddComponent<RectTransform>(sourceHandle, handleGO).anchoredPosition = new Vector2(0, 0);
@@ -268,7 +187,7 @@ namespace ZoopMod.Zoop.SettingsMenu {
 				CopyAndAddComponent<ColorBlindUtility.UGUI.ColorBlindUtility>(sourceHandle, handleGO);
 			}
 
-			// Copier les composants de la scrollbar
+			// Copy scrollbar components
 			RectTransform rectScrollbar = CopyAndAddComponent<RectTransform>(sourceScrollbar, scrollbarGO);
 			CopyAndAddComponent<CanvasRenderer>(sourceScrollbar, scrollbarGO);
 			CopyAndAddComponent<Image>(sourceScrollbar, scrollbarGO);
@@ -276,24 +195,17 @@ namespace ZoopMod.Zoop.SettingsMenu {
 			CopyAndAddComponent<ColorBlindImage>(sourceScrollbar, scrollbarGO);
 			CopyAndAddComponent<ColorBlindUtility.UGUI.ColorBlindUtility>(sourceScrollbar, scrollbarGO);
 
-			// Créer le nouveau ButtonGrid basé sur DynamicGrid
+			// Create buttonGrid from the DynamicGrid of the source
 			GameObject newButtonGrid = new GameObject("ButtonGrid");
 			newButtonGrid.transform.SetParent(windowGO.transform, false);
-
-			// Copier les composants de DynamicGrid vers le nouveau ButtonGrid
 			CopyAndAddComponent<RectTransform>(sourceDynamicGrid, newButtonGrid).anchoredPosition = new Vector2(0, 0);
 			CopyAndAddComponent<GridLayoutGroup>(sourceDynamicGrid, newButtonGrid);
 			CopyAndAddComponent<ContentSizeFitter>(sourceDynamicGrid, newButtonGrid);
 
-			// Récupérer et appliquer le ToggleGroup de l'ancien ButtonGrid
-			ToggleGroup oldToggleGroup = oldButtonGrid.GetComponent<ToggleGroup>();
-			ToggleGroup newToggleGroup = null;
-			if(oldToggleGroup != null) {
-				newToggleGroup = newButtonGrid.AddComponent<ToggleGroup>();
-				CopyComponentValues(oldToggleGroup, newToggleGroup);
-			}
+			// Get togglegroup from old buttonGrid to new buttonList
+			ToggleGroup newToggleGroup = CopyAndAddComponent<ToggleGroup>(oldButtonGrid, newButtonGrid);
 
-			// Déplacer tous les enfants de l'ancien ButtonGrid vers le nouveau ButtonGrid
+			// Move buttons from old buttonGrid to new buttonList
 			List<Transform> children = new List<Transform>();
 			Rect buttonSize = Rect.zero;
 			foreach(Transform child in oldButtonGrid) {
@@ -310,7 +222,6 @@ namespace ZoopMod.Zoop.SettingsMenu {
 					toggle.group = newToggleGroup ?? null;
 			}
 
-			// Configurer le ScrollRect pour le nouveau ButtonGrid
 			ScrollRect scrollRect = buttonListGO.GetComponent<ScrollRect>();
 			scrollRect.content = newButtonGrid.GetComponent<RectTransform>();
 			scrollRect.viewport = windowGO.GetComponent<RectTransform>();
@@ -318,6 +229,7 @@ namespace ZoopMod.Zoop.SettingsMenu {
 			scrollRect.horizontal = false;
 			scrollRect.vertical = true;
 
+			//Set position and anchors for fitting ther new window architecture
 			Vector2 oldOffsetMax = oldButtonGrid.GetComponent<RectTransform>().offsetMax;
 			Vector2 oldOffsetMin = oldButtonGrid.GetComponent<RectTransform>().offsetMin;
 
@@ -335,18 +247,24 @@ namespace ZoopMod.Zoop.SettingsMenu {
 
 			newButtonGrid.GetComponent<GridLayoutGroup>().cellSize = buttonSize.size;
 
-			// Supprimer l'ancien ButtonGrid
+			// Delete old ButtonGrid
 			Object.DestroyImmediate(oldButtonGrid.gameObject);
 
-			/*AddOutlineToPanel(windowGO.gameObject, Color.cyan);
-			AddOutlineToPanel(buttonListGO.gameObject, Color.green);
-			AddOutlineToPanel(sourceButtonList.gameObject, Color.green);
-			AddOutlineToPanel(sourceWindow.gameObject, Color.cyan);
-			AddOutlineToPanel(scrollbarGO.gameObject, Color.yellow);
-			AddOutlineToPanel(sourceScrollbar.gameObject, Color.yellow);*/
-
-			return panelSettings;
+			//Only for visualising for dev
+			//AddOutlineToPanel(windowGO.gameObject, Color.cyan);
+			//AddOutlineToPanel(buttonListGO.gameObject, Color.green);
+			//AddOutlineToPanel(sourceButtonList.gameObject, Color.green);
+			//AddOutlineToPanel(sourceWindow.gameObject, Color.cyan);
+			//AddOutlineToPanel(scrollbarGO.gameObject, Color.yellow);
+			//AddOutlineToPanel(sourceScrollbar.gameObject, Color.yellow);
 		}
+		#endregion
+
+		#region Utility Methods
+		#endregion
+
+		#region Dev Utility
+
 		public void AddOutlineToPanel(GameObject panel, Color color, float thickness = 2f) {
 			// Créer les quatre images pour simuler l'outline
 			CreateOutlineEdge(panel, "TopOutline", color, thickness, new Vector2(0, 1), new Vector2(1, 1), new Vector2(0, thickness));
@@ -377,11 +295,131 @@ namespace ZoopMod.Zoop.SettingsMenu {
 			outline.effectColor = transparent;
 		}
 
+		#endregion
+
+		private Sprite LoadSpriteFromFile(string fileName, int expectedWidth, int expectedHeight, float pixelsPerUnit = 100.0f) {
+
+			string modPath = Path.GetDirectoryName(Instance.GetType().Assembly.Location);
+			string filePath = Path.Combine(modPath, "GameData", "Images", fileName+".png");
+
+			if(!File.Exists(filePath)) {
+				Debug.LogError("File does not exist.");
+				return null;
+			} else if(!Path.GetExtension(filePath).Equals(".png")) {
+				Debug.LogError("File is not a PNG");
+				return null;
+			}
+
+			byte[] fileData = File.ReadAllBytes(filePath);
+			Texture2D texture = new Texture2D(2, 2);
+			ImageConversion.LoadImage(texture, fileData);
+
+			// Resize to 32x32 if necessary
+			if(texture.width != expectedWidth || texture.height != expectedHeight) {
+				Rescale(texture, expectedWidth, expectedHeight);
+			}
+			Sprite sprite = Sprite.Create(texture, new Rect(0, 0, texture.width, texture.height), new Vector2(0.5f, 0.5f), pixelsPerUnit);
+			sprite.name = fileName;
+			return sprite;
+		}
+
+		private void Rescale(Texture2D tex, int newWidth, int newHeight) {
+			Texture2D newTex = new Texture2D(newWidth, newHeight);
+			float ratioX = (float)tex.width / newWidth;
+			float ratioY = (float)tex.height / newHeight;
+			float ratio = Mathf.Min(ratioX, ratioY);
+
+			int finalWidth = Mathf.FloorToInt(tex.width / ratio);
+			int finalHeight = Mathf.FloorToInt(tex.height / ratio);
+
+			for(int y = 0; y < newHeight; y++) {
+				for(int x = 0; x < newWidth; x++) {
+					float xSample = x * ratio;
+					float ySample = y * ratio;
+
+					newTex.SetPixel(x, y, tex.GetPixelBilinear(xSample / tex.width, ySample / tex.height));
+				}
+			}
+			newTex.Apply();
+
+			tex.Reinitialize(newWidth, newHeight);
+			tex.SetPixels(newTex.GetPixels());
+			tex.Apply();
+		}
+
+		private void CreateChildWithComponents(Transform parent, string childName, Transform source) {
+			// Création d'un nouvel objet enfant avec le nom spécifié
+			GameObject child = new GameObject(childName);
+			child.transform.SetParent(parent);
+
+			// Pour chaque composant du source, ajouter et copier les valeurs dans le nouvel enfant
+			foreach(Component component in source.GetComponents<Component>()) {
+				System.Type componentType = component.GetType();
+
+				// Utiliser la méthode générique CopyAndAddComponent pour gérer la copie et l'ajout
+				var copyMethod = GetType().GetMethod("CopyAndAddComponent", BindingFlags.NonPublic | BindingFlags.Instance)
+										.MakeGenericMethod(componentType);
+				copyMethod.Invoke(this, new object[] { source, child });
+			}
+		}
+
+		private T CopyComponentValues<T>(Transform source, GameObject destination) where T : Component {
+
+			if(source == null || destination == null) {
+				Debug.LogError("Source or Destination is null.");
+				return null;
+			}
+
+			T originalComponent = source.GetComponent<T>();
+			if(originalComponent == null) {
+				Debug.LogWarning($"Source does not have a component of type {typeof(T).Name}.");
+				return null;
+			}
+
+			T destinationComponent = destination.GetComponent<T>();
+			if(destinationComponent == null) {
+				destinationComponent = destination.AddComponent<T>();
+			}
+
+			System.Type type = typeof(T);
+			List<string> consolidatedWhitelist = ZoopComponentFilterRules.Instance.BuildConsolidatedWhitelist(type);
+
+			var fields = type.GetFields(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+			foreach(var field in fields) {
+				string fieldName = field.Name;
+
+				// Check if this field is in the consolidated whitelist
+				if(consolidatedWhitelist.Contains(fieldName)) {
+					try {
+						var value = field.GetValue(originalComponent);
+						field.SetValue(destinationComponent, value);
+					} catch(System.Exception ex) {
+						Debug.LogWarning($"Failed to copy field '{fieldName}' from {type.Name}: {ex.Message}");
+					}
+				}
+			}
+
+			var properties = type.GetProperties(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+			foreach(var property in properties) {
+				string propertyName = property.Name;
+
+				if(property.CanRead && property.CanWrite && consolidatedWhitelist.Contains(propertyName)) {
+					try {
+						var value = property.GetValue(originalComponent);
+						property.SetValue(destinationComponent, value);
+					} catch(System.Exception ex) {
+						Debug.LogWarning($"Failed to copy property '{propertyName}' from {type.Name}: {ex.Message}");
+					}
+				}
+			}
+
+			return destinationComponent;
+		}
+
 		private T CopyAndAddComponent<T>(Transform source, GameObject destination) where T : Component {
-			T sourceComponent = source.GetComponent<T>();
-			if(sourceComponent != null) {
-				T destinationComponent = destination.AddComponent<T>();
-				CopyComponentValues(sourceComponent, destinationComponent);
+			if(source.GetComponent<T>() != null) {
+				destination.AddComponent<T>();
+				CopyComponentValues<T>(source, destination);
 				return destination.GetComponent<T>();
 			}
 			return null;

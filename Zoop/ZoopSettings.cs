@@ -17,14 +17,17 @@ namespace ZoopMod {
 			if(settingsPanel != null) {
 				Debug.Log((object)("SettingsPanel found -> " + settingsPanel.name));
 
-				settingsPanel = ZoopSettingsTemplates.Instance.TransformPanelSettingsToWorkshopStyle(settingsPanel);
+				ZoopSettingsTemplates.Instance.AddScrollBarToSettingsMenu(ref settingsPanel);
 				if(settingsPanel != null) {
 					// Find the "ButtonGrid" in the settings panel
 					Transform buttonGrid = settingsPanel.GetComponentsInChildren<Transform>(true).FirstOrDefault(t => t.name == "ButtonGrid");
+					Transform pageGrid = settingsPanel.GetComponentsInChildren<Transform>(true).FirstOrDefault(t => t.name == "PageGrid");
 
-					if(buttonGrid != null) {
+					if(buttonGrid != null && pageGrid != null) {
 						// Use the MenuTemplate to create a new settings button
-						GameObject modSettingsButton = ZoopSettingsTemplates.Instance.GetMenuSettingButton("SettingsMenuZoop", buttonGrid, "ZoopMod", "icon-zoopmod");
+						GameObject modSettingsButton = ZoopSettingsTemplates.Instance.AddNewMenuSettingButton("SettingsMenuZoop", buttonGrid, "ZoopMod", "icon-zoopmod");
+
+						//GameObject modPageGrid = ZoopSettingsTemplates.Instance.AddNewMenuSettingsPage("", pageGrid, "", []);
 
 						Debug.Log("ModSettingsToggle added to ButtonGrid.");
 					} else {

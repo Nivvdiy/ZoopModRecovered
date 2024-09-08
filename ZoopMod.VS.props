@@ -1,13 +1,12 @@
 <Project>
 	<PropertyGroup>
 		<!-- Définir les chemins par défaut pour les dépendances -->
-		<StationeersPath Condition=" '$(StationeersPath)' == '' ">H:\SteamLibrary\steamapps\common\Stationeers</StationeersPath>
-		<BepInExPath Condition=" '$(BepInExPath)' == '' ">$(StationeersPath)\BepInEx</BepInExPath>
-		<ManagedPath Condition=" '$(ManagedPath)' == '' ">$(StationeersPath)\rocketstation_Data\Managed</ManagedPath>
-		<ModPath Condition=" '$(ModPath)' == '' ">H:\SteamLibrary\steamapps\workshop\content\544550</ModPath>
-		<CreativeFreedomPath Condition=" '$(CreativeFreedomPath)' == '' ">$(ModPath)\3193624149</CreativeFreedomPath>
-		<ProgSignPath Condition=" '$(ProgSignPath)' == '' ">$(ModPath)\2923135966</ProgSignPath>
-		<PackagesPath Condition=" '$(PackagesPath)' == '' ">..\packages</PackagesPath>
-		<ModFolder Condition=" '$(ModFolder)' == '' ">D:\Documents\My Games\Stationeers\mods</ModFolder>
+		<StationeersInstallPath Condition=" '$(StationeersInstallPath)' == '' ">H:\SteamLibrary\steamapps\common\Stationeers</StationeersInstallPath>
+		<BepInExPath Condition=" '$(BepInExPath)' == '' ">$(StationeersInstallPath)\BepInEx</BepInExPath>
+		<UnityManagedPath Condition=" '$(UnityManagedPath)' == '' ">$(StationeersInstallPath)\rocketstation_Data\Managed</UnityManagedPath>
+		<StationeersModWorkshopPath Condition=" '$(StationeersModWorkshopPath)' == '' ">H:\SteamLibrary\steamapps\workshop\content\544550</StationeersModWorkshopPath>
+		<CreativeFreedomModPath Condition=" '$(CreativeFreedomModPath)' == '' ">$(StationeersModWorkshopPath)\3193624149</CreativeFreedomModPath>
+		<NuGetPackagesPath Condition=" '$(NuGetPackagesPath)' == '' ">..\packages</NuGetPackagesPath>
+		<StationeersModOutputFolder Condition=" '$(StationeersModOutputFolder)' == '' ">D:\Documents\My Games\Stationeers\mods</StationeersModOutputFolder>
 	</PropertyGroup>
 </Project>
