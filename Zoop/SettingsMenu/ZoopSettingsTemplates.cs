@@ -1,6 +1,7 @@
 ﻿using Assets.Scripts.UI;
 using Assets.Scripts.Util;
 using ColorBlindUtility.UGUI;
+using LeTai.Asset.TranslucentImage;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -9,10 +10,12 @@ using TMPro;
 using UI;
 using UnityEngine;
 using UnityEngine.UI;
+using static System.Windows.Forms.VisualStyles.VisualStyleElement.Header;
 
 namespace ZoopMod.Zoop.SettingsMenu {
 	public class ZoopSettingsTemplates {
 
+		#region Singleton with lock security
 		private static ZoopSettingsTemplates _instance;
 		private static readonly object instanceLock = new object();
 		public static ZoopSettingsTemplates Instance {
@@ -29,14 +32,23 @@ namespace ZoopMod.Zoop.SettingsMenu {
 		}
 
 		private ZoopSettingsTemplates() {}
+		#endregion
 
-		#region Menu Button Creation
+		#region Menu Element Creation
 
-		public GameObject AddNewMenuSettingButton(string localizationKey, Transform parent, string buttonName, string iconFileName = null) {
-
+		/// <summary>
+		/// Add new button to settings menu button grid
+		/// </summary>
+		/// <param name="parentButtonGrid">The parent transform where the button grid is located.</param>
+		/// <param name="sourceButton">The sourceName button to be used as a template.</param>
+		/// <param name="settingsButtonName">The name of the settings button GameObject.</param>
+		/// <param name="settingsButtonLocalizationKey">The localization key for the settings button text.</param>
+		/// <param name="settingsButtonIconFileName">The file name of the icon to be used for the settings button (optional).</param>
+		/// <returns>The created button GameObject.</returns>
+		public GameObject AddMenuSettingsButton(Transform parentButtonGrid, Transform sourceButton, string settingsButtonName, string settingsButtonLocalizationKey, string settingsButtonIconFileName = null) {
+			///TODO: Rework to use DefaultControls Create element
 			DefaultControls.Resources toggleResources = new DefaultControls.Resources();
 
-			Transform sourceButton = parent.Find("ButtonGameplay");
 			if(sourceButton == null) {
 				Debug.LogError("ButtonGameplay not found in PanelSettings");
 			}
@@ -47,8 +59,8 @@ namespace ZoopMod.Zoop.SettingsMenu {
 				Object.Destroy(child.gameObject);
 			}
 
-			newButtonGo.name = "Button" + buttonName;
-			newButtonGo.transform.SetParent(parent, false);
+			newButtonGo.name = "Button" + settingsButtonName;
+			newButtonGo.transform.SetParent(parentButtonGrid, false);
 			Toggle newButtonToggle = CopyComponentValues<Toggle>(sourceButton, newButtonGo);
 			CopyComponentValues<RectTransform>(sourceButton, newButtonGo);
 			CopyAndAddComponent<CanvasRenderer>(sourceButton, newButtonGo);
@@ -86,17 +98,17 @@ namespace ZoopMod.Zoop.SettingsMenu {
 			newButtonToggle.image = newButtonImg;
 			newButtonToggle.targetGraphic = newButtonImg;
 
-			// Modify the text and localization
+			// Modify the elementName and localization
 			if(buttonTextLocalizedText != null) {
 				buttonTextLocalizedText.TextMesh = buttonTextTMP;
-				buttonTextLocalizedText.StringKey = localizationKey;
+				buttonTextLocalizedText.StringKey = settingsButtonLocalizationKey;
 				buttonTextLocalizedText.Refresh();
 			}
 
 			// Load the icon from a PNG file if provided
-			if(!string.IsNullOrEmpty(iconFileName)) {
+			if(!string.IsNullOrEmpty(settingsButtonIconFileName)) {
 				if(buttonIconImg != null) {
-					Sprite iconSprite = LoadSpriteFromFile(iconFileName, 32, 32);
+					Sprite iconSprite = LoadSpriteFromFile(settingsButtonIconFileName, 32, 32);
 					if(iconSprite != null) {
 						buttonIconImg.overrideSprite = iconSprite;
 						buttonIconImg.sprite = iconSprite;
@@ -113,12 +125,519 @@ namespace ZoopMod.Zoop.SettingsMenu {
 			return newButtonGo;
 		}
 
+		/// <summary>
+		/// Adds a new page to the settings menu page grid.
+		/// </summary>
+		/// <param name="parentMenuSettings">The parent transform where the menu settings are located.</param>
+		/// <param name="sourcePage">The sourceName page to be used as a template.</param>
+		/// <param name="pageName">The name of the page GameObject.</param>
+		/// <returns>The created page GameObject.</returns>
+		public GameObject AddMenuSettingsPage(Transform parentMenuSettings, Transform sourcePage, string pageName) {
+			///TODO: Rework to use DefaultControls Create element
+			if(sourcePage == null) {
+				Debug.LogError("Gameplay not found in PanelSettings");
+			}
+
+			GameObject newPageGO = new GameObject(pageName);
+			newPageGO.transform.SetParent(parentMenuSettings, false);
+			newPageGO.SetActive(false);
+			CopyAndAddComponent<RectTransform>(sourcePage, newPageGO);
+			CopyAndAddComponent<ScrollRect>(sourcePage, newPageGO);
+			CopyAndAddComponent<CanvasRenderer>(sourcePage, newPageGO);
+			CopyAndAddComponent<Image>(sourcePage, newPageGO);
+			CopyAndAddComponent<VerticalLayoutGroup>(sourcePage, newPageGO);
+			//CopyAndAddComponent<ContentSizeFitter>(sourceSection, newPageGO);
+			CopyAndAddComponent<ColorBlindImage>(sourcePage, newPageGO);
+			CopyAndAddComponent<ColorBlindUtility.UGUI.ColorBlindUtility>(sourcePage, newPageGO);
+
+			return newPageGO;
+		}
+
+		/// <summary>
+		/// Adds a section to the settings page of the mod.
+		/// </summary>
+		/// <param name="parentSettingsPage">The parent transform where the settings page is located.</param>
+		/// <param name="sourceSection">The sourceName section to be used as a template.</param>
+		/// <param name="panelGOName">The name of the panel GameObject.</param>
+		/// <param name="titleLocalizationKey">The localization key for the panel title.</param>
+		/// <returns>The created section GameObject.</returns>
+		public GameObject AddPageSettingsSection(Transform parentSettingsPage, Transform sourceSection, string panelGOName, string titleLocalizationKey) {
+			///TODO: Rework to use DefaultControls Create element
+			if(sourceSection == null) {
+				Debug.LogError("TitleDisplayTools not found in PanelSettings");
+			}
+
+			GameObject newPanelGO = new GameObject(panelGOName);
+			newPanelGO.transform.SetParent(parentSettingsPage, false);
+			CopyAndAddComponent<RectTransform>(sourceSection, newPanelGO);
+			CopyAndAddComponent<CanvasRenderer>(sourceSection, newPanelGO);
+			CopyAndAddComponent<VerticalLayoutGroup>(sourceSection, newPanelGO);
+			CopyAndAddComponent<ContentSizeFitter>(sourceSection, newPanelGO);
+
+			AddSectionSettingsTitle(newPanelGO.transform, sourceSection, titleLocalizationKey);
+
+			return newPanelGO;
+		}
+
+		/// <summary>
+		/// Adds a text newElement to a settings section.
+		/// </summary>
+		/// <param name="parentSettingsPanel">The parent transform where the settings panel is located.</param>
+		/// <param name="sourceElement">The sourceName text newElement to be used as a template.</param>
+		/// <param name="elementName">The name of the text GameObject.</param>
+		/// <param name="nameLocalizationKey">The localization key for the text content.</param>
+		/// <returns>The created newElement text GameObject.</returns>
+		public GameObject AddSectionSettingsText(Transform parentSettingsPanel, Transform sourceElement, string elementName, string nameLocalizationKey) {
+			
+			if(sourceElement == null) {
+				Debug.LogError("Text not found in PanelSettings");
+			}
+
+			return CreateTextElement(parentSettingsPanel, sourceElement, elementName, nameLocalizationKey);
+		}
+
+		/// <summary>
+		/// Adds a boolean newElement (toggle) to a settings section.
+		/// </summary>
+		/// <param name="parentSettingsPanel">The parent transform where the settings panel is located.</param>
+		/// <param name="sourceElement">The sourceName toggle newElement to be used as a template.</param>
+		/// <param name="elementName">The name of the boolean GameObject.</param>
+		/// <param name="nameLocalizationKey">The localization key for the boolean toggle.</param>
+		/// <param name="defaultValue">The default value of the boolean toggle.</param>
+		/// <returns>The created newElement boolean GameObject.</returns>
+		public GameObject AddSectionSettingsBoolean(Transform parentSettingsPanel, Transform sourceElement, string elementName, string nameLocalizationKey, bool defaultValue) {
+
+			if(sourceElement == null) {
+				Debug.LogError("Dropdown not found in PanelSettings");
+			}
+
+			GameObject newElement = new GameObject(elementName);
+			newElement.transform.SetParent(parentSettingsPanel, false);
+			CopyAndAddComponent<RectTransform>(sourceElement, newElement);
+			CopyAndAddComponent<CanvasRenderer>(sourceElement, newElement);
+			CopyAndAddComponent<Button>(sourceElement, newElement);
+			CopyAndAddComponent<Animator>(sourceElement, newElement);
+			//SettingItem settingItem = CopyAndAddComponent<SettingItem>(sourceElement, newElement); //TODO: Add custom settings for mods specific settings, have to be dynamic
+			CopyAndAddComponent<UIAudioComponent>(sourceElement, newElement);
+
+			AddElementSettingsName(newElement.transform, sourceElement.Find("Name"), nameLocalizationKey);
+
+			Transform srcCheckbox = sourceElement.Find("Checkbox");
+			Transform srcBackground = srcCheckbox.Find("Background");
+			Transform srcCheckmark = srcBackground.Find("Checkmark");
+
+			DefaultControls.Resources checkboxResources = new DefaultControls.Resources {
+				standard = srcBackground.GetComponent<Image>().sprite,
+				checkmark = srcCheckmark.GetComponent<Image>().sprite
+			};
+
+			GameObject checkboxGO = DefaultControls.CreateToggle(checkboxResources);
+			checkboxGO.transform.SetParent(newElement.transform, false);
+			CopyComponentValues<Toggle>(srcCheckbox, checkboxGO);
+			CopyAndAddComponent<Animator>(srcCheckbox, checkboxGO);
+			CopyAndAddComponent<UIAudioComponent>(srcCheckbox, checkboxGO);
+
+			Transform elementCheckbox = checkboxGO.transform;
+			Transform elementBackground = elementCheckbox.Find("Background");
+			Transform elementCheckmark = elementBackground.Find("Checkmark");
+
+			GameObject.Destroy(elementCheckbox.Find("Label").gameObject);
+
+			CopyComponentValues<RectTransform>(srcCheckbox, checkboxGO);
+			CopyComponentValues<RectTransform>(srcBackground, elementBackground.gameObject);
+			CopyComponentValues<RectTransform>(srcCheckmark, elementCheckmark.gameObject);
+
+			CopyComponentValues<Image>(srcBackground, elementBackground.gameObject);
+			CopyAndAddComponent<ColorBlindImage>(srcBackground, elementBackground.gameObject);
+			CopyAndAddComponent<ColorBlindUtility.UGUI.ColorBlindUtility>(srcBackground, elementBackground.gameObject);
+
+			CopyComponentValues<Image>(srcCheckmark, elementCheckmark.gameObject);
+			CopyAndAddComponent<ColorBlindImage>(srcCheckmark, elementCheckmark.gameObject);
+			CopyAndAddComponent<ColorBlindUtility.UGUI.ColorBlindUtility>(srcCheckmark, elementCheckmark.gameObject);
+
+			return newElement;
+		}
+
+		/// <summary>
+		/// Adds a number (int) newElement (slider) to a settings section.
+		/// </summary>
+		/// <param name="parentSettingsPanel">The parent transform where the settings panel is located.</param>
+		/// <param name="sourceElement">The sourceName slider newElement to be used as a template.</param>
+		/// <param name="elementName">The name of the number GameObject.</param>
+		/// <param name="nameLocalizationKey">The localization key for the number slider.</param>
+		/// <param name="defaultValue">The default value of the number slider.</param>
+		/// <param name="maxValue">The maximum value of the number slider.</param>
+		/// <param name="minValue">The minimum value of the number slider.</param>
+		/// <returns>The created newElement number GameObject.</returns>
+		public GameObject AddSectionSettingsNumber(Transform parentSettingsPanel, Transform sourceElement, string elementName, string nameLocalizationKey, int defaultValue, int maxValue, int minValue) {
+			return AddSectionSettingsNumberInternal(parentSettingsPanel, sourceElement, elementName, nameLocalizationKey, defaultValue, maxValue, minValue);
+		}
+
+		/// <summary>
+		/// Adds a number (float) newElement (slider) to a settings section.
+		/// </summary>
+		/// <param name="parentSettingsPanel">The parent transform where the settings panel is located.</param>
+		/// <param name="sourceElement">The sourceName slider newElement to be used as a template.</param>
+		/// <param name="elementName">The name of the number GameObject.</param>
+		/// <param name="nameLocalizationKey">The localization key for the number slider.</param>
+		/// <param name="defaultValue">The default value of the number slider.</param>
+		/// <param name="maxValue">The maximum value of the number slider.</param>
+		/// <param name="minValue">The minimum value of the number slider.</param>
+		/// <returns>The created newElement number GameObject.</returns>
+		public GameObject AddSectionSettingsNumber(Transform parentSettingsPanel, Transform sourceElement, string elementName, string nameLocalizationKey, float defaultValue, float maxValue, float minValue) {
+			return AddSectionSettingsNumberInternal(parentSettingsPanel, sourceElement, elementName, nameLocalizationKey, defaultValue, maxValue, minValue);
+		}
+
+		/// <summary>
+		/// Adds a string list newElement (dropdown) to a settings section.
+		/// </summary>
+		/// <param name="parentSettingsPanel">The parent transform where the settings panel is located.</param>
+		/// <param name="sourceElement">The sourceName dropdown newElement to be used as a template.</param>
+		/// <param name="elementName">The name of the list GameObject.</param>
+		/// <param name="nameLocalizationKey">The localization key for the list dropdown.</param>
+		/// <param name="choiceList">The list of choices to be included in the dropdown.</param>
+		/// <returns>The created newElement string list GameObject.</returns>
+		public GameObject AddSectionSettingsStringList(Transform parentSettingsPanel, Transform sourceElement, string elementName, string nameLocalizationKey, List<string> choiceList) {
+
+			if(sourceElement == null) {
+				Debug.LogError("Dropdown not found in PanelSettings");
+			}
+
+			GameObject newElement = new GameObject(elementName);
+			newElement.transform.SetParent(parentSettingsPanel, false);
+			CopyAndAddComponent<RectTransform>(sourceElement, newElement);
+			CopyAndAddComponent<CanvasRenderer>(sourceElement, newElement);
+			CopyAndAddComponent<Button>(sourceElement, newElement);
+			CopyAndAddComponent<Animator>(sourceElement, newElement);
+			//SettingItem settingItem = CopyAndAddComponent<SettingItem>(sourceElement, newElement); //TODO: Add custom settings for mods specific settings, have to be dynamic
+			CopyAndAddComponent<UIAudioComponent>(sourceElement, newElement);
+
+			AddElementSettingsName(newElement.transform, sourceElement.Find("Name"), nameLocalizationKey);
+
+			Transform srcDropdown = sourceElement.Find("Dropdown");
+			Transform srcLabel = srcDropdown.Find("Label");
+			Transform srcArrow = srcDropdown.Find("Arrow");
+			Transform srcTemplate = srcDropdown.Find("Template");
+			Transform srcViewport = srcTemplate.Find("Viewport");
+			Transform srcContent = srcViewport.Find("Content");
+			Transform srcItem = srcContent.Find("Item");
+			Transform srcItemBackground = srcItem.Find("Item Background");
+			Transform srcItemCheckmark = srcItem.Find("Item Checkmark");
+			Transform srcItemLabel = srcItem.Find("Item Label");
+			Transform srcScrollbar = srcTemplate.Find("Scrollbar");
+			Transform srcSlidingArea = srcScrollbar.Find("Sliding Area");
+			Transform srcHandle = srcSlidingArea.Find("Handle");
+
+			TMP_DefaultControls.Resources dropdownResources = new TMP_DefaultControls.Resources {
+				standard = srcDropdown.GetComponent<Image>().sprite,
+				dropdown = srcArrow.GetComponent<Image>().sprite,
+				mask = srcViewport.GetComponent<Image>().sprite,
+				checkmark = srcItemCheckmark.GetComponent<Image>().sprite,
+				background = srcScrollbar.GetComponent<Image>().sprite
+			};
+
+			GameObject dropdownGO = TMP_DefaultControls.CreateDropdown(dropdownResources);
+			dropdownGO.transform.SetParent(newElement.transform, false);
+			CopyComponentValues<Image>(srcDropdown, dropdownGO);
+			CopyAndAddComponent<Animator>(srcDropdown, dropdownGO);
+			CopyAndAddComponent<ColorBlindImage>(srcDropdown, dropdownGO);
+			CopyAndAddComponent<ColorBlindUtility.UGUI.ColorBlindUtility>(srcDropdown, dropdownGO);
+
+			Transform elementDropdown = dropdownGO.transform;
+			Transform elementLabel = elementDropdown.Find("Label");
+			Transform elementArrow = elementDropdown.Find("Arrow");
+			Transform elementTemplate = elementDropdown.Find("Template");
+			Transform elementViewport = elementTemplate.Find("Viewport");
+			Transform elementContent = elementViewport.Find("Content");
+			Transform elementItem = elementContent.Find("Item");
+			Transform elementItemBackground = elementItem.Find("Item Background");
+			Transform elementItemCheckmark = elementItem.Find("Item Checkmark");
+			Transform elementItemLabel = elementItem.Find("Item Label");
+			Transform elementScrollbar = elementTemplate.Find("Scrollbar");
+			Transform elementSlidingArea = elementScrollbar.Find("Sliding Area");
+			Transform elementHandle = elementSlidingArea.Find("Handle");
+
+			CopyComponentValues<RectTransform>(srcDropdown, dropdownGO);
+			CopyComponentValues<RectTransform>(srcLabel, elementLabel.gameObject);
+			CopyComponentValues<RectTransform>(srcArrow, elementArrow.gameObject);
+			CopyComponentValues<RectTransform>(srcTemplate, elementTemplate.gameObject);
+			CopyComponentValues<RectTransform>(srcViewport, elementViewport.gameObject);
+			CopyComponentValues<RectTransform>(srcContent, elementContent.gameObject);
+			CopyComponentValues<RectTransform>(srcItem, elementItem.gameObject);
+			CopyComponentValues<RectTransform>(srcItemBackground, elementItemBackground.gameObject);
+			CopyComponentValues<RectTransform>(srcItemCheckmark, elementItemCheckmark.gameObject);
+			CopyComponentValues<RectTransform>(srcItemLabel, elementItemLabel.gameObject);
+			CopyComponentValues<RectTransform>(srcScrollbar, elementScrollbar.gameObject);
+			CopyComponentValues<RectTransform>(srcSlidingArea, elementSlidingArea.gameObject);
+			CopyComponentValues<RectTransform>(srcHandle, elementHandle.gameObject);
+
+			//settingItem.Selectable = dropdownGO.GetComponent<TMP_Dropdown>();
+
+			CopyComponentValues<TextMeshProUGUI>(srcLabel, elementLabel.gameObject);
+
+			CopyComponentValues<Image>(srcArrow, elementArrow.gameObject);
+			CopyAndAddComponent<ColorBlindImage>(srcArrow, elementArrow.gameObject);
+			CopyAndAddComponent<ColorBlindUtility.UGUI.ColorBlindUtility>(srcArrow, elementArrow.gameObject);
+
+			Image oldImage = elementTemplate.GetComponent<Image>();
+			if(oldImage != null) {
+				GameObject.DestroyImmediate(oldImage);
+			}
+			CopyAndAddComponent<TranslucentImage>(srcTemplate, elementTemplate.gameObject);
+			CopyComponentValues<ScrollRect>(srcTemplate, elementTemplate.gameObject);
+			CopyAndAddComponent<Canvas>(srcTemplate, elementTemplate.gameObject);
+			CopyAndAddComponent<GraphicRaycaster>(srcTemplate, elementTemplate.gameObject);
+			CopyAndAddComponent<CanvasGroup>(srcTemplate, elementTemplate.gameObject);
+			CopyAndAddComponent<ColorBlindImage>(srcTemplate, elementTemplate.gameObject);
+			CopyAndAddComponent<ColorBlindUtility.UGUI.ColorBlindUtility>(srcTemplate, elementTemplate.gameObject);
+
+			CopyComponentValues<Image>(srcViewport, elementViewport.gameObject);
+			CopyAndAddComponent<ColorBlindImage>(srcViewport, elementViewport.gameObject);
+			CopyAndAddComponent<ColorBlindUtility.UGUI.ColorBlindUtility>(srcViewport, elementViewport.gameObject);
+
+			CopyComponentValues<Toggle>(srcItem, elementItem.gameObject);
+			CopyAndAddComponent<UIAudioComponent>(srcItem, elementItem.gameObject);
+
+			CopyComponentValues<Image>(srcItemBackground, elementItemBackground.gameObject);
+			CopyAndAddComponent<ColorBlindImage>(srcItemBackground, elementItemBackground.gameObject);
+			CopyAndAddComponent<ColorBlindUtility.UGUI.ColorBlindUtility>(srcItemBackground, elementItemBackground.gameObject);
+
+			CopyComponentValues<Image>(srcItemCheckmark, elementItemCheckmark.gameObject);
+			CopyAndAddComponent<ColorBlindImage>(srcItemCheckmark, elementItemCheckmark.gameObject);
+			CopyAndAddComponent<ColorBlindUtility.UGUI.ColorBlindUtility>(srcItemCheckmark, elementItemCheckmark.gameObject);
+
+			CopyComponentValues<TextMeshProUGUI>(srcItemLabel, elementItemLabel.gameObject);
+
+			CopyComponentValues<Image>(srcScrollbar, elementScrollbar.gameObject);
+			CopyAndAddComponent<ColorBlindImage>(srcScrollbar, elementScrollbar.gameObject);
+			CopyAndAddComponent<ColorBlindUtility.UGUI.ColorBlindUtility>(srcScrollbar, elementScrollbar.gameObject);
+
+			CopyComponentValues<Image>(srcHandle, elementHandle.gameObject);
+			CopyAndAddComponent<ColorBlindImage>(srcHandle, elementHandle.gameObject);
+			CopyAndAddComponent<ColorBlindUtility.UGUI.ColorBlindUtility>(srcHandle, elementHandle.gameObject);
+
+			TMP_Dropdown dropdown = dropdownGO.GetComponent<TMP_Dropdown>();
+			dropdown.ClearOptions();
+			dropdown.AddOptions(choiceList);
+			dropdown.value = 0;
+			dropdown.Select();
+			dropdown.RefreshShownValue();
+
+			return newElement;
+		}
+
+		/// <summary>
+		/// Adds a string newElement (input field) to a settings section.
+		/// </summary>
+		/// <param name="parentSettingsPanel">The parent transform where the settings panel is located.</param>
+		/// <param name="sourceElement">The sourceName input field newElement to be used as a template.</param>
+		/// <param name="elementName">The name of the string GameObject.</param>
+		/// <param name="nameLocalizationKey">The localization key for the string input field.</param>
+		/// <param name="placeholder">The placeholder text for the input field.</param>
+		/// <param name="defaultValue">The default value of the input field.</param>
+		/// <returns>The created newElement string input field GameObject.</returns>
+		public GameObject AddSectionSettingsString(Transform parentSettingsPanel, Transform sourceElement, string elementName, string nameLocalizationKey, string placeholder, string defaultValue) {
+			return null;
+		}
+
+		/// <summary>
+		/// Adds a divider newElement to a settings section.
+		/// </summary>
+		/// <param name="parentSettingsPanel">The parent transform where the settings panel is located.</param>
+		/// <param name="sourceElement">The sourceName divider newElement to be used as a template.</param>
+		/// <returns>The created newElement divider GameObject.</returns>
+		public GameObject AddSectionSettingsDivider(Transform parentSettingsPanel, Transform sourceElement) {
+
+			if(sourceElement == null) {
+				Debug.LogError("Divider not found in PanelSettings");
+			}
+
+			DefaultControls.Resources dividerResources = new DefaultControls.Resources(){
+				background = sourceElement.GetComponent<Image>().sprite
+			};
+
+			GameObject newElement = DefaultControls.CreatePanel(dividerResources);
+			newElement.transform.SetParent(parentSettingsPanel, false);
+			CopyComponentValues<RectTransform>(sourceElement, newElement);
+			CopyComponentValues<Image>(sourceElement, newElement);
+			CopyAndAddComponent<ColorBlindImage>(sourceElement, newElement);
+			CopyAndAddComponent<ColorBlindUtility.UGUI.ColorBlindUtility>(sourceElement, newElement);
+
+			return newElement;
+		}
+
+		//Private methods for new elements
+		private GameObject AddSectionSettingsNumberInternal<T>(Transform parentSettingsPanel, Transform sourceElement, string elementName, string nameLocalizationKey, T defaultValue, T maxValue, T minValue) {
+			
+			GameObject newElementGO = new GameObject(elementName);
+			newElementGO.transform.SetParent(parentSettingsPanel, false);
+			CopyAndAddComponent<RectTransform>(sourceElement, newElementGO);
+			CopyAndAddComponent<CanvasRenderer>(sourceElement, newElementGO);
+			CopyAndAddComponent<Button>(sourceElement, newElementGO);
+			CopyAndAddComponent<Animator>(sourceElement, newElementGO);
+			SettingItem elementSettingItem = CopyAndAddComponent<SettingItem>(sourceElement, newElementGO);
+			CopyAndAddComponent<ToggleVisibleOnHover>(sourceElement, newElementGO);
+
+			AddElementSettingsName(newElementGO.transform, sourceElement.Find("Name"), nameLocalizationKey);
+
+			//GameObject sliderGO = DefaultControls.CreateSlider(new DefaultControls.Resources());
+			GameObject sliderGO = new GameObject("SettingsSlider");
+			sliderGO.transform.SetParent(newElementGO.transform, false);
+			CopyAndAddComponent<RectTransform>(sourceElement.Find("SettingsSlider"), sliderGO);
+			Slider slider = CopyAndAddComponent<Slider>(sourceElement.Find("SettingsSlider"), sliderGO);
+			SetSliderValueTMP sliderValueTMP = CopyAndAddComponent<SetSliderValueTMP>(sourceElement.Find("SettingsSlider"), sliderGO);
+			CopyAndAddComponent<ToggleVisibleOnHover>(sourceElement.Find("SettingsSlider"), sliderGO);
+			CopyAndAddComponent<UIAudioComponent>(sourceElement.Find("SettingsSlider"), sliderGO);
+
+			GameObject background = new GameObject("Background");
+			background.transform.SetParent(sliderGO.transform, false);
+			CopyAndAddComponent<RectTransform>(sourceElement.Find("SettingsSlider/Background"), background);
+			CopyAndAddComponent<CanvasRenderer>(sourceElement.Find("SettingsSlider/Background"), background);
+			Image backgroundImg = CopyAndAddComponent<Image>(sourceElement.Find("SettingsSlider/Background"), background);
+			CopyAndAddComponent<ColorBlindImage>(sourceElement.Find("SettingsSlider/Background"), background);
+			CopyAndAddComponent<ColorBlindUtility.UGUI.ColorBlindUtility>(sourceElement.Find("SettingsSlider/Background"), background);
+
+			GameObject fillArea = new GameObject("Fill Area");
+			fillArea.transform.SetParent(sliderGO.transform, false);
+			CopyAndAddComponent<RectTransform>(sourceElement.Find("SettingsSlider/Fill Area"), fillArea);
+
+			GameObject fill = new GameObject("Fill");
+			fill.transform.SetParent(fillArea.transform, false);
+			RectTransform fillRect = CopyAndAddComponent<RectTransform>(sourceElement.Find("SettingsSlider/Fill Area/Fill"), fill);
+			CopyAndAddComponent<CanvasRenderer>(sourceElement.Find("SettingsSlider/Fill Area/Fill"), fill);
+			CopyAndAddComponent<Image>(sourceElement.Find("SettingsSlider/Fill Area/Fill"), fill);
+			CopyAndAddComponent<ColorBlindImage>(sourceElement.Find("SettingsSlider/Fill Area/Fill"), fill);
+			CopyAndAddComponent<ColorBlindUtility.UGUI.ColorBlindUtility>(sourceElement.Find("SettingsSlider/Fill Area/Fill"), fillArea);
+
+			GameObject handleSlideArea = new GameObject("Handle Slide Area");
+			handleSlideArea.transform.SetParent(sliderGO.transform, false);
+			CopyAndAddComponent<RectTransform>(sourceElement.Find("SettingsSlider/Handle Slide Area"), handleSlideArea);
+
+			GameObject handle = new GameObject("Handle Slide Area");
+			handle.transform.SetParent(handleSlideArea.transform, false);
+			RectTransform handRect = CopyAndAddComponent<RectTransform>(sourceElement.Find("SettingsSlider/Handle Slide Area/Handle"), handle);
+			CopyAndAddComponent<CanvasRenderer>(sourceElement.Find("SettingsSlider/Handle Slide Area/Handle"), handle);
+			CopyAndAddComponent<Image>(sourceElement.Find("SettingsSlider/Handle Slide Area/Handle"), handle);
+			CopyAndAddComponent<ColorBlindImage>(sourceElement.Find("SettingsSlider/Handle Slide Area/Handle"), handle);
+			CopyAndAddComponent<ColorBlindUtility.UGUI.ColorBlindUtility>(sourceElement.Find("SettingsSlider/Handle Slide Area/Handle"), handle);
+
+			GameObject sliderValue = new GameObject("SliderValue");
+			sliderValue.transform.SetParent(sliderGO.transform, false);
+			CopyAndAddComponent<RectTransform>(sourceElement.Find("SettingsSlider/SliderValue"), sliderValue);
+			CopyAndAddComponent<CanvasRenderer>(sourceElement.Find("SettingsSlider/SliderValue"), sliderValue);
+			CopyAndAddComponent<Image>(sourceElement.Find("SettingsSlider/SliderValue"), sliderValue);
+			TMP_InputField inputField = CopyAndAddComponent<TMP_InputField>(sourceElement.Find("SettingsSlider/SliderValue"), sliderValue);
+			CopyAndAddComponent<Animator>(sourceElement.Find("SettingsSlider/SliderValue"), sliderValue);
+			CopyAndAddComponent<ColorBlindImage>(sourceElement.Find("SettingsSlider/SliderValue"), sliderValue);
+			CopyAndAddComponent<ColorBlindUtility.UGUI.ColorBlindUtility>(sourceElement.Find("SettingsSlider/SliderValue"), sliderValue);
+
+			GameObject textArea = new GameObject("Text Area");
+			textArea.transform.SetParent(sliderValue.transform, false);
+			RectTransform textAreaRect = CopyAndAddComponent<RectTransform>(sourceElement.Find("SettingsSlider/SliderValue/Text Area"), textArea);
+
+			GameObject caret = new GameObject("Caret");
+			caret.transform.SetParent(textArea.transform, false);
+			CopyAndAddComponent<RectTransform>(sourceElement.Find("SettingsSlider/SliderValue/Text Area/Caret"), caret);
+			CopyAndAddComponent<CanvasRenderer>(sourceElement.Find("SettingsSlider/SliderValue/Text Area/Caret"), caret);
+			CopyAndAddComponent<TMP_SelectionCaret>(sourceElement.Find("SettingsSlider/SliderValue/Text Area/Caret"), caret);
+			CopyAndAddComponent<LayoutElement>(sourceElement.Find("SettingsSlider/SliderValue/Text Area/Caret"), caret);
+
+			GameObject placeholderGO = new GameObject("Placeholder");
+			placeholderGO.transform.SetParent(textArea.transform, false);
+			CopyAndAddComponent<RectTransform>(sourceElement.Find("SettingsSlider/SliderValue/Text Area/Placeholder"), placeholderGO);
+			CopyAndAddComponent<CanvasRenderer>(sourceElement.Find("SettingsSlider/SliderValue/Text Area/Placeholder"), placeholderGO);
+			TextMeshProUGUI placeholder = CopyAndAddComponent<TextMeshProUGUI>(sourceElement.Find("SettingsSlider/SliderValue/Text Area/Placeholder"), placeholderGO);
+
+			GameObject textGO = new GameObject("Text");
+			textGO.transform.SetParent(textArea.transform, false);
+			CopyAndAddComponent<RectTransform>(sourceElement.Find("SettingsSlider/SliderValue/Text Area/Text"), textGO);
+			CopyAndAddComponent<CanvasRenderer>(sourceElement.Find("SettingsSlider/SliderValue/Text Area/Text"), textGO);
+			TextMeshProUGUI textTMP = CopyAndAddComponent<TextMeshProUGUI>(sourceElement.Find("SettingsSlider/SliderValue/Text Area/Text"), textGO);
+
+			elementSettingItem.Selectable = slider;
+			elementSettingItem.SetSliderValue = sliderValueTMP;
+
+			sliderValueTMP.TargetField = inputField;
+			sliderValueTMP.TargetSlider = slider;
+
+			slider.handleRect = handRect;
+			slider.fillRect = fillRect;
+			slider.minValue = System.Convert.ToSingle(minValue);
+			slider.maxValue = System.Convert.ToSingle(maxValue);
+			slider.value = System.Convert.ToSingle(defaultValue);
+			slider.wholeNumbers = typeof(T) == typeof(int);
+
+			inputField.placeholder = placeholder;
+			inputField.textComponent = textTMP;
+			inputField.textViewport = textAreaRect;
+
+			return newElementGO;
+		}
+
+		private GameObject AddSectionSettingsTitle(Transform parentSettingsPanel, Transform sourcePanel, string titleLocalizationKey) {
+			
+			Transform sourceTitle = sourcePanel.Find("Title");
+			if(sourceTitle == null) {
+				Debug.LogError("Title not found in PanelSettings");
+			}
+
+			return CreateTextElement(parentSettingsPanel, sourceTitle, "Title", titleLocalizationKey);
+		}
+
+		private GameObject CreateTextElement(Transform parentSettingsPanel, Transform sourceElement, string elementName, string nameLocalizationKey) {
+
+			GameObject newElement = TMP_DefaultControls.CreateText(new TMP_DefaultControls.Resources());
+			newElement.transform.SetParent(parentSettingsPanel, false);
+			CopyComponentValues<RectTransform>(sourceElement, newElement);
+			TextMeshProUGUI textMesh = CopyAndAddComponent<TextMeshProUGUI>(sourceElement, newElement);
+			LocalizedText localizedText = CopyAndAddComponent<LocalizedText>(sourceElement, newElement);
+
+			if(localizedText != null) {
+				localizedText.TextMesh = textMesh;
+				localizedText.StringKey = nameLocalizationKey;
+				localizedText.Refresh();
+			}
+
+			return newElement;
+		}
+
+		private GameObject AddElementSettingsName(Transform parentSettingsElement, Transform sourceName, string nameLocalizationKey) {
+			GameObject newNameGO = new GameObject("Name");
+			newNameGO.transform.SetParent(parentSettingsElement, false);
+			CopyAndAddComponent<RectTransform>(sourceName, newNameGO);
+			CopyAndAddComponent<CanvasRenderer>(sourceName, newNameGO);
+			TextMeshProUGUI newNameTMP = CopyAndAddComponent<TextMeshProUGUI>(sourceName, newNameGO);
+			LocalizedText newNameLocalizedText = CopyAndAddComponent<LocalizedText>(sourceName, newNameGO);
+			// Modify the elementName and localization
+			if(newNameLocalizedText != null) {
+				newNameLocalizedText.TextMesh = newNameTMP;
+				newNameLocalizedText.StringKey = nameLocalizationKey;
+				newNameLocalizedText.Refresh();
+			} else {
+				newNameTMP.text = nameLocalizationKey;
+			}
+			return newNameGO;
+		}
 		#endregion
 
-		#region Panel Transformation
+		#region Panel settings button grid transformation for scrollbar
+		/// <summary>
+		/// Adds a scroll bar to the settings menu.
+		/// In case of too much new buttons in the settings menu
+		/// </summary>
+		/// <param name="panelSettings">The settings panel to which the scroll bar will be added.</param>
 		public void AddScrollBarToSettingsMenu(ref MainMenuPage panelSettings) {
+			if(panelSettings == null) {
+				Debug.LogError("panelSettings is null.");
+				return;
+			}
 
 			MainMenuPage panelWorkshopMods = GameObject.FindObjectsOfType<MainMenuPage>(true).FirstOrDefault(page => page.gameObject.name == "PanelWorkshopMods");
+			
+			if(panelWorkshopMods == null) {
+				Debug.LogError("PanelWorkshopMods not found.");
+				return;
+			}
 
 			// Find Source GameObjects from workshopPanel
 			Transform sourceButtonList = panelWorkshopMods.transform.Find("ModList");
@@ -155,7 +674,7 @@ namespace ZoopMod.Zoop.SettingsMenu {
 			GameObject scrollbarGO = new GameObject("Scrollbar");
 			scrollbarGO.transform.SetParent(buttonListGO.transform, false);
 
-			// Copy components from source templates
+			// Copy components from sourceName templates
 			RectTransform rectButtonList = CopyAndAddComponent<RectTransform>(sourceButtonList, buttonListGO);
 			CopyAndAddComponent<CanvasRenderer>(oldButtonGrid, buttonListGO);
 			CopyAndAddComponent<Image>(oldButtonGrid, buttonListGO);
@@ -174,13 +693,13 @@ namespace ZoopMod.Zoop.SettingsMenu {
 			// Create slidingArea and handle for scrollbar
 			GameObject slidingAreaGO = new GameObject("Sliding Area");
 			slidingAreaGO.transform.SetParent(scrollbarGO.transform, false);
-			CopyAndAddComponent<RectTransform>(sourceScrollbar.Find("Sliding Area"), slidingAreaGO).anchoredPosition = new Vector2(0, 0);
+			CopyAndAddComponent<RectTransform>(sourceScrollbar.Find("Sliding Area"), slidingAreaGO).anchoredPosition = Vector2.zero;
 
 			GameObject handleGO = new GameObject("Handle");
 			handleGO.transform.SetParent(slidingAreaGO.transform, false);
 			Transform sourceHandle = sourceScrollbar.Find("Sliding Area/Handle");
 			if(sourceHandle != null) {
-				CopyAndAddComponent<RectTransform>(sourceHandle, handleGO).anchoredPosition = new Vector2(0, 0);
+				CopyAndAddComponent<RectTransform>(sourceHandle, handleGO).anchoredPosition = Vector2.zero;
 				CopyAndAddComponent<CanvasRenderer>(sourceHandle, handleGO);
 				CopyAndAddComponent<Image>(sourceHandle, handleGO);
 				CopyAndAddComponent<ColorBlindImage>(sourceHandle, handleGO);
@@ -195,14 +714,14 @@ namespace ZoopMod.Zoop.SettingsMenu {
 			CopyAndAddComponent<ColorBlindImage>(sourceScrollbar, scrollbarGO);
 			CopyAndAddComponent<ColorBlindUtility.UGUI.ColorBlindUtility>(sourceScrollbar, scrollbarGO);
 
-			// Create buttonGrid from the DynamicGrid of the source
+			// Create buttonGrid from the DynamicGrid of the sourceName
 			GameObject newButtonGrid = new GameObject("ButtonGrid");
 			newButtonGrid.transform.SetParent(windowGO.transform, false);
-			CopyAndAddComponent<RectTransform>(sourceDynamicGrid, newButtonGrid).anchoredPosition = new Vector2(0, 0);
+			CopyAndAddComponent<RectTransform>(sourceDynamicGrid, newButtonGrid).anchoredPosition = Vector2.zero;
 			CopyAndAddComponent<GridLayoutGroup>(sourceDynamicGrid, newButtonGrid);
 			CopyAndAddComponent<ContentSizeFitter>(sourceDynamicGrid, newButtonGrid);
 
-			// Get togglegroup from old buttonGrid to new buttonList
+			// Get toggle group from old buttonGrid to new buttonList
 			ToggleGroup newToggleGroup = CopyAndAddComponent<ToggleGroup>(oldButtonGrid, newButtonGrid);
 
 			// Move buttons from old buttonGrid to new buttonList
@@ -229,13 +748,13 @@ namespace ZoopMod.Zoop.SettingsMenu {
 			scrollRect.horizontal = false;
 			scrollRect.vertical = true;
 
-			//Set position and anchors for fitting ther new window architecture
+			//Set position and anchors for fitting the new window architecture
 			Vector2 oldOffsetMax = oldButtonGrid.GetComponent<RectTransform>().offsetMax;
 			Vector2 oldOffsetMin = oldButtonGrid.GetComponent<RectTransform>().offsetMin;
 
 			rectWindow.anchorMax = Vector2.up;
 			rectWindow.offsetMax = new Vector2(buttonSize.width, 0);
-			rectWindow.offsetMin = new Vector2(0, 0);
+			rectWindow.offsetMin = Vector2.zero;
 
 			rectScrollbar.anchorMin = Vector2.right;
 			rectScrollbar.offsetMax = new Vector2(0, rectWindow.offsetMax.y);
@@ -249,53 +768,10 @@ namespace ZoopMod.Zoop.SettingsMenu {
 
 			// Delete old ButtonGrid
 			Object.DestroyImmediate(oldButtonGrid.gameObject);
-
-			//Only for visualising for dev
-			//AddOutlineToPanel(windowGO.gameObject, Color.cyan);
-			//AddOutlineToPanel(buttonListGO.gameObject, Color.green);
-			//AddOutlineToPanel(sourceButtonList.gameObject, Color.green);
-			//AddOutlineToPanel(sourceWindow.gameObject, Color.cyan);
-			//AddOutlineToPanel(scrollbarGO.gameObject, Color.yellow);
-			//AddOutlineToPanel(sourceScrollbar.gameObject, Color.yellow);
 		}
 		#endregion
 
 		#region Utility Methods
-		#endregion
-
-		#region Dev Utility
-
-		public void AddOutlineToPanel(GameObject panel, Color color, float thickness = 2f) {
-			// Créer les quatre images pour simuler l'outline
-			CreateOutlineEdge(panel, "TopOutline", color, thickness, new Vector2(0, 1), new Vector2(1, 1), new Vector2(0, thickness));
-			CreateOutlineEdge(panel, "BottomOutline", color, thickness, new Vector2(0, 0), new Vector2(1, 0), new Vector2(0, thickness));
-			CreateOutlineEdge(panel, "LeftOutline", color, thickness, new Vector2(0, 0), new Vector2(0, 1), new Vector2(thickness, 0));
-			CreateOutlineEdge(panel, "RightOutline", color, thickness, new Vector2(1, 0), new Vector2(1, 1), new Vector2(thickness, 0));
-		}
-
-		private void CreateOutlineEdge(GameObject parent, string name, Color color, float thickness, Vector2 anchorMin, Vector2 anchorMax, Vector2 sizeDelta) {
-			// Créer un nouvel objet pour l'outline edge
-			GameObject outlineEdge = new GameObject(name);
-			outlineEdge.transform.SetParent(parent.transform, false);
-
-			// Ajouter un composant Image
-			Image image = outlineEdge.AddComponent<Image>();
-			image.color = color;
-
-			// Ajuster le RectTransform pour correspondre à la bordure spécifique
-			RectTransform rectTransform = outlineEdge.GetComponent<RectTransform>();
-			rectTransform.anchorMin = anchorMin;
-			rectTransform.anchorMax = anchorMax;
-			rectTransform.sizeDelta = sizeDelta;
-
-			Color transparent = color;
-			transparent.SetAlpha(0.3f);
-			Outline outline = parent.AddComponent<Outline>();
-			outline.useGraphicAlpha = true;
-			outline.effectColor = transparent;
-		}
-
-		#endregion
 
 		private Sprite LoadSpriteFromFile(string fileName, int expectedWidth, int expectedHeight, float pixelsPerUnit = 100.0f) {
 
@@ -345,22 +821,6 @@ namespace ZoopMod.Zoop.SettingsMenu {
 			tex.Reinitialize(newWidth, newHeight);
 			tex.SetPixels(newTex.GetPixels());
 			tex.Apply();
-		}
-
-		private void CreateChildWithComponents(Transform parent, string childName, Transform source) {
-			// Création d'un nouvel objet enfant avec le nom spécifié
-			GameObject child = new GameObject(childName);
-			child.transform.SetParent(parent);
-
-			// Pour chaque composant du source, ajouter et copier les valeurs dans le nouvel enfant
-			foreach(Component component in source.GetComponents<Component>()) {
-				System.Type componentType = component.GetType();
-
-				// Utiliser la méthode générique CopyAndAddComponent pour gérer la copie et l'ajout
-				var copyMethod = GetType().GetMethod("CopyAndAddComponent", BindingFlags.NonPublic | BindingFlags.Instance)
-										.MakeGenericMethod(componentType);
-				copyMethod.Invoke(this, new object[] { source, child });
-			}
 		}
 
 		private T CopyComponentValues<T>(Transform source, GameObject destination) where T : Component {
@@ -417,13 +877,25 @@ namespace ZoopMod.Zoop.SettingsMenu {
 		}
 
 		private T CopyAndAddComponent<T>(Transform source, GameObject destination) where T : Component {
+			if(source == null) {
+				Debug.LogError("Can't copy component sourceName is null.");
+				return null;
+			}
+			if(destination == null) {
+				Debug.LogError("Can't copy component destination is null.");
+				return null;
+			}
 			if(source.GetComponent<T>() != null) {
 				destination.AddComponent<T>();
 				CopyComponentValues<T>(source, destination);
 				return destination.GetComponent<T>();
+			} else {
+				Debug.LogWarning($"Source does not have a component of type {typeof(T).Name}.");
 			}
 			return null;
 		}
+
+		#endregion
 
 	}
 }
