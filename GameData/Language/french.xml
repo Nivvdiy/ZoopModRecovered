@@ -3,6 +3,42 @@
 	<Name>French</Name>
 	<Code>FR</Code>
 	<Font>font_extended</Font>
-	<Things>
-	</Things>
+	<Interface>
+		<Record>
+			<Key>SettingsMenuZoop</Key>
+			<Value>Zoop</Value>
+		</Record>
+		<Record>
+			<Key>SectionSettingsTitle1</Key>
+			<Value>Zoop Section 1</Value>
+		</Record>
+		<Record>
+			<Key>SectionSettingsTitle2</Key>
+			<Value>Zoop Section 2</Value>
+		</Record>
+		<Record>
+			<Key>ElementSettingsText</Key>
+			<Value>Zoop Exemple Text</Value>
+		</Record>
+		<Record>
+			<Key>ElementSettingsBoolean</Key>
+			<Value>Zoop Exemple Boolean</Value>
+		</Record>
+		<Record>
+			<Key>ElementSettingsInt</Key>
+			<Value>Zoop Exemple Int</Value>
+		</Record>
+		<Record>
+			<Key>ElementSettingsFloat</Key>
+			<Value>Zoop Exemple Float</Value>
+		</Record>
+		<Record>
+			<Key>ElementSettingsStringList</Key>
+			<Value>Zoop Exemple List</Value>
+		</Record>
+		<Record>
+			<Key>ElementSettingsString</Key>
+			<Value>Zoop Exemple String</Value>
+		</Record>
+	</Interface>
 </Language>
