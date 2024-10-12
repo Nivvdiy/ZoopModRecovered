@@ -38,18 +38,14 @@ namespace ZoopMod {
 
 			try {
 				Instance = this;
-				var harmony = new Harmony("ZoopMod");
+				Harmony harmony = new Harmony("ZoopMod");
 				harmony.PatchAll();
 				Log("Patch succeeded", Logs.INFO);
-				KeyManager.OnControlsChanged += new KeyManager.Event(ControlsChangedEvent);
+				KeyManager.OnControlsChanged += ControlsChangedEvent;
 
 
 				Type type = Type.GetType("CreativeFreedom.CreativeFreedom, CreativeFreedom");
-				if(type != null) {
-					CFree = true;
-				} else {
-					CFree = false;
-				}
+				CFree = type != null;
 
 			} catch(Exception e) {
 				Log("Patch Failed", Logs.ERROR);
@@ -61,7 +57,7 @@ namespace ZoopMod {
 		/* Track current player keybinding selection, event trigger after any
 		 * keybinding change.
 		 */
-		private void ControlsChangedEvent() {
+		private static void ControlsChangedEvent() {
 			ZoopHold = KeyManager.GetKey("Zoop Hold");
 			ZoopSwitch = KeyManager.GetKey("Zoop Switch");
 			ZoopAddWaypoint = KeyManager.GetKey("Zoop Add Waypoint");

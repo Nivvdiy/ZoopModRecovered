@@ -11,7 +11,7 @@ using System.Reflection;
 
 namespace ZoopMod {
 	[HarmonyPatch(typeof(InventoryManager), "SetMultiConstructorItemPlacement")]
-	public class InventoryManagerSetMultiContstruct {
+	public class InventoryManagerSetMultiConstruct {
 		[UsedImplicitly]
 		public static void Prefix(InventoryManager __instance, MultiConstructor multiConstructorItem) {
 			if(ZoopUtility.isZooping) {
@@ -22,7 +22,7 @@ namespace ZoopMod {
 	}
 
 	[HarmonyPatch(typeof(InventoryManager), "SetConstructorItemPlacement")]
-	public class InventoryManagerSetContstruct {
+	public class InventoryManagerSetConstruct {
 		[UsedImplicitly]
 		public static void Prefix(InventoryManager __instance, Constructor constructorItem) {
 			if(ZoopUtility.isZooping) {
@@ -121,8 +121,8 @@ namespace ZoopMod {
 							//    num1 += 0.2f; //whyyy make it longer in suit there...
 							//float num2 = Mathf.Clamp(num1, 0.2f, 5f); //nosuit make number bigger
 
-							Type InventoryManagerType = typeof(InventoryManager);
-							var method = InventoryManagerType.GetMethod("WaitUntilDone",
+							Type inventoryManagerType = typeof(InventoryManager);
+							MethodInfo method = inventoryManagerType.GetMethod("WaitUntilDone",
 								BindingFlags.NonPublic | BindingFlags.Instance, null,
 								new Type[] { typeof(InventoryManager.DelegateEvent), typeof(float), typeof(Structure) },
 								null);

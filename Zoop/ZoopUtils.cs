@@ -5,7 +5,7 @@ namespace ZoopMod
 {
     public static class ZoopUtils
     {
-        public static ZoopTransition getTransition(ZoopDirection zoopDirectionFrom,
+        public static ZoopTransition GetTransition(ZoopDirection zoopDirectionFrom,
             bool increasingFrom, ZoopDirection zoopDirectionTo, bool increasingTo)
         {
             if (zoopDirectionFrom == ZoopDirection.x)
@@ -135,10 +135,10 @@ namespace ZoopMod
             throw new ArgumentException();
         }
 
-        public static Quaternion getCornerRotation(ZoopDirection zoopDirectionFrom, bool increasingFrom,
+        public static Quaternion GetCornerRotation(ZoopDirection zoopDirectionFrom, bool increasingFrom,
             ZoopDirection zoopDirectionTo, bool increasingTo, float xOffset, float yOffset, float zOffset)
         {
-            switch (getTransition(zoopDirectionFrom,
+            switch (GetTransition(zoopDirectionFrom,
                 increasingFrom, zoopDirectionTo, increasingTo))
             {
                 case ZoopTransition.xPyP:

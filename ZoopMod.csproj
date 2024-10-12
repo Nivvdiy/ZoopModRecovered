@@ -36,112 +36,49 @@
 
 	<!-- Import Props -->
 	<Import Project="$(SolutionDir)ZoopMod.VS.props" />
+	<PropertyGroup>
+		<TargetFramework>net35</TargetFramework>
+		<AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+		<LangVersion>latest</LangVersion>
+		<RestoreAdditionalProjectSources>
+			https://api.nuget.org/v3/index.json;
+			https://nuget.bepinex.dev/v3/index.json;
+			https://nuget.daxcess.io/v3/index.json
+		</RestoreAdditionalProjectSources>
+	</PropertyGroup>
 
 	<!-- References -->
 	<ItemGroup>
-		<!-- System References -->
-		<Reference Include="ConfigurationManager">
-		  <HintPath>H:\SteamLibrary\steamapps\workshop\content\544550\3017371375\Scripts\ConfigurationManager.dll</HintPath>
-		</Reference>
-		<Reference Include="System" />
-		<Reference Include="System.Core" />
-		<Reference Include="System.Xml.Linq" />
-		<Reference Include="System.Data.DataSetExtensions" />
-		<Reference Include="Microsoft.CSharp" />
-		<Reference Include="System.Data" />
-		<Reference Include="System.Drawing" />
-		<Reference Include="System.Net.Http" />
-		<Reference Include="System.Windows.Forms" />
-		<Reference Include="System.Xml" />
-		<Reference Include="System.Threading.Tasks.Extensions, Version=4.2.0.1, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51, processorArchitecture=MSIL">
-			<HintPath>$(NuGetPackagesPath)\System.Threading.Tasks.Extensions.4.5.4\lib\net461\System.Threading.Tasks.Extensions.dll</HintPath>
-		</Reference>
-
+		<PackageReference Include="BepInEx.Analyzers" Version="1.*" PrivateAssets="all" />
+		<PackageReference Include="BepInEx.Core" Version="5.*" />
+		<PackageReference Include="BepInEx.PluginInfoProps" Version="2.*" />
+		<PackageReference Include="UnityEngine.Modules" Version="2021.2.13" IncludeAssets="compile" />
 		<!-- Unity References -->
 		<Reference Include="Unity.TextMeshPro">
-			<HintPath>$(UnityManagedPath)\Unity.TextMeshPro.dll</HintPath>
-		</Reference>
-		<Reference Include="UnityEngine">
-			<HintPath>$(UnityManagedPath)\UnityEngine.dll</HintPath>
-		</Reference>
-		<Reference Include="UnityEngine.AnimationModule">
-			<HintPath>$(UnityManagedPath)\UnityEngine.AnimationModule.dll</HintPath>
-		</Reference>
-		<Reference Include="UnityEngine.CoreModule">
-			<HintPath>$(UnityManagedPath)\UnityEngine.CoreModule.dll</HintPath>
-		</Reference>
-		<Reference Include="UnityEngine.ImageConversionModule">
-			<HintPath>$(UnityManagedPath)\UnityEngine.ImageConversionModule.dll</HintPath>
-		</Reference>
-		<Reference Include="UnityEngine.InputModule">
-			<HintPath>$(UnityManagedPath)\UnityEngine.InputModule.dll</HintPath>
-		</Reference>
-		<Reference Include="UnityEngine.TextRenderingModule">
-			<HintPath>$(UnityManagedPath)\UnityEngine.TextRenderingModule.dll</HintPath>
+			<HintPath>$(ManagedDirectory)Unity.TextMeshPro.dll</HintPath>
+			<Private>False</Private>
 		</Reference>
 		<Reference Include="UnityEngine.UI">
-			<HintPath>$(UnityManagedPath)\UnityEngine.UI.dll</HintPath>
+			<HintPath>$(ManagedDirectory)UnityEngine.UI.dll</HintPath>
+			<Private>False</Private>
 		</Reference>
-		<Reference Include="UnityEngine.UIModule">
-			<HintPath>$(UnityManagedPath)\UnityEngine.UIModule.dll</HintPath>
-		</Reference>
-		<Reference Include="Assembly-CSharp, Version=0.2.4945.22425, Culture=neutral, processorArchitecture=MSIL">
-			<SpecificVersion>False</SpecificVersion>
-			<HintPath>$(UnityManagedPath)\Assembly-CSharp.dll</HintPath>
+		<Reference Include="Assembly-CSharp">
+			<HintPath>$(ManagedDirectory)Assembly-CSharp.dll</HintPath>
+			<Private>False</Private>
 		</Reference>
 		<Reference Include="UniTask, Version=2.3.3.0, Culture=neutral, PublicKeyToken=7a576c6e8fde454a, processorArchitecture=MSIL">
 			<SpecificVersion>False</SpecificVersion>
-			<HintPath>$(UnityManagedPath)\UniTask.dll</HintPath>
+			<HintPath>$(ManagedDirectory)\UniTask.dll</HintPath>
 		</Reference>
-
-		<!-- Mono References -->
-		<Reference Include="Mono.Cecil">
-			<HintPath>$(BepInExPath)\core\Mono.Cecil.dll</HintPath>
-		</Reference>
-		<Reference Include="Mono.Cecil.Mdb">
-			<HintPath>$(BepInExPath)\core\Mono.Cecil.Mdb.dll</HintPath>
-		</Reference>
-		<Reference Include="Mono.Cecil.Pdb">
-			<HintPath>$(BepInExPath)\core\Mono.Cecil.Pdb.dll</HintPath>
-		</Reference>
-		<Reference Include="Mono.Cecil.Rocks">
-			<HintPath>$(BepInExPath)\core\Mono.Cecil.Rocks.dll</HintPath>
-		</Reference>
-		<Reference Include="MonoMod.RuntimeDetour">
-			<HintPath>$(BepInExPath)\core\MonoMod.RuntimeDetour.dll</HintPath>
-		</Reference>
-		<Reference Include="MonoMod.Utils">
-			<HintPath>$(BepInExPath)\core\MonoMod.Utils.dll</HintPath>
-		</Reference>
-
-		<!-- Harmony/BepInEx References -->
-		<Reference Include="0Harmony">
-			<HintPath>$(BepInExPath)\core\0Harmony.dll</HintPath>
-			<Private>False</Private>
-		</Reference>
-		<Reference Include="BepInEx">
-			<HintPath>$(BepInExPath)\core\BepInEx.dll</HintPath>
-		</Reference>
-		<Reference Include="BepInEx.Harmony">
-			<HintPath>$(BepInExPath)\core\BepInEx.Harmony.dll</HintPath>
-		</Reference>
-		<Reference Include="BepInEx.Preloader">
-			<HintPath>$(BepInExPath)\core\BepInEx.Preloader.dll</HintPath>
-		</Reference>
-		<Reference Include="HarmonyXInterop">
-			<HintPath>$(BepInExPath)\core\HarmonyXInterop.dll</HintPath>
-		</Reference>
-
 		<!-- Other References -->
 		<Reference Include="StationeersMods">
-			<HintPath>$(BepInExPath)\plugins\StationeersMods\StationeersMods.dll</HintPath>
+			<HintPath>$(StationeersModDirectory)StationeersMods.dll</HintPath>
 		</Reference>
 		<Reference Include="StationeersMods.Interface">
-			<HintPath>$(BepInExPath)\plugins\StationeersMods\StationeersMods.Interface.dll</HintPath>
+			<HintPath>$(StationeersModDirectory)StationeersMods.Interface.dll</HintPath>
 			<Private>False</Private>
 		</Reference>
-		<Reference Include="CreativeFreedom, Version=1.0.0.0, Culture=neutral, processorArchitecture=MSIL">
-			<SpecificVersion>False</SpecificVersion>
+		<Reference Include="CreativeFreedom">
 			<HintPath>$(CreativeFreedomModPath)\CreativeFreedom.dll</HintPath>
 			<Private>False</Private>
 		</Reference>
