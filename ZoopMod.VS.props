@@ -1,12 +1,13 @@
 <Project>
 	<PropertyGroup>
-		<!-- Définir les chemins par défaut pour les dépendances -->
-		<StationeersInstallPath Condition=" '$(StationeersInstallPath)' == '' ">H:\SteamLibrary\steamapps\common\Stationeers</StationeersInstallPath>
-		<BepInExPath Condition=" '$(BepInExPath)' == '' ">$(StationeersInstallPath)\BepInEx</BepInExPath>
-		<UnityManagedPath Condition=" '$(UnityManagedPath)' == '' ">$(StationeersInstallPath)\rocketstation_Data\Managed</UnityManagedPath>
-		<StationeersModWorkshopPath Condition=" '$(StationeersModWorkshopPath)' == '' ">H:\SteamLibrary\steamapps\workshop\content\544550</StationeersModWorkshopPath>
-		<CreativeFreedomModPath Condition=" '$(CreativeFreedomModPath)' == '' ">$(StationeersModWorkshopPath)\3193624149</CreativeFreedomModPath>
 		<NuGetPackagesPath Condition=" '$(NuGetPackagesPath)' == '' ">..\packages</NuGetPackagesPath>
+		<RootFolder>H:\SteamLibrary\steamapps\</RootFolder>
+		<StationeersDirectory>$(RootFolder)\common\Stationeers</StationeersDirectory>
+		<!-- Change this to the path to your Stationeers directory -->
+		<UnityEditorDirectory>B:\Unity\Versions\2021.2.13f1\Editor\Data\Managed</UnityEditorDirectory>
+		<StationeersModDirectory>$(StationeersDirectory)\BepInEx\plugins\StationeersMods\</StationeersModDirectory>
+		<ManagedDirectory>$(StationeersDirectory)\rocketstation_Data\Managed\</ManagedDirectory>
 		<StationeersModOutputFolder Condition=" '$(StationeersModOutputFolder)' == '' ">D:\Documents\My Games\Stationeers\mods</StationeersModOutputFolder>
+		<CreativeFreedomModPath Condition=" '$(CreativeFreedomModPath)' == '' ">$(RootFolder)\workshop\content\544550\3193624149</CreativeFreedomModPath>
 	</PropertyGroup>
 </Project>
