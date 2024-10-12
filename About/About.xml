@@ -1,61 +1,55 @@
-<?xml version="1.0" encoding="utf-8"?>
-<ModMetadata xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
-	<Name>ZoopMod [StationeersMods]</Name>
-	<Author>Nivvdiy</Author>
-	<Version>2024.15.08</Version>
-	<Description>
+﻿<?xml version="1.0" encoding="utf-8"?><ModMetadata xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"><Name>ZoopMod [StationeersMods]</Name><Author>Nivvdiy</Author><Version>2024.27.09</Version><Description>
 		[h1]ZoopMod[/h1]
-		# ZoopModRecovered
-		Recovered Zoop mod, which originally been made by [b]Elmotrix[/b] and advanced by [b]jixxed[/b], Mod updated from [b]Katsuk[/b] version.
 
-		Let you build long lines of cables, pipes or chutes between two points in one action.
-		Cannot make lines longer than quantity of building materials in hand.
-		Can add waypoints to make cables longer
+		[b]WARNING:[/b]
+		This mod requires the StationeersMods Plugin Mod and BepInEx to be installed.
+		For installation, see the detailed guide at https://github.com/jixxed/StationeersMods
+		Please ensure you are unsubscribed from old versions of this mod:
+		https://steamcommunity.com/sharedfiles/filedetails/?id=3182410797
 
-		TODO
-		Make it work on client side in multiplayer.
-		Make it work with Authoring tool.
+		Recovered Zoop mod, originally created by [b]Elmotrix[/b] and later advanced by [b]jixxed[/b]. This mod has been updated from [b]Katsuk[/b]'s version.
+
+		Allows you to build long lines of cables, pipes, or chutes between two points in a single action.
+		Lines cannot exceed the quantity of building materials in hand.
+		Waypoints can be added to extend the length of cables.
 
 		[b]Additions:[/b]
-		Fix for completion time, which has been same for next building action.
-		Bindable keys.
-		Soft dependency for CreativeFreedom mod, give access to zooping cross devices without collision checks.
-		Let you cross wires and pipes without merging, to overlap networks.
-		Increase stack size for cables (250), pipes (100) and chutes (50).
+		[list]
+		[*]Fix for completion time, ensuring consistency in subsequent building actions.
+		[*]Bindable keys.
+		[*]Soft dependency on the CreativeFreedom mod, enabling cross-device zooping without collision checks.
+		[*]Increased stack size for cables (250), pipes (100), and chutes (50).
+		[/list]
 
-		[b]Using:[/b]
-		While in construction mode, hold [b]Left Shift[/b] [i](by default)[/i] and press primary action, then move mouse to zooping. hold primary to complete.
-		Also can press [b]Z[/b] [i](by default)[/i] once to start zooping without hold+click.
-		You can add waypoint by pressing [b]mouse middleclick[/b] [i](by default)[/i] and cancel last one with [b]V[/b] [i](by default)[/i]
+		[b]Usage:[/b]
+		While in construction mode, hold [b]Left Shift[/b] [i](by default)[/i] and press the primary action, then move the mouse to zoop. Hold primary to complete.
+		Alternatively, press [b]Z[/b] [i](by default)[/i] once to start zooping without hold+click.
+		You can add a waypoint by pressing [b]mouse middle-click[/b] [i](by default)[/i] and cancel the last one with [b]V[/b] [i](by default)[/i].
 
-		All keys can be change in stationneers settings
+		All keys can be customized in the Stationeers settings.
 
-		# Instructions
-		* If you don't have BepInEx installed, download the x64 version available at https://github.com/BepInEx/BepInEx/releases and follow the BepInEx installation instructions but basically you will need to:
-		- Drop and unpack it inside Stationeers folder
-		- Start the game once to finish installing BepInEx and check if he created the folders called \Stationeers\BepInEx\plugins, if yes, the BepInEx installation is completed.
-		* Start the game and close again.
-		* Download the last version on StationeersMods in https://github.com/jixxed/StationeersMods/releases .
-		* Unpack StationeersMods inside the folder \BepInEx\plugins.
-		* Subcribe in this mod on workshop steam
-		* Start the game and play.
+		[b]TODO:[/b]
+		[list]
+		[*][ ]Work on client side
+		[*][ ]Work with authoring tool
+		[*][x]Add waypoints functionality (Version 2024.16.08)
+		[*][ ]Add settings menu
+		[*][ ]Add zooping for frames
+		[/list]
 
-		Problems:
-		Not work in Authoring mode yet.
+		[b]Known Issues:[/b]
+		[list]
+		[*]Does not currently work in Authoring mode.
+		[*]The mod is always in CreativeFreedom mode, even without the CreativeFreedom mod installed.
+		[/list]
 
-		Works for stable version of Meson Scanner update of 2th February 2024.
-		Works for stable version of Shower update of 21th March 2024
+		[b]Works for:[/b]
+		[list]
+		[*]"Tutorials and Helper Hints" update (August 5, 2024)
+		[*]"Bug Fixing" update (August 13, 2024)
+		[/list]
+	</Description><InGameDescription><![CDATA[<size="30"><color=#ffa500>ZoopMod</color></size>
+<b>WARNING:</b> <color=#ff0000>This mod requires the StationeersMods Plugin and BepInEx to function properly.</color>
+Make sure you are unsubscribed from any previous versions. Installation details are available at <b><u><color=#00ccff>https://github.com/jixxed/StationeersMods</color></u></b>.
 
-	</Description>
-	<InGameDescription>
-    <![CDATA[<size="30"><color=#ffa500> ZoopMod </color></size>
-<b>WARNING:</b> <color=#ff0000>This is a StationeersMods Plugin Mod. It requires Bepinex to be installed with the StationeersMods plugin.</color>
-See: https://github.com/jixxed/StationeersMods
- Let you build long lines of cables, pipes or chutes between two points in one action.
- Cannot make lines longer than quantity of building materials in hand.
- Can add waypoints to make cables longer
-
-]]>
-  </InGameDescription>
-	<Tags />
-</ModMetadata>
+ZoopMod allows you to build long lines of cables, pipes, or chutes between two points in a single action. Easily add waypoints to extend your construction lines without merging networks.]]></InGameDescription><Tags /></ModMetadata>
