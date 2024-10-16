@@ -29,8 +29,10 @@ All keys can be customized in the Stationeers settings.
 - [ ] Work on client side
 - [ ] Work with authoring tool
 - [x] Add waypoints functionality (Version 2024.16.08)
-- [ ] Add settings menu
+- [ ] ~~Add settings menu~~ (Move into SMCF mod project *WIP*) 
 - [ ] Add zooping for frames
+- [x] Add possibility to zoop with windowed chute
+- [ ] Add zooping for wall
 
 ## Known Issues:
 - Does not currently work in Authoring mode.
