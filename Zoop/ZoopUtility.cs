@@ -15,7 +15,8 @@ using System.Threading;
 using Assets.Scripts.GridSystem;
 using UnityEngine;
 using UnityEngine.Networking;
-using Object = object; //SOMETHING NEW
+using Object = object;
+using Objects.Structures; //SOMETHING NEW
 
 //using creativefreedom;
 
@@ -75,6 +76,9 @@ namespace ZoopMod {
 		}
 
 		public static void AddWaypoint() {
+			if(InventoryManager.ConstructionCursor is Frame) {
+				return;
+			}
 			var currentPos = GetCurrentMouseGridPosition();
 			if(currentPos.HasValue && Waypoints.Last() != currentPos) {
 				if(structures.Last().GetGridPosition() == currentPos) {
@@ -86,13 +90,16 @@ namespace ZoopMod {
 		}
 
 		public static void RemoveLastWaypoint() {
+			if(InventoryManager.ConstructionCursor is Frame) {
+				return;
+			}
 			if(Waypoints.Count > 1) {
 				Waypoints.RemoveAt(Waypoints.Count - 1);
 			}
 		}
 
 		private static bool IsAllowed(Structure constructionCursor) {
-			return constructionCursor is Pipe or Cable or Chute;
+			return constructionCursor is Pipe or Cable or Chute or Frame;
 		}
 
 		public static async UniTask ZoopAsync(CancellationToken cancellationToken, InventoryManager inventoryManager) {
