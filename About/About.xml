@@ -1,9 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
-<ModMetadata xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
-	<Name>ZoopMod [StationeersMods]</Name>
-	<Author>Nivvdiy</Author>
-	<Version>2024.17.10</Version>
-	<Description>
+﻿<?xml version="1.0" encoding="utf-8"?><ModMetadata xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"><Name>ZoopMod [StationeersMods]</Name><Author>Nivvdiy</Author><Version>2024.17.10</Version><Description>
 	[h1]ZoopMod[/h1]
 
 	[b]WARNING:[/b]
@@ -59,19 +54,8 @@
 	[*]"Bug Fixing" update (August 13, 2024)
 	[*]"Tutorials and Helper Hints" update (August 5, 2024)
 	[/list]
-</Description>
-	<ChangeLog xsi:nil="true" />
-	<WorkshopHandle>3310094883</WorkshopHandle>
-	<Tags>
-		<Tag>StationeersMods</Tag>
-	</Tags>
-	<Dependencies />
-	<LoadBefore />
-	<LoadAfter />
-	<InGameDescription><![CDATA[<size="30"><color=#ffa500>ZoopMod</color></size>
+</Description><ChangeLog xsi:nil="true" /><WorkshopHandle>3310094883</WorkshopHandle><Tags><Tag>StationeersMods</Tag></Tags><Dependencies /><LoadBefore /><LoadAfter /><InGameDescription><![CDATA[<size="30"><color=#ffa500>ZoopMod</color></size>
 <b>WARNING:</b> <color=#ff0000>This mod requires the StationeersMods Plugin and BepInEx to function properly.</color>
 Make sure you are unsubscribed from any previous versions. Installation details are available at <b><u><color=#00ccff>https://github.com/jixxed/StationeersMods</color></u></b>.
 
-ZoopMod allows you to build long lines of cables, pipes, or chutes between two points in a single action. Easily add waypoints to extend your construction lines without merging networks.]]></InGameDescription>
-	<Tags />
-</ModMetadata>
+ZoopMod allows you to build long lines of cables, pipes, or chutes between two points in a single action. Easily add waypoints to extend your construction lines without merging networks.]]></InGameDescription><Tags /></ModMetadata>
