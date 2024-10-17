@@ -482,6 +482,7 @@ namespace ZoopMod {
 				UsePrimaryComplete(IM, item);
 			}
 
+			IM.CancelPlacement();
 			CancelZoop();
 		}
 
@@ -489,11 +490,12 @@ namespace ZoopMod {
 			// DynamicThing occupant0 = item.BuildStates[0].Tool.ToolEntry; //try to evade taking authoring tool as occupant
 
 			int optionIndex = IM.ConstructionPanel.Parent.Constructables.FindIndex(structure => structure.PrefabName == item.PrefabName);
+			int itemIndex = InventoryManager.DynamicThingPrefabs.FindIndex(value => IM.ConstructionPanel.Parent.PrefabName == value);
 			//Debug.Log(item.PrefabName + ":" + optionIndex);
 			if(GameManager.RunSimulation) {
 				if(IM.ConstructionPanel.IsVisible)
 					OnServer.UseMultiConstructor(InventoryManager.Parent, IM.ActiveHand.SlotId, IM.InactiveHand.SlotId, item.transform.position, item.transform.rotation, optionIndex, InventoryManager.IsAuthoringMode,
-						InventoryManager.ParentBrain.ClientId, optionIndex); //InventoryManager.IsAuthoringMode
+						InventoryManager.ParentBrain.ClientId, itemIndex);
 				else
 					OnServer.UseItemPrimary((Assets.Scripts.Objects.Thing)InventoryManager.Parent, IM.ActiveHand.SlotId, item.transform.position, item.transform.rotation, InventoryManager.ParentBrain.ClientId, optionIndex);
 			} else {
@@ -510,7 +512,7 @@ namespace ZoopMod {
 				structureMessage.OptionIndex = optionIndex;
 				DynamicThing occupant3 = IM.ActiveHand.Slot.Get(); // InventoryManager.IsAuthoringMode ? occupant0 : IM.ActiveHand.Slot.Occupant;
 				structureMessage.PrefabHash = occupant3 != null ? occupant3.PrefabHash : 0;
-				structureMessage.AuthoringMode = InventoryManager.IsAuthoringMode; //false;//InventoryManager.IsAuthoringMode;
+				structureMessage.AuthoringMode = InventoryManager.IsAuthoringMode;
 				NetworkClient.SendToServer<CreateStructureMessage>((MessageBase<CreateStructureMessage>)structureMessage, NetworkChannel.GeneralTraffic);
 			}
 
@@ -626,7 +628,7 @@ namespace ZoopMod {
 
 		public static void AddStructure(List<Structure> constructables, bool corner, int index, int secondaryCount, ref bool canBuildNext, InventoryManager im) {
 
-			int selectedIndex = ((MultiConstructor)im.ActiveHand.Slot.Get()).LastSelectedIndex;
+			int selectedIndex = im.ConstructionPanel.Parent.LastSelectedIndex;
 			int straightCount = corner ? secondaryCount : index;
 			int cornerCount = corner ? index : secondaryCount;
 
