@@ -1,4 +1,4 @@
-﻿namespace ZoopMod
+﻿namespace ZoopMod.Zoop
 {
     public enum ZoopTransition
     {

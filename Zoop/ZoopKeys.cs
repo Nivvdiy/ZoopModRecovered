@@ -1,9 +1,9 @@
-﻿using HarmonyLib;
-using UnityEngine;
-using Assets.Scripts.UI;
+﻿using Assets.Scripts.UI;
+using HarmonyLib;
 using System.Collections.Generic;
+using UnityEngine;
 
-namespace ZoopMod {
+namespace ZoopMod.Zoop {
 	class ZoopKeys {
 
 		/* Custom shortcut key binding injection is done after KeyManager.SetupKeyBindings() method is 
@@ -12,10 +12,10 @@ namespace ZoopMod {
          */
 		[HarmonyPatch(typeof(KeyManager), "SetupKeyBindings")]
 		class ShortcutInjectBindingGroup {
-			static void Postfix() {
+			public static void Postfix() {
 				// We need to add a custom control group for the keys to be attached to, and create 
 				// the Lookout reference.
-				UnityEngine.Debug.Log("Adding custom Shortcuts group");
+				Debug.Log("Adding custom Shortcuts group");
 				ControlsGroup controlsGroup1 = new ControlsGroup("Zoop");
 				KeyManager.AddGroupLookup(controlsGroup1);
 
@@ -41,16 +41,14 @@ namespace ZoopMod {
              * that will also save the name of they key in the list for us
              */
 			private static void AddKey
-			(string assignmentName,
-				KeyCode keyCode,
-				ControlsGroup controlsGroup,
-				bool hidden = false
-			) {
+			(string  assignmentName, KeyCode keyCode, ControlsGroup controlsGroup, bool hidden = false) {
 				// This is just because of the accessibility to change the assigned name, we use 
 				// the control group for that.
-				var controlsLookupList = Traverse.Create(typeof(KeyManager)).Field("_controlsGroupLookup").GetValue() as Dictionary<string, ControlsGroup>; //read static field
-				controlsLookupList[assignmentName] = controlsGroup;
-				Traverse.Create(typeof(KeyManager)).Field("_controlsGroupLookup").SetValue(controlsLookupList); //for static fields
+				Dictionary<string, ControlsGroup> controlsLookupList = Traverse.Create(typeof(KeyManager)).Field("_controlsGroupLookup").GetValue() as Dictionary<string, ControlsGroup>; //read static field
+				if(controlsLookupList != null) {
+					controlsLookupList[assignmentName] = controlsGroup;
+					Traverse.Create(typeof(KeyManager)).Field("_controlsGroupLookup").SetValue(controlsLookupList); //for static fields
+				}
 
 				// Now Create the key, add its looup string name, and save it in the allkeys list, to ensure
 				// is being saved/load by the game config initialisation function.

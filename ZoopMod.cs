@@ -1,15 +1,12 @@
-﻿using Assets.Scripts.Util;
-using HarmonyLib;
+﻿using HarmonyLib;
 using StationeersMods.Interface;
 using System;
-using System.Collections.Generic;
-using System.Reflection;
 using UnityEngine;
 
 
 
 namespace ZoopMod {
-	class ZoopMod : ModBehaviour {
+	public class ZoopMod : ModBehaviour {
 
 		public static KeyCode ZoopHold;// = KeyCode.LeftShift;
 		public static KeyCode ZoopSwitch;// = KeyCode.Z;
@@ -18,14 +15,14 @@ namespace ZoopMod {
 
 		public static ZoopMod Instance;
 
-		public static bool CFree = false;
+		public static bool CFree;
 
-		private static string loglevel = "INFO";
+		private static string loglevel = "info";
 
 		public enum Logs {
-			DEBUG = 1,
-			ERROR = 2,
-			INFO = 0,
+			debug = 1,
+			error = 2,
+			info = 0,
 		}
 
 		public static void Log(string line, Logs level) {
@@ -40,7 +37,7 @@ namespace ZoopMod {
 				Instance = this;
 				Harmony harmony = new Harmony("ZoopMod");
 				harmony.PatchAll();
-				Log("Patch succeeded", Logs.INFO);
+				Log("Patch succeeded", Logs.info);
 				KeyManager.OnControlsChanged += ControlsChangedEvent;
 
 
@@ -48,7 +45,7 @@ namespace ZoopMod {
 				CFree = type != null;
 
 			} catch(Exception e) {
-				Log("Patch Failed", Logs.ERROR);
+				Log("Patch Failed", Logs.error);
 				Debug.Log(e.ToString());
 			}
 		}

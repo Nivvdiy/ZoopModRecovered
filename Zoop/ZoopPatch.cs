@@ -9,7 +9,7 @@ using System;
 using System.Collections;
 using System.Reflection;
 
-namespace ZoopMod {
+namespace ZoopMod.Zoop {
 	[HarmonyPatch(typeof(InventoryManager), "SetMultiConstructorItemPlacement")]
 	public class InventoryManagerSetMultiConstruct {
 		[UsedImplicitly]
@@ -64,9 +64,7 @@ namespace ZoopMod {
 		new Type[] { typeof(InventoryManager.DelegateEvent), typeof(float), typeof(Structure) })]
 	public class InventoryManagerWaitUntilDone0 {
 		[UsedImplicitly]
-		public static void Prefix(InventoryManager __instance, InventoryManager.DelegateEvent onFinished,
-			ref float timeToWait,
-			Structure structure) {
+		public static void Prefix(InventoryManager __instance, InventoryManager.DelegateEvent onFinished, ref float timeToWait, Structure structure) {
 			if(!InventoryManager.IsAuthoringMode) {
 				if(ZoopUtility.structures.Count <= 0) {
 					timeToWait = Math.Min(timeToWait * 1, timeToWait * 10);
