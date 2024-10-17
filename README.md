@@ -31,11 +31,11 @@ All keys can be customized in the Stationeers settings.
 - [x] Add waypoints functionality (Version 2024.16.08)
 - [ ] ~~Add settings menu~~ (Move into SMCF mod project *WIP*) 
 - [ ] Add zooping for frames
-- [x] Add possibility to zoop with windowed chute
+- [x] Add possibility to zoop with windowed chute (Version 2024.17.10)
 - [ ] Add zooping for wall
 
 ## Known Issues:
-- Does not currently work in Authoring mode.
+- ~~Does not currently work in Authoring mode.~~ (Fixed in version 2024.17.10.01)
 - The mod is always in CreativeFreedom mode, even without the CreativeFreedom mod installed.
 
 ## Works for:
