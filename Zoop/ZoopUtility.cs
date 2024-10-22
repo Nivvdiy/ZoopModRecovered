@@ -1,4 +1,5 @@
 ﻿using Assets.Scripts;
+using Assets.Scripts.GridSystem;
 using Assets.Scripts.Inventory;
 using Assets.Scripts.Networking;
 using Assets.Scripts.Objects;
@@ -7,23 +8,20 @@ using Assets.Scripts.Objects.Items;
 using Assets.Scripts.Objects.Pipes;
 using Assets.Scripts.Util;
 using Cysharp.Threading.Tasks;
+using Objects.Structures;
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Reflection;
 using System.Threading;
-using Assets.Scripts.GridSystem;
 using UnityEngine;
-using UnityEngine.Networking;
-using Object = object;
-using Objects.Structures; //SOMETHING NEW
+using Object = object; //SOMETHING NEW
 
 //using creativefreedom;
 
 //TODO make it work in authoring mode
 // let it ignore collisions if CreativeFreedom mod is enabled.
 
-namespace ZoopMod {
+namespace ZoopMod.Zoop {
 
 	public class ZoopUtility {
 
@@ -51,35 +49,35 @@ namespace ZoopMod {
 		//PROBLEM in new beta: After start of zooping, construct cursor structure disappear, only empty green cube of smallgrid remain
 
 		public static void StartZoop(InventoryManager inventoryManager) {
-			if(!IsAllowed(InventoryManager.ConstructionCursor)) {
-				return;
-			}
-			isZooping = true;
-			if(_cancellationToken == null) {
-				PreferredZoopOrder.Clear();
-				Waypoints.Clear();
-				if(InventoryManager.ConstructionCursor != null) {
-					InventoryManager.UpdatePlacement(inventoryManager.ConstructionPanel.Parent.Constructables[0]);
-					var startPos = GetCurrentMouseGridPosition();
-					if(startPos.HasValue) {
-						Waypoints.Add(startPos); // Add start position as the first waypoint
+			if(IsAllowed(InventoryManager.ConstructionCursor)) {
+				isZooping = true;
+				if(_cancellationToken == null) {
+					PreferredZoopOrder.Clear();
+					Waypoints.Clear();
+					if(InventoryManager.ConstructionCursor != null) {
+						InventoryManager.UpdatePlacement(inventoryManager.ConstructionPanel.Parent.Constructables[0]);
+						Vector3? startPos = GetCurrentMouseGridPosition();
+						if(startPos.HasValue) {
+							Waypoints.Add(startPos); // Add start position as the first waypoint
+						}
 					}
-				}
 
 					if(Waypoints.Count > 0) {
-				_cancellationToken = new CancellationTokenSource();
-				UniTask.Run(async () => await ZoopAsync(_cancellationToken.Token, inventoryManager));
+						_cancellationToken = new CancellationTokenSource();
+						UniTask.Run(async () => await ZoopAsync(_cancellationToken.Token, inventoryManager));
 					}
-			} else {
-				CancelZoop();
+				} else {
+					CancelZoop();
+				}
 			}
+
 		}
 
 		public static void AddWaypoint() {
 			if(InventoryManager.ConstructionCursor is Frame) {
 				return;
 			}
-			var currentPos = GetCurrentMouseGridPosition();
+			Vector3? currentPos = GetCurrentMouseGridPosition();
 			if(currentPos.HasValue && Waypoints.Last() != currentPos) {
 				if(structures.Last().GetGridPosition() == currentPos) {
 					Waypoints.Add(currentPos);
@@ -100,6 +98,14 @@ namespace ZoopMod {
 
 		private static bool IsAllowed(Structure constructionCursor) {
 			return constructionCursor is Pipe or Cable or Chute or Frame;
+		}
+
+		public static void ZoopBigGrid() {
+
+		}
+
+		public static void ZoopSmallGrid() {
+
 		}
 
 		public static async UniTask ZoopAsync(CancellationToken cancellationToken, InventoryManager inventoryManager) {
@@ -139,7 +145,11 @@ namespace ZoopMod {
 
 							await UniTask.SwitchToMainThread(); // Switch to main thread for Unity API calls
 
-							BuildStructureList(inventoryManager, zoops);
+							if(InventoryManager.ConstructionCursor is SmallSingleGrid) {
+								BuildSmallStructureList(inventoryManager, zoops);
+							} else if(InventoryManager.ConstructionCursor is LargeStructure) {
+								BuildBigStructureList(inventoryManager);
+							}
 
 							int structureCounter = 0;
 
@@ -272,21 +282,31 @@ namespace ZoopMod {
 			float endY = endPos.y;
 			float endZ = endPos.z;
 
-			if(Math.Abs(endX - startX) > float.Epsilon) {
+			float absX = Math.Abs(endX - startX);
+			float absY = Math.Abs(endY - startY);
+			float absZ = Math.Abs(endZ - startZ);
+
+			if(InventoryManager.ConstructionCursor is LargeStructure) {
+					absZ = absX >= absZ && absY >= absZ ? 0 : absZ;
+					absY = absX >= absY && absZ >= absY ? 0 : absY;
+					absX = absY >= absX && absZ >= absX ? 0 : absX;
+			}
+
+			if(absX > float.Epsilon) {
 				segment.CountX = 1 + (int)(Math.Abs(startX - endX) * 2);
 				segment.IncreasingX = startX < endX;
 				UpdateZoopOrder(ZoopDirection.x);
 				segment.Directions.Add(ZoopDirection.x);
 			}
 
-			if(Math.Abs(endY - startY) > float.Epsilon) {
+			if(absY > float.Epsilon) {
 				segment.CountY = 1 + (int)(Math.Abs(startY - endY) * 2);
 				segment.IncreasingY = startY < endY;
 				UpdateZoopOrder(ZoopDirection.y);
 				segment.Directions.Add(ZoopDirection.y);
 			}
 
-			if(Math.Abs(endZ - startZ) > float.Epsilon) {
+			if(absZ > float.Epsilon) {
 				segment.CountZ = 1 + (int)(Math.Abs(startZ - endZ) * 2);
 				segment.IncreasingZ = startZ < endZ;
 				UpdateZoopOrder(ZoopDirection.z);
@@ -294,7 +314,13 @@ namespace ZoopMod {
 			}
 		}
 
-		private static void BuildStructureList(InventoryManager inventoryManager, List<ZoopSegment> zoops) {
+		private static void BuildBigStructureList(InventoryManager inventoryManager) {
+			structures.Clear();
+			int count = 0;
+			bool canBuildNext = true;
+		}
+
+		private static void BuildSmallStructureList(InventoryManager inventoryManager, List<ZoopSegment> zoops) {
 			structures.Clear();
 			structuresCacheStraight.ForEach(structure => structure.GameObject.SetActive(false));
 			structuresCacheCorner.ForEach(structure => structure.GameObject.SetActive(false));
@@ -450,7 +476,7 @@ namespace ZoopMod {
 				InventoryManager.ConstructionCursor.gameObject.SetActive(true);
 		}
 
-		public static async UniTask BuildZoopAsync(InventoryManager IM) //public static void BuildZoopAsync(InventoryManager IM)
+		public static async UniTask BuildZoopAsync(InventoryManager inventoryManager) //public static void BuildZoopAsync(InventoryManager inventoryManager)
 		{
 			await UniTask.SwitchToMainThread();
 			foreach(Structure item in structures) {
@@ -475,59 +501,59 @@ namespace ZoopMod {
 				// disabled for clients anyway for now, as I cannot make it work in multiplayer client side
 				await UniTask.SwitchToMainThread();
 				await UniTask.Delay(10, DelayType.Realtime);
-				UsePrimaryComplete(IM, item);
+				UsePrimaryComplete(inventoryManager, item);
 			}
 
 			//Debug.Log("zoop canceled at BuildZoopAsync");
 			CancelZoop();
 		}
 
-		public static void BuildZoop(InventoryManager IM) {
+		public static void BuildZoop(InventoryManager inventoryManager) {
 
 			foreach(Structure item in structures) {
 
-				UsePrimaryComplete(IM, item);
+				UsePrimaryComplete(inventoryManager, item);
 			}
 
-			IM.CancelPlacement();
+			inventoryManager.CancelPlacement();
 			CancelZoop();
 		}
 
-		private static void UsePrimaryComplete(InventoryManager IM, Structure item) {
+		private static void UsePrimaryComplete(InventoryManager inventoryManager, Structure item) {
 			// DynamicThing occupant0 = item.BuildStates[0].Tool.ToolEntry; //try to evade taking authoring tool as occupant
 
-			int optionIndex = IM.ConstructionPanel.Parent.Constructables.FindIndex(structure => structure.PrefabName == item.PrefabName);
-			int itemIndex = InventoryManager.DynamicThingPrefabs.FindIndex(value => IM.ConstructionPanel.Parent.PrefabName == value);
+			int optionIndex = inventoryManager.ConstructionPanel.Parent.Constructables.FindIndex(structure => structure.PrefabName == item.PrefabName);
+			int itemIndex = InventoryManager.DynamicThingPrefabs.FindIndex(value => inventoryManager.ConstructionPanel.Parent.PrefabName == value);
 			//Debug.Log(item.PrefabName + ":" + optionIndex);
 			if(GameManager.RunSimulation) {
-				if(IM.ConstructionPanel.IsVisible)
-					OnServer.UseMultiConstructor(InventoryManager.Parent, IM.ActiveHand.SlotId, IM.InactiveHand.SlotId, item.transform.position, item.transform.rotation, optionIndex, InventoryManager.IsAuthoringMode,
+				if(inventoryManager.ConstructionPanel.IsVisible)
+					OnServer.UseMultiConstructor(InventoryManager.Parent, inventoryManager.ActiveHand.SlotId, inventoryManager.InactiveHand.SlotId, item.transform.position, item.transform.rotation, optionIndex, InventoryManager.IsAuthoringMode,
 						InventoryManager.ParentBrain.ClientId, itemIndex);
 				else
-					OnServer.UseItemPrimary((Assets.Scripts.Objects.Thing)InventoryManager.Parent, IM.ActiveHand.SlotId, item.transform.position, item.transform.rotation, InventoryManager.ParentBrain.ClientId, optionIndex);
+					OnServer.UseItemPrimary(InventoryManager.Parent, inventoryManager.ActiveHand.SlotId, item.transform.position, item.transform.rotation, InventoryManager.ParentBrain.ClientId, optionIndex);
 			} else {
 				CreateStructureMessage structureMessage = new CreateStructureMessage();
-				DynamicThing occupant1 = IM.ActiveHand.Slot.Get(); //InventoryManager.IsAuthoringMode ? occupant0 : IM.ActiveHand.Slot.Occupant; //IM.ActiveHand.Slot.Occupant
+				DynamicThing occupant1 = inventoryManager.ActiveHand.Slot.Get(); //InventoryManager.IsAuthoringMode ? occupant0 : inventoryManager.ActiveHand.Slot.Occupant; //inventoryManager.ActiveHand.Slot.Occupant
 				// ISSUE: explicit non-virtual call
 				structureMessage.ConstructorId = occupant1 != null ? occupant1.ReferenceId : 0L;
-				DynamicThing occupant2 = IM.InactiveHand.Slot.Get(); // InventoryManager.IsAuthoringMode ? occupant0 : IM.InactiveHand.Slot.Occupant;
+				DynamicThing occupant2 = inventoryManager.InactiveHand.Slot.Get(); // InventoryManager.IsAuthoringMode ? occupant0 : inventoryManager.InactiveHand.Slot.Occupant;
 				// ISSUE: explicit non-virtual call
 				structureMessage.OffhandOccupantReferenceId = occupant2 != null ? occupant2.ReferenceId : 0L;
 				structureMessage.LocalPosition = item.transform.position.ToGrid();
 				structureMessage.Rotation = item.transform.rotation;
 				structureMessage.CreatorSteamId = (ulong)InventoryManager.ParentBrain.ReferenceId;
 				structureMessage.OptionIndex = optionIndex;
-				DynamicThing occupant3 = IM.ActiveHand.Slot.Get(); // InventoryManager.IsAuthoringMode ? occupant0 : IM.ActiveHand.Slot.Occupant;
+				DynamicThing occupant3 = inventoryManager.ActiveHand.Slot.Get(); // InventoryManager.IsAuthoringMode ? occupant0 : inventoryManager.ActiveHand.Slot.Occupant;
 				structureMessage.PrefabHash = occupant3 != null ? occupant3.PrefabHash : 0;
 				structureMessage.AuthoringMode = InventoryManager.IsAuthoringMode;
-				NetworkClient.SendToServer<CreateStructureMessage>((MessageBase<CreateStructureMessage>)structureMessage, NetworkChannel.GeneralTraffic);
+				NetworkClient.SendToServer<CreateStructureMessage>(structureMessage, NetworkChannel.GeneralTraffic);
 			}
 
 		}
 
 		//NEED TO ADD CHECK FOR CREATIVE FREEDOM MOD, so zooping will be without construction checks
 		//InventoryManager.IsAuthoringMode ?
-		public static bool CanConstruct(InventoryManager IM, Structure structure) {
+		public static bool CanConstruct(InventoryManager inventoryManager, Structure structure) {
 			SmallCell smallCell = structure.GridController.GetSmallCell(structure.ThingTransformLocalPosition);
 			bool invalidStructureExistsOnGrid = smallCell != null &&
 												(smallCell.Device != (Object)null &&
@@ -551,24 +577,27 @@ namespace ZoopMod {
 			if(structureType != null) {
 				MethodInfo method = structureType.GetMethod("_IsCollision", BindingFlags.Instance | BindingFlags.NonPublic);
 
-				differentEndsCollision = smallCell != null && smallCell.Cable != null && (bool)method.Invoke(structure, new object[] { smallCell.Cable });
-				differentEndsCollision |= smallCell != null && smallCell.Pipe != null && (bool)method.Invoke(structure, new object[] { smallCell.Pipe });
-				differentEndsCollision |= smallCell != null && smallCell.Chute != null && (bool)method.Invoke(structure, new object[] { smallCell.Chute });
+				if(method != null) {
+					differentEndsCollision = smallCell != null && smallCell.Cable != null && (bool)method.Invoke(structure, new object[]{smallCell.Cable});
+					differentEndsCollision |= smallCell != null && smallCell.Pipe != null && (bool)method.Invoke(structure, new object[]{smallCell.Pipe});
+					differentEndsCollision |= smallCell != null && smallCell.Chute != null && (bool)method.Invoke(structure, new object[]{smallCell.Chute});
+				}
+
 			}
 
 			bool canConstruct = !invalidStructureExistsOnGrid && !differentEndsCollision; // || ZoopMod.CFree;
 
 			if(smallCell != null && smallCell.IsValid() && structure is Piping && smallCell.Pipe is Piping piping) {
-				int optionIndex = IM.ConstructionPanel.Parent.Constructables.FindIndex(item => structure.PrefabName == item.PrefabName);
-				MultiConstructor activeHandOccupant = IM.ActiveHand.Slot.Get() as MultiConstructor;
-				Item inactiveHandOccupant = InventoryManager.Parent.Slots[IM.InactiveHand.SlotId].Get() as Item;
-				CanConstructInfo canReplace = piping.CanReplace(IM.ConstructionPanel.Parent, inactiveHandOccupant);
+				int optionIndex = inventoryManager.ConstructionPanel.Parent.Constructables.FindIndex(item => structure.PrefabName == item.PrefabName);
+				MultiConstructor activeHandOccupant = inventoryManager.ActiveHand.Slot.Get() as MultiConstructor;
+				Item inactiveHandOccupant = InventoryManager.Parent.Slots[inventoryManager.InactiveHand.SlotId].Get() as Item;
+				CanConstructInfo canReplace = piping.CanReplace(inventoryManager.ConstructionPanel.Parent, inactiveHandOccupant);
 				canConstruct &= canReplace.CanConstruct;
 			} else if(smallCell != null && smallCell.IsValid() && structure is Cable && smallCell.Cable is Cable cable2) {
-				int optionIndex = IM.ConstructionPanel.Parent.Constructables.FindIndex(item => structure.PrefabName == item.PrefabName);
-				MultiConstructor activeHandOccupant = IM.ActiveHand.Slot.Get() as MultiConstructor;
-				Item inactiveHandOccupant = InventoryManager.Parent.Slots[IM.InactiveHand.SlotId].Get() as Item;
-				CanConstructInfo canReplace = cable2.CanReplace(IM.ConstructionPanel.Parent, inactiveHandOccupant);
+				int optionIndex = inventoryManager.ConstructionPanel.Parent.Constructables.FindIndex(item => structure.PrefabName == item.PrefabName);
+				MultiConstructor activeHandOccupant = inventoryManager.ActiveHand.Slot.Get() as MultiConstructor;
+				Item inactiveHandOccupant = InventoryManager.Parent.Slots[inventoryManager.InactiveHand.SlotId].Get() as Item;
+				CanConstructInfo canReplace = cable2.CanReplace(inventoryManager.ConstructionPanel.Parent, inactiveHandOccupant);
 				canConstruct &= canReplace.CanConstruct;
 			} else if(smallCell != null && smallCell.IsValid() && structure is Chute && smallCell.Chute is Chute) {
 				canConstruct &= false;
@@ -577,17 +606,17 @@ namespace ZoopMod {
 			return canConstruct;
 		}
 
-		private static void SetColor(InventoryManager IM, Structure structure, bool hasError) {
+		private static void SetColor(InventoryManager inventoryManager, Structure structure, bool hasError) {
 			bool canConstruct = !hasError;
 			bool isWaypoint = Waypoints.Contains(structure.Position);
 			//check if structure is first element of waypoints
 			bool isStart = isWaypoint && Waypoints.First<Vector3?>().Equals(structure.Position);
 			Color color = canConstruct ? isWaypoint ? isStart ? StartColor : WaypointColor : lineColor : errorColor;
 			if(structure is SmallGrid smallGrid) {
-				var list = smallGrid.WillJoinNetwork();
+				List<Connection> list = smallGrid.WillJoinNetwork();
 				foreach(Connection openEnd in smallGrid.OpenEnds) {
 					if(canConstruct) {
-						Color colorToSet = list.Contains(openEnd) ? Color.yellow.SetAlpha(IM.CursorAlphaConstructionHelper) : Color.green.SetAlpha(IM.CursorAlphaConstructionHelper);
+						Color colorToSet = list.Contains(openEnd) ? Color.yellow.SetAlpha(inventoryManager.CursorAlphaConstructionHelper) : Color.green.SetAlpha(inventoryManager.CursorAlphaConstructionHelper);
 						foreach(ThingRenderer renderer in structure.Renderers) {
 							if(renderer.HasRenderer()) {
 								renderer.SetColor(colorToSet);
@@ -600,11 +629,11 @@ namespace ZoopMod {
 					} else {
 						foreach(ThingRenderer renderer in structure.Renderers) {
 							if(renderer.HasRenderer())
-								renderer.SetColor(Color.red.SetAlpha(IM.CursorAlphaConstructionHelper));
+								renderer.SetColor(Color.red.SetAlpha(inventoryManager.CursorAlphaConstructionHelper));
 						}
 
 						foreach(Connection end in ((SmallGrid)structure).OpenEnds) {
-							end.HelperRenderer.material.color = Color.red.SetAlpha(IM.CursorAlphaConstructionHelper);
+							end.HelperRenderer.material.color = Color.red.SetAlpha(inventoryManager.CursorAlphaConstructionHelper);
 						}
 					}
 				}
@@ -612,7 +641,7 @@ namespace ZoopMod {
 				color = canConstruct && list.Count > 0 ? Color.yellow : color;
 			}
 
-			color.a = IM.CursorAlphaConstructionMesh;
+			color.a = inventoryManager.CursorAlphaConstructionMesh;
 			structure.Wireframe.BlueprintRenderer.material.color = color;
 			//may it affect end structure lineColor at collided pieces and merge same colored cables?
 		}
@@ -672,7 +701,7 @@ namespace ZoopMod {
 			}
 		}
 
-		private static void MakeItem(List<Structure> constructables, bool corner, int index, InventoryManager im, int selectedIndex) {
+		private static void MakeItem(List<Structure> constructables, bool corner, int index, InventoryManager inventoryManager, int selectedIndex) {
 			if(!corner && structuresCacheStraight.Count > index) {
 				structures.Add(structuresCacheStraight[index]);
 			} else if(corner && structuresCacheCorner.Count > index) {

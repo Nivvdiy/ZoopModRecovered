@@ -9,7 +9,7 @@ using System;
 using System.Collections;
 using System.Reflection;
 
-namespace ZoopMod {
+namespace ZoopMod.Zoop {
 	[HarmonyPatch(typeof(InventoryManager), "SetMultiConstructorItemPlacement")]
 	public class InventoryManagerSetMultiConstruct {
 		[UsedImplicitly]

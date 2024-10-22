@@ -1,6 +1,6 @@
 ﻿using System.Collections.Generic;
 
-namespace ZoopMod {
+namespace ZoopMod.Zoop {
 	public class ZoopSegment {
 		public List<ZoopDirection> Directions { get; set; }
 		public bool IncreasingX { get; set; }
