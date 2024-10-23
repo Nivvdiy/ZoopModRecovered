@@ -3,7 +3,7 @@
 		public static Assets.Scripts.Localization2.GameString msgNoDoubleWaypoints = Assets.Scripts.Localization2.GameString.Create(
 			new string[]{
 				"zoopNoDoubleWaypoints",
-				"You can't add a waypoint at last waypoint location"
+				"You cannot add a waypoint at the same location as the previous one"
 			});
 
 	}

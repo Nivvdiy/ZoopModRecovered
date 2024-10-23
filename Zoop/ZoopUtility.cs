@@ -100,12 +100,12 @@ namespace ZoopMod.Zoop {
 			return constructionCursor is Pipe or Cable or Chute or Frame;
 		}
 
-		public static void ZoopBigGrid() {
-
+		private static bool IsZoopingSmallGrid() {
+			return InventoryManager.ConstructionCursor is SmallGrid;
 		}
 
-		public static void ZoopSmallGrid() {
-
+		private static bool IsZoopingBigGrid() {
+			return InventoryManager.ConstructionCursor is LargeStructure;
 		}
 
 		public static async UniTask ZoopAsync(CancellationToken cancellationToken, InventoryManager inventoryManager) {
@@ -117,6 +117,7 @@ namespace ZoopMod.Zoop {
 				InventoryManager.ConstructionCursor.gameObject.SetActive(false);
 
 			while(cancellationToken is { IsCancellationRequested: false }) {
+
 				try {
 					if(Waypoints.Count > 0) {
 						Vector3? currentPos = GetCurrentMouseGridPosition();
@@ -125,36 +126,53 @@ namespace ZoopMod.Zoop {
 							HasError = false;
 							bool singleItem = true;
 
-							// Iterate over each pair of waypoints
-							for(int wpIndex = 0; wpIndex < Waypoints.Count; wpIndex++) {
-								Vector3 startPos = Waypoints[wpIndex].Value;
-								Vector3 endPos = wpIndex < Waypoints.Count - 1 ? Waypoints[wpIndex + 1].Value : currentPos.Value;
+							if(IsZoopingSmallGrid()) {
 
-								ZoopSegment segment = new ZoopSegment();
-								CalculateZoopSegments(startPos, endPos, segment);
+								// Iterate over each pair of waypoints
+								for(int wpIndex = 0; wpIndex < Waypoints.Count; wpIndex++) {
+									Vector3 startPos = Waypoints[wpIndex].Value;
+									Vector3 endPos = wpIndex < Waypoints.Count - 1 ? Waypoints[wpIndex + 1].Value : currentPos.Value;
+
+									ZoopSegment segment = new ZoopSegment();
+									CalculateZoopSegments(startPos, endPos, segment);
+
+									singleItem = startPos == endPos;
+									if(singleItem) {
+										segment.CountX = 1 + (int)(Math.Abs(startPos.x - endPos.x) * 2);
+										segment.IncreasingX = startPos.x < endPos.x;
+										segment.Directions.Add(ZoopDirection.x); // unused for single item
+									}
+
+									zoops.Add(segment);
+								}
+
+								await UniTask.SwitchToMainThread(); // Switch to main thread for Unity API calls
+
+								BuildSmallStructureList(inventoryManager, zoops);
+
+							} else if(IsZoopingBigGrid()) {
+								Vector3 startPos = Waypoints[0].Value;
+								Vector3 endPos = currentPos.Value;
+
+								ZoopPlane plane = new ZoopPlane();
+								CalculateZoopPlane(startPos, endPos, plane);
 
 								singleItem = startPos == endPos;
 								if(singleItem) {
-									segment.CountX = 1 + (int)(Math.Abs(startPos.x - endPos.x) * 2);
-									segment.IncreasingX = startPos.x < endPos.x;
-									segment.Directions.Add(ZoopDirection.x); // unused for single item
+									plane.Count = (direction1: 1 + (int)(Math.Abs(startPos.x - endPos.x)), direction2: 1 + (int)(Math.Abs(startPos.x - endPos.x)));
+									plane.Increasing = (direction1: startPos.x < endPos.x, direction2: startPos.y < endPos.y);
+									plane.Directions = (direction1: ZoopDirection.x, direction2: ZoopDirection.y);
 								}
 
-								zoops.Add(segment);
-							}
+								await UniTask.SwitchToMainThread(); // Switch to main thread for Unity API calls
 
-							await UniTask.SwitchToMainThread(); // Switch to main thread for Unity API calls
-
-							if(InventoryManager.ConstructionCursor is SmallSingleGrid) {
-								BuildSmallStructureList(inventoryManager, zoops);
-							} else if(InventoryManager.ConstructionCursor is LargeStructure) {
 								BuildBigStructureList(inventoryManager);
 							}
 
 							int structureCounter = 0;
 
 							if(structures.Count > 0) {
-								ZoopDirection lastDirection = ZoopDirection.n;
+								ZoopDirection lastDirection = ZoopDirection.none;
 								for(int segmentIndex = 0; segmentIndex < zoops.Count; segmentIndex++) {
 									ZoopSegment segment = zoops[segmentIndex];
 									float xOffset = 0;
@@ -197,7 +215,7 @@ namespace ZoopMod.Zoop {
 											}
 
 											bool increasingTo = increasing;
-											bool increasingFrom = lastDirection != ZoopDirection.n && GetIncreasingForDirection(lastDirection, segment);
+											bool increasingFrom = lastDirection != ZoopDirection.none && GetIncreasingForDirection(lastDirection, segment);
 											// Correct the logic to avoid overlapping
 											if(segmentIndex > 0 && directionIndex == 0 && zi == 0) {
 												ZoopDirection lastSegmentDirection = zoops[segmentIndex - 1].Directions.Last();
@@ -211,7 +229,7 @@ namespace ZoopMod.Zoop {
 													case ZoopDirection.z:
 														increasingFrom = zoops[segmentIndex - 1].IncreasingZ;
 														break;
-													case ZoopDirection.n:
+													case ZoopDirection.none:
 													default:
 														throw new ArgumentOutOfRangeException();
 												}
@@ -248,7 +266,7 @@ namespace ZoopMod.Zoop {
 													case ZoopDirection.z:
 														zOffset = (zi + 1) * value;
 														break;
-													case ZoopDirection.n:
+													case ZoopDirection.none:
 													default:
 														throw new ArgumentOutOfRangeException();
 												}
@@ -272,6 +290,40 @@ namespace ZoopMod.Zoop {
 			}
 		}
 
+		private static void CalculateZoopPlane(Vector3 startPos, Vector3 endPos, ZoopPlane plane) {
+
+			float startX = startPos.x;
+			float startY = startPos.y;
+			float startZ = startPos.z;
+			float endX = endPos.x;
+			float endY = endPos.y;
+			float endZ = endPos.z;
+
+			float absX = Math.Abs(endX - startX);
+			float absY = Math.Abs(endY - startY);
+			float absZ = Math.Abs(endZ - startZ);
+
+			var directions = new List<(float value, ZoopDirection direction, int count, bool increasing)>{
+				(absX, ZoopDirection.x, 1 + (int)(Math.Abs(startX - endX)), startX < endX),
+				(absY, ZoopDirection.y, 1 + (int)(Math.Abs(startY - endY)), startY < endY),
+				(absX, ZoopDirection.z, 1 + (int)(Math.Abs(startZ - endZ)), startZ < endZ)
+			};
+
+			directions.Sort((a,b) => b.value.CompareTo(a.value));
+
+			if(directions[0].value > float.Epsilon) {
+				plane.Directions = plane.Directions with { direction1 = directions[0].direction };
+				plane.Count = plane.Count with { direction1 = directions[0].count };
+				plane.Increasing = plane.Increasing with { direction1 = directions[0].increasing };
+			}
+
+			if(directions[1].value > float.Epsilon) {
+				plane.Directions = plane.Directions with { direction2 = directions[1].direction };
+				plane.Count = plane.Count with { direction2 = directions[1].count };
+				plane.Increasing = plane.Increasing with { direction2 = directions[1].increasing };
+			}
+		}
+
 		private static void CalculateZoopSegments(Vector3 startPos, Vector3 endPos, ZoopSegment segment) {
 			segment.Directions.Clear();
 
@@ -285,12 +337,6 @@ namespace ZoopMod.Zoop {
 			float absX = Math.Abs(endX - startX);
 			float absY = Math.Abs(endY - startY);
 			float absZ = Math.Abs(endZ - startZ);
-
-			if(InventoryManager.ConstructionCursor is LargeStructure) {
-					absZ = absX >= absZ && absY >= absZ ? 0 : absZ;
-					absY = absX >= absY && absZ >= absY ? 0 : absY;
-					absX = absY >= absX && absZ >= absX ? 0 : absX;
-			}
 
 			if(absX > float.Epsilon) {
 				segment.CountX = 1 + (int)(Math.Abs(startX - endX) * 2);
@@ -327,7 +373,7 @@ namespace ZoopMod.Zoop {
 
 			int straight = 0;
 			int corners = 0;
-			ZoopDirection lastDirection = ZoopDirection.n;
+			ZoopDirection lastDirection = ZoopDirection.none;
 			bool canBuildNext = true;
 			for(int segmentIndex = 0; segmentIndex < zoops.Count; segmentIndex++) {
 				ZoopSegment segment = zoops[segmentIndex];
@@ -387,7 +433,7 @@ namespace ZoopMod.Zoop {
 					}
 
 					break;
-				case ZoopDirection.n:
+				case ZoopDirection.none:
 				default:
 					throw new ArgumentOutOfRangeException(nameof(zoopDirection), zoopDirection, null);
 			}
@@ -422,7 +468,7 @@ namespace ZoopMod.Zoop {
 					return segment.IncreasingY;
 				case ZoopDirection.z:
 					return segment.IncreasingZ;
-				case ZoopDirection.n:
+				case ZoopDirection.none:
 				default:
 					throw new ArgumentOutOfRangeException();
 			}
@@ -436,7 +482,7 @@ namespace ZoopMod.Zoop {
 					return segment.CountY;
 				case ZoopDirection.z:
 					return segment.CountZ;
-				case ZoopDirection.n:
+				case ZoopDirection.none:
 				default:
 					throw new ArgumentOutOfRangeException();
 			}
