@@ -30,7 +30,7 @@ All keys can be customized in the Stationeers settings.
 - [ ] Work with authoring tool
 - [x] Add waypoints functionality (Version 2024.16.08)
 - [ ] ~~Add settings menu~~ (Move into SMCF mod project *WIP*) 
-- [ ] Add zooping for frames
+- [x] Add zooping for frames (Version 2024.30.10)
 - [x] Add possibility to zoop with windowed chute (Version 2024.17.10)
 - [ ] Add zooping for wall
 
@@ -39,5 +39,7 @@ All keys can be customized in the Stationeers settings.
 - The mod is always in CreativeFreedom mode, even without the CreativeFreedom mod installed.
 
 ## Works for:
+- "Short Circuit: Liquid Device Interactions" update (October 28, 2024)
+- "In World Water" update (October 11, 2024)
 - "Tutorials & Helper Hints" update (August 5, 2024)
 - "Bug Fixing" update (August 13, 2024)
