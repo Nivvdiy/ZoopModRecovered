@@ -1,78 +1,78 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
-
-<ModMetadata xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+﻿<?xml version="1.0" encoding="utf-8"?><ModMetadata xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
 	<Name>ZoopMod [StationeersMods]</Name>
 	<Author>Nivvdiy</Author>
-	<Version>2024.30.10</Version>
+	<Version>2024.15.12</Version>
 	<Description>
-		[h1]ZoopMod[/h1]
+	[h1]ZoopMod[/h1]
 
-		[b]WARNING:[/b]
-		This mod requires the StationeersMods Plugin Mod and BepInEx to be installed.
-		For installation, see the detailed guide at https://github.com/jixxed/StationeersMods
-		Please ensure you are unsubscribed from old versions of this mod:
-		https://steamcommunity.com/sharedfiles/filedetails/?id=3182410797
+	[b]WARNING:[/b]
+	This mod requires the StationeersMods Plugin Mod and BepInEx to be installed.
+	For installation, see the detailed guide at https://github.com/jixxed/StationeersMods
+	Please ensure you are unsubscribed from old versions of this mod:
+	https://steamcommunity.com/sharedfiles/filedetails/?id=3182410797
 
-		Recovered Zoop mod, originally created by [b]Elmotrix[/b] and later advanced by [b]jixxed[/b]. This mod has been updated from [b]Katsuk[/b]'s version.
+	Recovered Zoop mod, originally created by [b]Elmotrix[/b] and later advanced by [b]jixxed[/b]. This mod has been updated from [b]Katsuk[/b]'s version.
 
-		[b]Cables, Pipes, Chutes[/b]
-		Allows you to build long lines between two points in a single action.
-		Lines cannot exceed the quantity of building materials in hand.
-		Waypoints can be added to extend the length of cables.
+	[b]Cables, Pipes, Chutes[/b]
+	Allows you to build long lines between two points in a single action.
+	Lines cannot exceed the quantity of building materials in hand.
+	Waypoints can be added to extend the length of cables.
 
-		[b]Frames[/b]
-		Can build long surface between two points.
-		Zooping take biggest surface, can't build a big cube on zoop mode.
-		Frames can't be placed if another frame, walls or any other large structure is in the way (it's to avoid error and wrong consumption of item).
-		No waypoints for frames.
+	[b]Frames[/b]
+	Can build long surface between two points.
+	Zooping take biggest surface, can't build a big cube on zoop mode.
+	Frames can't be placed if another frame, walls or any other large structure is in the way (it's to avoid error and wrong consumption of item).
+	No waypoints for frames.
 
-		[b]Additions:[/b]
-		[list]
-		[*]Fix for completion time, ensuring consistency in subsequent building actions.
-		[*]Bindable keys.
-		[*]Soft dependency on the CreativeFreedom mod, enabling cross-device zooping without collision checks.
-		[*]Increased stack size for cables (250), pipes (100), and chutes (50).
-		[*]Authoring tool usage
-		[*]Zooping for frames
-		[/list]
+	[b]Additions:[/b]
+	[list]
+	[*]Fix for completion time, ensuring consistency in subsequent building actions.
+	[*]Bindable keys.
+	[*]Soft dependency on the CreativeFreedom mod, enabling cross-device zooping without collision checks.
+	[*]Increased stack size for cables (250), pipes (100), and chutes (50).
+	[*]Authoring tool usage
+	[*]Zooping for frames
+	[/list]
 
-		[b]Usage:[/b]
-		While in construction mode, hold [b]Left Shift[/b] [i](by default)[/i] and press the primary action, then move the mouse to zoop. Hold primary to complete.
-		Alternatively, press [b]Z[/b] [i](by default)[/i] once to start zooping without hold+click.
-		You can add a waypoint by pressing [b]mouse middle-click[/b] [i](by default)[/i] and cancel the last one with [b]V[/b] [i](by default)[/i].
+	[b]Usage:[/b]
+	While in construction mode, hold [b]Left Shift[/b] [i](by default)[/i] and press the primary action, then move the mouse to zoop. Hold primary to complete.
+	Alternatively, press [b]Z[/b] [i](by default)[/i] once to start zooping without hold+click.
+	You can add a waypoint by pressing [b]mouse middle-click[/b] [i](by default)[/i] and cancel the last one with [b]V[/b] [i](by default)[/i].
 
-		All keys can be customized in the Stationeers settings.
+	All keys can be customized in the Stationeers settings.
 
-		[b]TODO:[/b]
-		[list]
-		[*][ ]Work on client side
-		[*][ ]Work with authoring tool
-		[*][x]Add waypoints functionality (Version 2024.16.08)
-		[*][ ][strike] Add settings menu[/strike]  (Move into SMCF mod project [i]WIP[/i])
-		[*][x]Add zooping for frames (Version 2024.30.10)
-		[*][x]Add possibility to zoop windowed chute (Version 2024.27.10)
-		[*][ ]Add zooping for wall
-		[/list]
+	[b]TODO:[/b]
+	[list]
+	[*][ ]Work on client side
+	[*][ ]Work with authoring tool
+	[*][x]Add waypoints functionality (Version 2024.16.08)
+	[*][ ][strike] Add settings menu[/strike]  (Move into SMCF mod project [i]WIP[/i])
+	[*][x]Add zooping for frames (Version 2024.30.10)
+	[*][x]Add possibility to zoop windowed chute (Version 2024.27.10)
+	[*][ ]Add zooping for wall
+	[/list]
 
-		[b]Actually working on[/b]
-		No work in progress at the moment.
+	[b]Actually working on[/b]
+	No work in progress at the moment.
 
-		[b]Known Issues:[/b]
-		[list]
-		[*][strike]Does not currently work in Authoring mode.[/strike] (Fixed in version 2024.17.10.01)
-		[*]The mod is always in CreativeFreedom mode, even without the CreativeFreedom mod installed.
-		[/list]
+	[b]Known Issues:[/b]
+	[list]
+	[*][strike]Does not currently work in Authoring mode.[/strike] (Fixed in version 2024.17.10.01)
+	[*]The mod is always in CreativeFreedom mode, even without the CreativeFreedom mod installed.
+	[/list]
 
-		[b]Works for:[/b]
-		[list]
-		[*]"Short Circuit: Liquid Device Interactions" update (October 28, 2024)
-		[*]"In World Water" update (October 11, 2024)
-		[*]"Bug Fixing" update (August 13, 2024)
-		[*]"Tutorials and Helper Hints" update (August 5, 2024)
-		[/list]
+	[b]Works for:[/b]
+	[list]
+	[*]"Bug Fixing" update (December 12, 2024)
+	[*]"Emergency Kit: Gas Masks and Engine Upgrade" update (December 11, 2024)
+	[*]"Short Circuit: Liquid Device Interactions" update (October 28, 2024)
+	[*]"In World Water" update (October 11, 2024)
+	[*]"Bug Fixing" update (August 13, 2024)
+	[*]"Tutorials and Helper Hints" update (August 5, 2024)
+	[/list]
 
-		Modding took time and effort. If you like the mod, consider supporting me by buying me a book:
-		[url=https://www.buymeacoffee.com/nivvdiy][img]https://cdn.buymeacoffee.com/buttons/v2/default-blue.png[/img][/url]
+	Modding took time and effort. If you like the mod, consider supporting me by buying me a book:
+	[url=https://www.buymeacoffee.com/nivvdiy][img]https://cdn.buymeacoffee.com/buttons/v2/default-blue.png[/img][/url]
 	</Description>
 	<ChangeLog xsi:nil="true" />
 	<WorkshopHandle>3310094883</WorkshopHandle>
@@ -82,8 +82,7 @@
 	<Dependencies />
 	<LoadBefore />
 	<LoadAfter />
-	<InGameDescription>
-	<![CDATA[<size="30"><color=#ffa500>ZoopMod</color></size>
+	<InGameDescription><![CDATA[<size="30"><color=#ffa500>ZoopMod</color></size>
 <b>WARNING:</b> <color=#ff0000>This mod requires the StationeersMods Plugin and BepInEx to function properly.</color>
 Make sure you are unsubscribed from any previous versions. Installation details are available at <b><u><color=#00ccff>https://github.com/jixxed/StationeersMods</color></u></b>.
 
