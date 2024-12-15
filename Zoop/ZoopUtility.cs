@@ -425,9 +425,9 @@ namespace ZoopMod.Zoop {
 			if(GameManager.RunSimulation) {
 				if(inventoryManager.ConstructionPanel.IsVisible)
 					OnServer.UseMultiConstructor((Assets.Scripts.Objects.Thing)InventoryManager.Parent, inventoryManager.ActiveHand.SlotId, inventoryManager.InactiveHand.SlotId, item.transform.position,
-						item.transform.rotation, buildIndex, InventoryManager.IsAuthoringMode, InventoryManager.ParentBrain.ClientId, prefabIndex);
+						item.transform.rotation, buildIndex, InventoryManager.IsAuthoringMode, InventoryManager.ParentBrain.ClientId, item);
 				else
-					OnServer.UseItemPrimary((Assets.Scripts.Objects.Thing)InventoryManager.Parent, inventoryManager.ActiveHand.SlotId, item.transform.position, item.transform.rotation, InventoryManager.ParentBrain.ClientId, prefabIndex);
+					OnServer.UseItemPrimary((Assets.Scripts.Objects.Thing)InventoryManager.Parent, inventoryManager.ActiveHand.SlotId, item.transform.position, item.transform.rotation, InventoryManager.ParentBrain.ClientId, item);
 			} else {
 				CreateStructureMessage structureMessage = new CreateStructureMessage();
 				DynamicThing occupant1 = inventoryManager.ActiveHand.Slot.Get(); //InventoryManager.IsAuthoringMode ? occupant0 : inventoryManager.ActiveHand.Slot.Occupant; //inventoryManager.ActiveHand.Slot.Occupant
