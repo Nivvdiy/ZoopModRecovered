@@ -81,8 +81,8 @@ namespace ZoopMod.Zoop {
 		//public static bool CFree = false;
 		[UsedImplicitly]
 		public static bool Prefix(InventoryManager __instance) {
-			if(GameManager.RunSimulation) //not let it work in multiplayer client, as it bring errors there
-			{
+			// if(GameManager.RunSimulation) //not let it work in multiplayer client, as it bring errors there
+			// {
 
 				bool scrollUp = __instance.newScrollData > 0f;
 				bool scrollDown = __instance.newScrollData < 0f;
@@ -148,7 +148,7 @@ namespace ZoopMod.Zoop {
 				}
 
 				return !ZoopUtility.isZoopKeyPressed;
-			} else return true; //let normal building work in multiplayer client too.
+			// } else return true; //let normal building work in multiplayer client too.
 		}
 	}
 

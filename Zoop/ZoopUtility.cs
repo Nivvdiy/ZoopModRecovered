@@ -16,7 +16,7 @@ using System.Threading;
 using Assets.Scripts.Objects.Structures;
 using CreativeFreedom;
 using UnityEngine;
-using Object = object; //SOMETHING NEW
+using Object = UnityEngine.Object; //SOMETHING NEW
 
 //using creativefreedom;
 
@@ -436,7 +436,7 @@ namespace ZoopMod.Zoop {
 				DynamicThing occupant2 = inventoryManager.InactiveHand.Slot.Get(); // InventoryManager.IsAuthoringMode ? occupant0 : inventoryManager.InactiveHand.Slot.Occupant;
 																				   // ISSUE: explicit non-virtual call
 				structureMessage.OffhandOccupantReferenceId = occupant2 != null ? occupant2.ReferenceId : 0L;
-				structureMessage.LocalPosition = item.transform.position.ToGrid();
+				structureMessage.LocalPosition = item.transform.position.ToGridPosition();
 				structureMessage.Rotation = item.transform.rotation;
 				structureMessage.CreatorSteamId = (ulong)InventoryManager.ParentBrain.ReferenceId;
 				structureMessage.OptionIndex = buildIndex;
