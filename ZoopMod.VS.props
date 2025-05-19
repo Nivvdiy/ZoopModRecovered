@@ -5,7 +5,7 @@
 		<StationeersDirectory>$(RootFolder)\common\Stationeers</StationeersDirectory>
 		<!-- Change this to the path to your Stationeers directory -->
 		<UnityEditorDirectory>B:\Unity\Versions\2021.2.13f1\Editor\Data\Managed</UnityEditorDirectory>
-		<StationeersModDirectory>$(StationeersDirectory)\BepInEx\plugins\StationeersMods\</StationeersModDirectory>
+		<StationeersModDirectory>$(StationeersDirectory)\BepInEx\plugins\StationeersLaunchPad\</StationeersModDirectory>
 		<ManagedDirectory>$(StationeersDirectory)\rocketstation_Data\Managed\</ManagedDirectory>
 		<StationeersModOutputFolder Condition=" '$(StationeersModOutputFolder)' == '' ">D:\Documents\My Games\Stationeers\mods</StationeersModOutputFolder>
 		<CreativeFreedomModPath Condition=" '$(CreativeFreedomModPath)' == '' ">$(RootFolder)\workshop\content\544550\3193624149</CreativeFreedomModPath>

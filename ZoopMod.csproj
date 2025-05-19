@@ -71,8 +71,8 @@
 			<HintPath>$(ManagedDirectory)\UniTask.dll</HintPath>
 		</Reference>
 		<!-- Other References -->
-		<Reference Include="StationeersMods">
-			<HintPath>$(StationeersModDirectory)StationeersMods.dll</HintPath>
+		<Reference Include="StationeersLaunchPad">
+			<HintPath>$(StationeersModDirectory)StationeersLaunchPad.dll</HintPath>
 		</Reference>
 		<Reference Include="StationeersMods.Interface">
 			<HintPath>$(StationeersModDirectory)StationeersMods.Interface.dll</HintPath>
