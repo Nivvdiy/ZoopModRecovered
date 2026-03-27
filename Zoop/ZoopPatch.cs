@@ -8,6 +8,7 @@ using Assets.Scripts.UI;
 using Assets.Scripts.Util;
 using HarmonyLib;
 using JetBrains.Annotations;
+using UnityEngine;
 
 namespace ZoopMod.Zoop
 {
@@ -149,7 +150,8 @@ namespace ZoopMod.Zoop
                 [typeof(InventoryManager.DelegateEvent), typeof(float), typeof(Structure)],
                 null);
             if (method != null)
-              ZoopUtility.ActionCoroutine = __instance.StartCoroutine((IEnumerator)method.Invoke(
+            {
+              Coroutine actionCoroutine = __instance.StartCoroutine((IEnumerator)method.Invoke(
                   __instance,
                   [
                       //new InventoryManager.DelegateEvent(() => UniTask.Run(async () => await ZoopUtility.BuildZoopAsync(__instance))),
@@ -159,6 +161,8 @@ namespace ZoopMod.Zoop
 										InventoryManager.ConstructionCursor
                   ])
               );
+              ZoopUtility.SetPendingBuild(__instance, actionCoroutine);
+            }
           }
           else
             ZoopUtility.BuildZoop(__instance);

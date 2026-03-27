@@ -37,7 +37,7 @@
 	<!-- Import Props -->
 	<Import Project="$(SolutionDir)ZoopMod.VS.props" />
 	<PropertyGroup>
-		<TargetFramework>net35</TargetFramework>
+		<TargetFramework>net48</TargetFramework>
 		<AllowUnsafeBlocks>true</AllowUnsafeBlocks>
 		<LangVersion>latest</LangVersion>
 		<RestoreAdditionalProjectSources>

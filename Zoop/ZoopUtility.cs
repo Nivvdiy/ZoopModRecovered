@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Reflection;
 using System.Threading;
+using Assets.Scripts;
 using Assets.Scripts.GridSystem;
 using Assets.Scripts.Inventory;
 using Assets.Scripts.Objects;
@@ -37,9 +38,11 @@ namespace ZoopMod.Zoop
     private static readonly List<ZoopDirection> PreferredZoopOrder = [];
 
     public static bool HasError { get; private set; }
-    public static Coroutine ActionCoroutine { get; set; }
+    public static Coroutine ActionCoroutine { get; private set; }
     public static bool AllowPlacementUpdate { get; private set; }
     private static CancellationTokenSource _cancellationToken;
+    private static InventoryManager _actionCoroutineOwner;
+    private static ICreativeSpawnable _zoopSpawnPrefab;
     private static Quaternion _zoopStartRotation = Quaternion.identity;
     private static Vector3 _zoopStartWallNormal = Vector3.zero;
     private const float PositionToleranceSqr = 0.0001f;
@@ -69,6 +72,7 @@ namespace ZoopMod.Zoop
         {
           PreferredZoopOrder.Clear();
           Waypoints.Clear();
+          _zoopSpawnPrefab = InventoryManager.SpawnPrefab;
           if (InventoryManager.ConstructionCursor != null)
           {
             Structure selectedConstructable = GetSelectedConstructable(inventoryManager);
@@ -115,6 +119,7 @@ namespace ZoopMod.Zoop
     {
       // NotAuthoringMode.Completion = false;
       isZooping = false;
+      CancelPendingBuild();
       if (_cancellationToken != null)
       {
         _cancellationToken.Cancel();
@@ -127,8 +132,33 @@ namespace ZoopMod.Zoop
         _zoopStartWallNormal = Vector3.zero;
       }
 
+      _zoopSpawnPrefab = null;
+
       if (InventoryManager.ConstructionCursor != null)
         InventoryManager.ConstructionCursor.gameObject.SetActive(true);
+    }
+
+    public static void SetPendingBuild(InventoryManager inventoryManager, Coroutine coroutine)
+    {
+      CancelPendingBuild();
+      ActionCoroutine = coroutine;
+      _actionCoroutineOwner = inventoryManager;
+    }
+
+    private static void CancelPendingBuild()
+    {
+      if (_actionCoroutineOwner != null && ActionCoroutine != null)
+      {
+        _actionCoroutineOwner.StopCoroutine(ActionCoroutine);
+      }
+
+      ClearPendingBuild();
+    }
+
+    private static void ClearPendingBuild()
+    {
+      ActionCoroutine = null;
+      _actionCoroutineOwner = null;
     }
 
     private static async UniTask ZoopAsync(CancellationToken cancellationToken, InventoryManager inventoryManager)
@@ -424,6 +454,7 @@ namespace ZoopMod.Zoop
 
     public static void BuildZoop(InventoryManager inventoryManager)
     {
+      ClearPendingBuild();
 
       for (int structureIndex = 0; structureIndex < structures.Count; structureIndex++)
       {
@@ -477,7 +508,10 @@ namespace ZoopMod.Zoop
       }
 
       inventoryManager.ConstructionPanel.BuildIndex = buildIndex;
-      InventoryManager.SpawnPrefab = item;
+      // Keep the authoring tool's original spawn source so UsePrimaryComplete can resolve the selected prefab family.
+      InventoryManager.SpawnPrefab = InventoryManager.IsAuthoringMode && _zoopSpawnPrefab != null
+          ? _zoopSpawnPrefab
+          : item;
       UsePrimaryPositionField?.SetValue(inventoryManager, item.transform.position);
       UsePrimaryRotationField?.SetValue(inventoryManager, item.transform.rotation);
       if (UsePrimaryCompleteMethod == null)
