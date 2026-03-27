@@ -20,8 +20,6 @@ This fork is compatible with **The Gases Update** and works when joining a multi
 ## Additions:
 - Fix for completion time, ensuring consistency in subsequent building actions.
 - Bindable keys.
-- Soft dependency on the CreativeFreedom mod, enabling cross-device zooping without collision checks.
-- Increased stack size for cables (250), pipes (100), and chutes (50).
 - Multiplayer client support.
 - Compatibility with **The Gases Update**.
 

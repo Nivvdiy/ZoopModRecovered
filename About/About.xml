@@ -30,8 +30,6 @@
 	[list]
 	[*]Fix for completion time, ensuring consistency in subsequent building actions.
 	[*]Bindable keys.
-	[*]Soft dependency on the CreativeFreedom mod, enabling cross-device zooping without collision checks.
-	[*]Increased stack size for cables (250), pipes (100), and chutes (50).
 	[*]Authoring tool usage
 	[*]Zooping for frames
 	[*]Multiplayer client support
