@@ -165,7 +165,8 @@ namespace ZoopMod.Zoop
 
                 await UniTask.SwitchToMainThread(); // Switch to main thread for Unity API calls
 
-                BuildSmallStructureList(inventoryManager, zoops);
+                bool supportsCornerVariant = SupportsCornerVariant(inventoryManager.ConstructionPanel.Parent.Constructables, inventoryManager.ConstructionPanel.Parent.LastSelectedIndex);
+                BuildSmallStructureList(inventoryManager, zoops, supportsCornerVariant);
 
                 int structureCounter = 0;
 
@@ -244,20 +245,20 @@ namespace ZoopMod.Zoop
                               throw new ArgumentOutOfRangeException();
                           }
                         }
-                        if ((directionIndex > 0 || segmentIndex > 0 && directionIndex == 0) && zi == 0)
+                        if (supportsCornerVariant)
                         {
-                          if (lastDirection == zoopDirection)
+                          if ((directionIndex > 0 || segmentIndex > 0 && directionIndex == 0) && zi == 0)
                           {
-                            SetStraightRotationSmallGrid(structures[structureCounter], zoopDirection);
+                            if (lastDirection == zoopDirection)
+                            {
+                              SetStraightRotationSmallGrid(structures[structureCounter], zoopDirection);
+                            }
+                            else
+                            {
+                              SetCornerRotation(structures[structureCounter], lastDirection, increasingFrom, zoopDirection, increasingTo);
+                            }
                           }
-                          else
-                          {
-                            SetCornerRotation(structures[structureCounter], lastDirection, increasingFrom, zoopDirection, increasingTo);
-                          }
-                        }
-                        else
-                        {
-                          if (!singleItem)
+                          else if (!singleItem)
                           {
                             SetStraightRotationSmallGrid(structures[structureCounter], zoopDirection);
                           }
@@ -510,7 +511,7 @@ namespace ZoopMod.Zoop
       return inventoryManager.ConstructionPanel.BuildIndex;
     }
 
-    private static void AddStructure(List<Structure> constructables, bool corner, int index, int secondaryCount, ref bool canBuildNext, InventoryManager im)
+    private static void AddStructure(List<Structure> constructables, bool corner, int index, int secondaryCount, ref bool canBuildNext, InventoryManager im, bool supportsCornerVariant)
     {
 
       int selectedIndex = im.ConstructionPanel.Parent.LastSelectedIndex;
@@ -518,7 +519,7 @@ namespace ZoopMod.Zoop
       int cornerCount = corner ? index : secondaryCount;
 
       Structure activeItem = constructables[selectedIndex];
-      if (!corner)
+      if (!corner && supportsCornerVariant)
       {
         switch (activeItem)
         {
@@ -542,7 +543,7 @@ namespace ZoopMod.Zoop
 
           if (canMakeItem && canBuildNext)
           {
-            MakeItem(constructables, corner, index, !corner ? selectedIndex : 1);
+            MakeItem(constructables, corner, index, !corner ? selectedIndex : 1, supportsCornerVariant);
             canBuildNext = true;
           }
           else
@@ -551,7 +552,7 @@ namespace ZoopMod.Zoop
           }
           break;
         case AuthoringTool:
-          MakeItem(constructables, corner, index, !corner ? selectedIndex : 1);
+          MakeItem(constructables, corner, index, !corner ? selectedIndex : 1, supportsCornerVariant);
           canBuildNext = true;
           break;
       }
@@ -590,15 +591,23 @@ namespace ZoopMod.Zoop
 
     }
 
-    private static void MakeItem(List<Structure> constructables, bool corner, int index, int selectedIndex)
+    private static void MakeItem(List<Structure> constructables, bool corner, int index, int selectedIndex, bool supportsCornerVariant)
     {
       if (!corner && structuresCacheStraight.Count > index)
       {
+        if (!supportsCornerVariant)
+        {
+          ApplyCursorRotation(structuresCacheStraight[index]);
+        }
         structures.Add(structuresCacheStraight[index]);
         StructureBuildIndices.Add(StructureCacheStraightBuildIndices[index]);
       }
       else if (corner && structuresCacheCorner.Count > index)
       {
+        if (!supportsCornerVariant)
+        {
+          ApplyCursorRotation(structuresCacheCorner[index]);
+        }
         structures.Add(structuresCacheCorner[index]);
         StructureBuildIndices.Add(StructureCacheCornerBuildIndices[index]);
       }
@@ -614,6 +623,10 @@ namespace ZoopMod.Zoop
         if (structureNew != null)
         {
           structureNew.gameObject.SetActive(true);
+          if (!supportsCornerVariant)
+          {
+            ApplyCursorRotation(structureNew);
+          }
           structures.Add(structureNew);
           StructureBuildIndices.Add(selectedIndex);
           if (corner)
@@ -628,6 +641,22 @@ namespace ZoopMod.Zoop
           }
         }
       }
+    }
+
+    private static void ApplyCursorRotation(Structure structure)
+    {
+      if (structure == null || InventoryManager.ConstructionCursor == null)
+      {
+        return;
+      }
+
+      SetStructureRotation(structure, InventoryManager.ConstructionCursor.transform.rotation);
+    }
+
+    private static void SetStructureRotation(Structure structure, Quaternion rotation)
+    {
+      structure.ThingTransformRotation = rotation;
+      structure.transform.rotation = rotation;
     }
 
     private static void SetColor(InventoryManager inventoryManager, Structure structure, bool hasError)
@@ -817,7 +846,7 @@ namespace ZoopMod.Zoop
       }
     }
 
-    private static void BuildSmallStructureList(InventoryManager inventoryManager, List<ZoopSegment> zoops)
+    private static void BuildSmallStructureList(InventoryManager inventoryManager, List<ZoopSegment> zoops, bool supportsCornerVariant)
     {
       structures.Clear();
       StructureBuildIndices.Clear();
@@ -848,28 +877,81 @@ namespace ZoopMod.Zoop
 
           for (int j = 0; j < zoopCounter; j++)
           {
-            if (structures.Count > 0 && (j == 0 || segmentIndex > 0) && inventoryManager.ConstructionPanel.Parent.Constructables.Count > 1)
+            if (structures.Count > 0 && (j == 0 || segmentIndex > 0) && supportsCornerVariant)
             {
               if (zoopDirection != lastDirection)
               {
-                AddStructure(inventoryManager.ConstructionPanel.Parent.Constructables, true, corners, straight, ref canBuildNext, inventoryManager); // start with corner on secondary and tertiary zoop directions
+                AddStructure(inventoryManager.ConstructionPanel.Parent.Constructables, true, corners, straight, ref canBuildNext, inventoryManager, supportsCornerVariant); // start with corner on secondary and tertiary zoop directions
                 corners++;
               }
               else
               {
-                AddStructure(inventoryManager.ConstructionPanel.Parent.Constructables, false, straight, corners, ref canBuildNext, inventoryManager);
+                AddStructure(inventoryManager.ConstructionPanel.Parent.Constructables, false, straight, corners, ref canBuildNext, inventoryManager, supportsCornerVariant);
                 straight++;
               }
             }
             else
             {
-              AddStructure(inventoryManager.ConstructionPanel.Parent.Constructables, false, straight, corners, ref canBuildNext, inventoryManager);
+              AddStructure(inventoryManager.ConstructionPanel.Parent.Constructables, false, straight, corners, ref canBuildNext, inventoryManager, supportsCornerVariant);
               straight++;
             }
             lastDirection = zoopDirection;
           }
         }
       }
+    }
+
+    private static bool SupportsCornerVariant(List<Structure> constructables, int selectedIndex)
+    {
+      if (constructables == null || selectedIndex < 0 || selectedIndex >= constructables.Count)
+      {
+        return false;
+      }
+
+      Structure selectedStructure = constructables[selectedIndex];
+      if (selectedStructure == null)
+      {
+        return false;
+      }
+
+      foreach (Structure structure in constructables)
+      {
+        if (IsCornerVariant(structure) && IsMatchingCornerFamily(selectedStructure, structure))
+        {
+          return true;
+        }
+      }
+
+      return false;
+    }
+
+    private static bool IsCornerVariant(Structure structure)
+    {
+      if (structure == null)
+      {
+        return false;
+      }
+
+      string prefabName = structure.GetPrefabName();
+      if (!string.IsNullOrEmpty(prefabName) &&
+          prefabName.IndexOf("Corner", StringComparison.OrdinalIgnoreCase) >= 0)
+      {
+        return true;
+      }
+
+      return structure.GetType().Name.IndexOf("Corner", StringComparison.OrdinalIgnoreCase) >= 0;
+    }
+
+    private static bool IsMatchingCornerFamily(Structure selectedStructure, Structure cornerStructure)
+    {
+      return selectedStructure switch
+      {
+        Chute => cornerStructure is Chute,
+        Cable => cornerStructure is Cable,
+        Frame => cornerStructure is Frame,
+        Pipe => cornerStructure is Pipe,
+        _ => false
+      };
     }
 
     private static int GetCountForDirection(ZoopDirection direction, ZoopSegment segment)
@@ -947,7 +1029,7 @@ namespace ZoopMod.Zoop
       {
         for (int indexDirection1 = 0; indexDirection1 < plane.Count.direction1; indexDirection1++)
         {
-          AddStructure(inventoryManager.ConstructionPanel.Parent.Constructables, false, count, 0, ref canBuildNext, inventoryManager);
+          AddStructure(inventoryManager.ConstructionPanel.Parent.Constructables, false, count, 0, ref canBuildNext, inventoryManager, supportsCornerVariant: false);
           count++;
         }
       }
@@ -971,21 +1053,21 @@ namespace ZoopMod.Zoop
       switch (zoopDirection)
       {
         case ZoopDirection.x:
-          structure.ThingTransformRotation = structure is Chute
+          SetStructureRotation(structure, structure is Chute
               ? SmartRotate.RotX.Rotation
-              : SmartRotate.RotY.Rotation;
+              : SmartRotate.RotY.Rotation);
 
           break;
         case ZoopDirection.y:
-          structure.ThingTransformRotation = structure is Chute
+          SetStructureRotation(structure, structure is Chute
               ? SmartRotate.RotZ.Rotation
-              : SmartRotate.RotX.Rotation;
+              : SmartRotate.RotX.Rotation);
 
           break;
         case ZoopDirection.z:
-          structure.ThingTransformRotation = structure is Chute
+          SetStructureRotation(structure, structure is Chute
               ? SmartRotate.RotY.Rotation
-              : SmartRotate.RotZ.Rotation;
+              : SmartRotate.RotZ.Rotation);
 
           break;
         case ZoopDirection.none:
@@ -1000,13 +1082,13 @@ namespace ZoopMod.Zoop
       switch (zoopDirection1)
       {
         case ZoopDirection.x:
-          structure.ThingTransformRotation = SmartRotate.RotX.Rotation;
+          SetStructureRotation(structure, SmartRotate.RotX.Rotation);
           break;
         case ZoopDirection.y:
-          structure.ThingTransformRotation = SmartRotate.RotY.Rotation;
+          SetStructureRotation(structure, SmartRotate.RotY.Rotation);
           break;
         case ZoopDirection.z:
-          structure.ThingTransformRotation = SmartRotate.RotZ.Rotation;
+          SetStructureRotation(structure, SmartRotate.RotZ.Rotation);
           break;
         case ZoopDirection.none:
         default:
@@ -1042,7 +1124,7 @@ namespace ZoopMod.Zoop
         }
       }
 
-      structure.ThingTransformRotation = ZoopUtils.GetCornerRotation(zoopDirectionFrom, increasingFrom, zoopDirectionTo, increasingTo, xOffset, yOffset, zOffset);
+      SetStructureRotation(structure, ZoopUtils.GetCornerRotation(zoopDirectionFrom, increasingFrom, zoopDirectionTo, increasingTo, xOffset, yOffset, zOffset));
     }
 
     #endregion
