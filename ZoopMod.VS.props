@@ -1,7 +1,7 @@
 <Project>
 	<PropertyGroup>
 		<NuGetPackagesPath Condition=" '$(NuGetPackagesPath)' == '' ">..\packages</NuGetPackagesPath>
-		<RootFolder>H:\SteamLibrary\steamapps\</RootFolder>
+		<RootFolder>C:\Spiele\Steam\steamapps\</RootFolder>
 		<StationeersDirectory>$(RootFolder)\common\Stationeers</StationeersDirectory>
 		<!-- Change this to the path to your Stationeers directory -->
 		<UnityEditorDirectory>B:\Unity\Versions\2022.3.7f1\Editor\Data\Managed</UnityEditorDirectory>

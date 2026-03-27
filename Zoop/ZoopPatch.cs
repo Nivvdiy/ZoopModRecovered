@@ -48,7 +48,7 @@ namespace ZoopMod.Zoop {
 	public class InventoryManagerUpdatePlacementConstructor {
 		[UsedImplicitly]
 		public static bool Prefix(InventoryManager __instance) {
-			return !ZoopUtility.isZooping; //false prevents placing down item //NICE CHECK
+			return !ZoopUtility.isZooping || ZoopUtility.AllowPlacementUpdate; //false prevents placing down item //NICE CHECK
 		}
 	}
 
@@ -56,7 +56,7 @@ namespace ZoopMod.Zoop {
 	public class InventoryManagerUpdatePlacementStructure {
 		[UsedImplicitly]
 		public static bool Prefix(InventoryManager __instance) {
-			return !ZoopUtility.isZooping; //false prevents placing down item
+			return !ZoopUtility.isZooping || ZoopUtility.AllowPlacementUpdate; //false prevents placing down item
 		}
 	}
 

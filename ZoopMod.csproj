@@ -52,7 +52,7 @@
 		<PackageReference Include="BepInEx.Analyzers" Version="1.*" PrivateAssets="all" />
 		<PackageReference Include="BepInEx.Core" Version="5.*" />
 		<PackageReference Include="BepInEx.PluginInfoProps" Version="2.*" />
-		<PackageReference Include="UnityEngine.Modules" Version="2021.2.13" IncludeAssets="compile" />
+		<PackageReference Include="UnityEngine.Modules" Version="2021.3.33" IncludeAssets="compile" />
 		<!-- Unity References -->
 		<Reference Include="Unity.TextMeshPro">
 			<HintPath>$(ManagedDirectory)Unity.TextMeshPro.dll</HintPath>
@@ -78,10 +78,6 @@
 			<HintPath>$(StationeersModDirectory)StationeersMods.Interface.dll</HintPath>
 			<Private>False</Private>
 		</Reference>
-		<Reference Include="CreativeFreedom">
-			<HintPath>$(CreativeFreedomModPath)\CreativeFreedom.dll</HintPath>
-			<Private>False</Private>
-		</Reference>
 	</ItemGroup>
 
 	<!-- Compile Items -->
@@ -104,7 +100,7 @@
 	<!-- Post-Build Events -->
 	<Target Name="CustomAfterBuild" AfterTargets="Build">
 		<Message Importance="High" Text="Start building project files" />
-		<Exec Command="&quot;B:\pdb2mdb.exe&quot; &quot;$(ProjectDir)\bin\Debug\$(ModName).dll&quot;" Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' " />
+		<!--<Exec Command="&quot;B:\pdb2mdb.exe&quot; &quot;$(ProjectDir)\bin\Debug\$(ModName).dll&quot;" Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' " />-->
 		<RemoveDir Directories="$(StationeersModOutputFolder)\$(ModName)" />
 		<Copy SourceFiles="$(ProjectDir)\$(ModName).info" DestinationFolder="$(StationeersModOutputFolder)\$(ModName)" ContinueOnError="false" />
 		<Copy SourceFiles="$(ProjectDir)\bin\Debug\$(ModName).dll" DestinationFolder="$(StationeersModOutputFolder)\$(ModName)" ContinueOnError="true" />

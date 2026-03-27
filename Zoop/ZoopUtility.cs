@@ -14,7 +14,6 @@ using System.Collections.Generic;
 using System.Reflection;
 using System.Threading;
 using Assets.Scripts.Objects.Structures;
-using CreativeFreedom;
 using UnityEngine;
 using Object = UnityEngine.Object; //SOMETHING NEW
 
@@ -30,8 +29,11 @@ namespace ZoopMod.Zoop {
 		#region Fields
 		
 		public static List<Structure> structures = new List<Structure>();
+		private static readonly List<int> StructureBuildIndices = new List<int>();
 		private static List<Structure> structuresCacheStraight = new List<Structure>();
+		private static readonly List<int> StructureCacheStraightBuildIndices = new List<int>();
 		private static List<Structure> structuresCacheCorner = new List<Structure>();
+		private static readonly List<int> StructureCacheCornerBuildIndices = new List<int>();
 		
 		private static readonly List<Vector3?> Waypoints = new List<Vector3?>();
 
@@ -40,7 +42,11 @@ namespace ZoopMod.Zoop {
 		
 		public static bool HasError { get; private set; }
 		public static Coroutine ActionCoroutine { get; set; }
+		public static bool AllowPlacementUpdate { get; private set; }
 		private static CancellationTokenSource _cancellationToken;
+		private static readonly FieldInfo UsePrimaryPositionField = typeof(InventoryManager).GetField("_usePrimaryPosition", BindingFlags.Instance | BindingFlags.NonPublic);
+		private static readonly FieldInfo UsePrimaryRotationField = typeof(InventoryManager).GetField("_usePrimaryRotation", BindingFlags.Instance | BindingFlags.NonPublic);
+		private static readonly MethodInfo UsePrimaryCompleteMethod = typeof(InventoryManager).GetMethod("UsePrimaryComplete", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
 
 		public static bool isZoopKeyPressed;
 		public static bool isZooping { get; private set; }
@@ -64,7 +70,12 @@ namespace ZoopMod.Zoop {
 					Waypoints.Clear();
 					if(InventoryManager.ConstructionCursor != null) {
 						//TODO check select index and set it to 0 or 2 if it's chute window selected
-						InventoryManager.UpdatePlacement(inventoryManager.ConstructionPanel.Parent.Constructables[0]);
+						AllowPlacementUpdate = true;
+						try {
+							InventoryManager.UpdatePlacement(inventoryManager.ConstructionPanel.Parent.Constructables[0]);
+						} finally {
+							AllowPlacementUpdate = false;
+						}
 						Vector3? startPos = GetCurrentMouseGridPosition();
 						if(startPos.HasValue) {
 							Waypoints.Add(startPos); // Add start position as the first waypoint
@@ -91,6 +102,7 @@ namespace ZoopMod.Zoop {
 				ClearStructureCache();
 				previousCurrentPos = null;
 				structures.Clear(); //try to reset a list of structures for single piece placing
+				StructureBuildIndices.Clear();
 				Waypoints.Clear();
 			}
 
@@ -347,7 +359,8 @@ namespace ZoopMod.Zoop {
 		public static async UniTask BuildZoopAsync(InventoryManager inventoryManager) //public static void BuildZoopAsync(InventoryManager inventoryManager)
 		{
 			await UniTask.SwitchToMainThread();
-			foreach(Structure item in structures) {
+			for(int structureIndex = 0; structureIndex < structures.Count; structureIndex++) {
+				Structure item = structures[structureIndex];
 				if(InventoryManager.ActiveHandSlot.Get() == null) {
 					break;
 				}
@@ -369,7 +382,7 @@ namespace ZoopMod.Zoop {
 				// disabled for clients anyway for now, as I cannot make it work in multiplayer client side
 				await UniTask.SwitchToMainThread();
 				await UniTask.Delay(10, DelayType.Realtime);
-				UsePrimaryComplete(inventoryManager, item);
+				PlaceStructure(inventoryManager, item, structureIndex);
 			}
 
 			//Debug.Log("zoop canceled at BuildZoopAsync");
@@ -378,9 +391,9 @@ namespace ZoopMod.Zoop {
 
 		public static void BuildZoop(InventoryManager inventoryManager) {
 
-			foreach(Structure item in structures) {
-
-				UsePrimaryComplete(inventoryManager, item);
+			for(int structureIndex = 0; structureIndex < structures.Count; structureIndex++) {
+				Structure item = structures[structureIndex];
+				PlaceStructure(inventoryManager, item, structureIndex);
 				/* if it's working thanks to Katsuk for the help */
 				Structure lastItem = Structure.LastCreatedStructure;
 				if(InventoryManager.IsAuthoringMode && lastItem.NextBuildState != null) {
@@ -416,41 +429,40 @@ namespace ZoopMod.Zoop {
 			}
 		}
 
-		private static void UsePrimaryComplete(InventoryManager inventoryManager, Structure item) {
-			// DynamicThing occupant0 = item.BuildStates[0].Tool.ToolEntry; //try to evade taking authoring tool as occupant
-
-			int buildIndex = inventoryManager.ConstructionPanel.Parent.Constructables.FindIndex(structure => structure.PrefabName == item.PrefabName);
-			int prefabIndex = InventoryManager.DynamicThingPrefabs.FindIndex(value => inventoryManager.ConstructionPanel.Parent.PrefabName == value);
-			//Debug.Log(item.PrefabName + ":" + optionIndex);
-			if(GameManager.RunSimulation) {
-				if(inventoryManager.ConstructionPanel.IsVisible)
-					OnServer.UseMultiConstructor((Assets.Scripts.Objects.Thing)InventoryManager.Parent, inventoryManager.ActiveHand.SlotId, inventoryManager.InactiveHand.SlotId, item.transform.position,
-						item.transform.rotation, buildIndex, InventoryManager.IsAuthoringMode, InventoryManager.ParentBrain.ClientId, item);
-				else
-					OnServer.UseItemPrimary((Assets.Scripts.Objects.Thing)InventoryManager.Parent, inventoryManager.ActiveHand.SlotId, item.transform.position, item.transform.rotation, InventoryManager.ParentBrain.ClientId, item);
-			} else {
-				CreateStructureMessage structureMessage = new CreateStructureMessage();
-				DynamicThing occupant1 = inventoryManager.ActiveHand.Slot.Get(); //InventoryManager.IsAuthoringMode ? occupant0 : inventoryManager.ActiveHand.Slot.Occupant; //inventoryManager.ActiveHand.Slot.Occupant
-																				 // ISSUE: explicit non-virtual call
-				structureMessage.ConstructorId = occupant1 != null ? occupant1.ReferenceId : 0L;
-				DynamicThing occupant2 = inventoryManager.InactiveHand.Slot.Get(); // InventoryManager.IsAuthoringMode ? occupant0 : inventoryManager.InactiveHand.Slot.Occupant;
-																				   // ISSUE: explicit non-virtual call
-				structureMessage.OffhandOccupantReferenceId = occupant2 != null ? occupant2.ReferenceId : 0L;
-				structureMessage.LocalPosition = item.transform.position.ToGridPosition();
-				structureMessage.Rotation = item.transform.rotation;
-				structureMessage.CreatorSteamId = (ulong)InventoryManager.ParentBrain.ReferenceId;
-				structureMessage.OptionIndex = buildIndex;
-				DynamicThing occupant3 = inventoryManager.ActiveHand.Slot.Get(); // InventoryManager.IsAuthoringMode ? occupant0 : inventoryManager.ActiveHand.Slot.Occupant;
-				structureMessage.PrefabHash = occupant3 != null ? occupant3.PrefabHash : 0;
-				structureMessage.AuthoringMode = InventoryManager.IsAuthoringMode;
-				NetworkClient.SendToServer<CreateStructureMessage>(structureMessage, NetworkChannel.GeneralTraffic);
+		private static void PlaceStructure(InventoryManager inventoryManager, Structure item, int structureIndex) {
+			int buildIndex = ResolveBuildIndex(inventoryManager, item, structureIndex);
+			if(buildIndex < 0) {
+				ZoopMod.Log($"Unable to resolve build index for {item.PrefabName}; skipping zoop placement.", ZoopMod.Logs.error);
+				return;
 			}
+
+			inventoryManager.ConstructionPanel.BuildIndex = buildIndex;
+			InventoryManager.SpawnPrefab = item;
+			UsePrimaryPositionField?.SetValue(inventoryManager, item.transform.position);
+			UsePrimaryRotationField?.SetValue(inventoryManager, item.transform.rotation);
+			if(UsePrimaryCompleteMethod == null) {
+				ZoopMod.Log("Unable to find InventoryManager.UsePrimaryComplete; skipping zoop placement.", ZoopMod.Logs.error);
+				return;
+			}
+			UsePrimaryCompleteMethod.Invoke(inventoryManager, null);
 
 			if(InventoryManager.IsAuthoringMode && item.BuildStates.Count > 1) {
 				//item.LocalGrid = 
 				//item.UpdateBuildStateAndVisualizer(item.BuildStates.Count - 1);
 			}
+		}
 
+		private static int ResolveBuildIndex(InventoryManager inventoryManager, Structure item, int structureIndex) {
+			if(structureIndex >= 0 && structureIndex < StructureBuildIndices.Count) {
+				return StructureBuildIndices[structureIndex];
+			}
+
+			int buildIndex = inventoryManager.ConstructionPanel.Parent.Constructables.FindIndex(structure => structure.PrefabName == item.PrefabName);
+			if(buildIndex >= 0) {
+				return buildIndex;
+			}
+
+			return inventoryManager.ConstructionPanel.BuildIndex;
 		}
 
 		private static void AddStructure(List<Structure> constructables, bool corner, int index, int secondaryCount, ref bool canBuildNext, InventoryManager im) {
@@ -499,6 +511,7 @@ namespace ZoopMod.Zoop {
 			}
 
 			structuresCacheStraight.Clear();
+			StructureCacheStraightBuildIndices.Clear();
 
 			foreach(Structure structure in structuresCacheCorner) {
 				structure.gameObject.SetActive(false);
@@ -506,6 +519,7 @@ namespace ZoopMod.Zoop {
 			}
 
 			structuresCacheCorner.Clear();
+			StructureCacheCornerBuildIndices.Clear();
 		}
 
 		private static Vector3? GetCurrentMouseGridPosition() {
@@ -521,8 +535,10 @@ namespace ZoopMod.Zoop {
 		private static void MakeItem(List<Structure> constructables, bool corner, int index, InventoryManager inventoryManager, int selectedIndex) {
 			if(!corner && structuresCacheStraight.Count > index) {
 				structures.Add(structuresCacheStraight[index]);
+				StructureBuildIndices.Add(StructureCacheStraightBuildIndices[index]);
 			} else if(corner && structuresCacheCorner.Count > index) {
 				structures.Add(structuresCacheCorner[index]);
+				StructureBuildIndices.Add(StructureCacheCornerBuildIndices[index]);
 			} else {
 				Structure structure = constructables[selectedIndex];
 				if(structure == null) {
@@ -533,10 +549,13 @@ namespace ZoopMod.Zoop {
 				if(structureNew != null) {
 					structureNew.gameObject.SetActive(true);
 					structures.Add(structureNew);
+					StructureBuildIndices.Add(selectedIndex);
 					if(corner) {
 						structuresCacheCorner.Add(structureNew);
+						StructureCacheCornerBuildIndices.Add(selectedIndex);
 					} else {
 						structuresCacheStraight.Add(structureNew);
+						StructureCacheStraightBuildIndices.Add(selectedIndex);
 					}
 				}
 			}
@@ -704,6 +723,7 @@ namespace ZoopMod.Zoop {
 
 		private static void BuildSmallStructureList(InventoryManager inventoryManager, List<ZoopSegment> zoops) {
 			structures.Clear();
+			StructureBuildIndices.Clear();
 			structuresCacheStraight.ForEach(structure => structure.GameObject.SetActive(false));
 			structuresCacheCorner.ForEach(structure => structure.GameObject.SetActive(false));
 
@@ -803,6 +823,7 @@ namespace ZoopMod.Zoop {
 
 		private static void BuildBigStructureList(InventoryManager inventoryManager, ZoopPlane plane) {
 			structures.Clear();
+			StructureBuildIndices.Clear();
 			structuresCacheStraight.ForEach(structure => structure.GameObject.SetActive(false));
 			int count = 0;
 			bool canBuildNext = true;
