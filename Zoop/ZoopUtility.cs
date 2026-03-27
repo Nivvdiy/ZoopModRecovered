@@ -42,7 +42,7 @@ namespace ZoopMod.Zoop
     private static CancellationTokenSource _cancellationToken;
     private static Quaternion _zoopStartRotation = Quaternion.identity;
     private static Vector3 _zoopStartWallNormal = Vector3.zero;
-    private static Vector3 _zoopStartWallPositionOffset = Vector3.zero;
+    private const float PositionToleranceSqr = 0.0001f;
     private static readonly FieldInfo UsePrimaryPositionField = typeof(InventoryManager).GetField("_usePrimaryPosition", BindingFlags.Instance | BindingFlags.NonPublic);
     private static readonly FieldInfo UsePrimaryRotationField = typeof(InventoryManager).GetField("_usePrimaryRotation", BindingFlags.Instance | BindingFlags.NonPublic);
     private static readonly MethodInfo UsePrimaryCompleteMethod = typeof(InventoryManager).GetMethod("UsePrimaryComplete", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
@@ -93,9 +93,6 @@ namespace ZoopMod.Zoop
             Vector3? startPos = GetCurrentMouseGridPosition();
             if (startPos.HasValue)
             {
-              _zoopStartWallPositionOffset = InventoryManager.ConstructionCursor is Wall
-                  ? InventoryManager.ConstructionCursor.ThingTransformPosition - startPos.Value
-                  : Vector3.zero;
               Waypoints.Add(startPos); // Add start position as the first waypoint
             }
           }
@@ -128,7 +125,6 @@ namespace ZoopMod.Zoop
         Waypoints.Clear();
         _zoopStartRotation = Quaternion.identity;
         _zoopStartWallNormal = Vector3.zero;
-        _zoopStartWallPositionOffset = Vector3.zero;
       }
 
       if (InventoryManager.ConstructionCursor != null)
@@ -170,7 +166,7 @@ namespace ZoopMod.Zoop
                   ZoopSegment segment = new ZoopSegment();
                   CalculateZoopSegments(startPos, endPos, segment);
 
-                  singleItem = startPos == endPos;
+                  singleItem = IsSameZoopPosition(startPos, endPos);
                   if (singleItem)
                   {
                     segment.CountX = 1 + (int)(Math.Abs(startPos.x - endPos.x) * 2);
@@ -324,7 +320,7 @@ namespace ZoopMod.Zoop
                 ZoopPlane plane = new ZoopPlane();
                 CalculateZoopPlane(startPos, endPos, plane);
 
-                singleItem = startPos == endPos;
+                singleItem = IsSameZoopPosition(startPos, endPos);
                 if (singleItem)
                 {
                   plane.Count = (direction1: 1 + (int)(Math.Abs(startPos.x - endPos.x) / 2), direction2: 1 + (int)(Math.Abs(startPos.x - endPos.x) / 2));
@@ -392,7 +388,7 @@ namespace ZoopMod.Zoop
                       }
 
                       Vector3 offset = new Vector3(xOffset, yOffset, zOffset);
-                      Vector3 previewPosition = GetBigGridPreviewPosition(startPos, offset);
+                      Vector3 previewPosition = startPos + offset;
                       structures[structureCounter].GameObject.SetActive(true);
                       structures[structureCounter].ThingTransformPosition = previewPosition;
                       structures[structureCounter].Position = previewPosition;
@@ -446,14 +442,14 @@ namespace ZoopMod.Zoop
         return;
       }
       Vector3? currentPos = GetCurrentMouseGridPosition();
-      if (currentPos.HasValue && Waypoints.Last() != currentPos)
+      if (currentPos.HasValue && !IsSameZoopPosition(Waypoints.Last(), currentPos))
       {
-        if (structures.Last().GetGridPosition() == currentPos)
+        if (structures.Count > 0 && IsSameZoopPosition(structures.Last().Position, currentPos.Value))
         {
           Waypoints.Add(currentPos);
         }
       }
-      else if (Waypoints.Last() == currentPos)
+      else if (IsSameZoopPosition(Waypoints.Last(), currentPos))
       {
         //TODO show message to user that waypoint is already added
       }
@@ -600,6 +596,11 @@ namespace ZoopMod.Zoop
         return null;
       }
 
+      if (InventoryManager.ConstructionCursor is Wall)
+      {
+        return InventoryManager.ConstructionCursor.ThingTransformPosition;
+      }
+
       Vector3 cursorHitPoint = InventoryManager.ConstructionCursor.GetLocalGrid().ToVector3();
       return cursorHitPoint;
 
@@ -694,15 +695,33 @@ namespace ZoopMod.Zoop
       return targetPos;
     }
 
-    private static Vector3 GetBigGridPreviewPosition(Vector3 startPos, Vector3 offset)
+    private static bool IsSameZoopPosition(Vector3 first, Vector3 second)
     {
-      Vector3 previewPosition = startPos + offset;
-      if (InventoryManager.ConstructionCursor is Wall && _zoopStartWallNormal != Vector3.zero)
+      // Mounted wall previews use world positions, so tiny float drift can appear between cursor, waypoint, and preview values.
+      return Vector3.SqrMagnitude(first - second) < PositionToleranceSqr;
+    }
+
+    private static bool IsSameZoopPosition(Vector3? first, Vector3? second)
+    {
+      if (!first.HasValue || !second.HasValue)
       {
-        previewPosition += _zoopStartWallPositionOffset;
+        return first.HasValue == second.HasValue;
       }
 
-      return previewPosition;
+      return IsSameZoopPosition(first.Value, second.Value);
+    }
+
+    private static int GetWaypointIndex(Vector3 position)
+    {
+      for (int index = 0; index < Waypoints.Count; index++)
+      {
+        if (Waypoints[index].HasValue && IsSameZoopPosition(Waypoints[index].Value, position))
+        {
+          return index;
+        }
+      }
+
+      return -1;
     }
 
     private static void SetStructureRotation(Structure structure, Quaternion rotation)
@@ -714,9 +733,9 @@ namespace ZoopMod.Zoop
     private static void SetColor(InventoryManager inventoryManager, Structure structure, bool hasError)
     {
       bool canConstruct = !hasError;
-      bool isWaypoint = Waypoints.Contains(structure.Position);
-      //check if structure is first element of waypoints
-      bool isStart = isWaypoint && Waypoints.First().Equals(structure.Position);
+      int waypointIndex = GetWaypointIndex(structure.Position);
+      bool isWaypoint = waypointIndex >= 0;
+      bool isStart = waypointIndex == 0;
       Color color = canConstruct ? isWaypoint ? isStart ? StartColor : WaypointColor : lineColor : errorColor;
       if (structure is SmallGrid smallGrid)
       {
@@ -855,6 +874,31 @@ namespace ZoopMod.Zoop
       Cell cell = structure.GridController.GetCell(structure.ThingTransformLocalPosition);
       if (cell != null)
       {
+        if (structure is Wall wall)
+        {
+          foreach (Structure cellStructure in cell.AllStructures)
+          {
+            if (cellStructure is Wall existingWall)
+            {
+              bool samePosition = IsSameZoopPosition(existingWall.ThingTransformPosition, wall.ThingTransformPosition);
+              bool sameFace = Vector3.Dot(existingWall.transform.forward, wall.transform.forward) > 0.99f;
+              if (samePosition && sameFace)
+              {
+                return false;
+              }
+
+              continue;
+            }
+
+            if (cellStructure is LargeStructure)
+            {
+              return false;
+            }
+          }
+
+          return true;
+        }
+
         foreach (Structure cellStructure in cell.AllStructures)
         {
           if (cellStructure is LargeStructure)
