@@ -40,6 +40,9 @@ namespace ZoopMod.Zoop
     public static Coroutine ActionCoroutine { get; set; }
     public static bool AllowPlacementUpdate { get; private set; }
     private static CancellationTokenSource _cancellationToken;
+    private static Quaternion _zoopStartRotation = Quaternion.identity;
+    private static Vector3 _zoopStartWallNormal = Vector3.zero;
+    private static Vector3 _zoopStartWallPositionOffset = Vector3.zero;
     private static readonly FieldInfo UsePrimaryPositionField = typeof(InventoryManager).GetField("_usePrimaryPosition", BindingFlags.Instance | BindingFlags.NonPublic);
     private static readonly FieldInfo UsePrimaryRotationField = typeof(InventoryManager).GetField("_usePrimaryRotation", BindingFlags.Instance | BindingFlags.NonPublic);
     private static readonly MethodInfo UsePrimaryCompleteMethod = typeof(InventoryManager).GetMethod("UsePrimaryComplete", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
@@ -68,19 +71,31 @@ namespace ZoopMod.Zoop
           Waypoints.Clear();
           if (InventoryManager.ConstructionCursor != null)
           {
-            //TODO check select index and set it to 0 or 2 if it's chute window selected
+            Structure selectedConstructable = GetSelectedConstructable(inventoryManager);
             AllowPlacementUpdate = true;
             try
             {
-              InventoryManager.UpdatePlacement(inventoryManager.ConstructionPanel.Parent.Constructables[0]);
+              if (selectedConstructable != null)
+              {
+                InventoryManager.UpdatePlacement(selectedConstructable);
+              }
             }
             finally
             {
               AllowPlacementUpdate = false;
             }
+
+            _zoopStartRotation = InventoryManager.ConstructionCursor.transform.rotation;
+            _zoopStartWallNormal = InventoryManager.ConstructionCursor is Wall
+                ? GetCardinalAxis(InventoryManager.ConstructionCursor.transform.forward)
+                : Vector3.zero;
+
             Vector3? startPos = GetCurrentMouseGridPosition();
             if (startPos.HasValue)
             {
+              _zoopStartWallPositionOffset = InventoryManager.ConstructionCursor is Wall
+                  ? InventoryManager.ConstructionCursor.ThingTransformPosition - startPos.Value
+                  : Vector3.zero;
               Waypoints.Add(startPos); // Add start position as the first waypoint
             }
           }
@@ -111,6 +126,9 @@ namespace ZoopMod.Zoop
         structures.Clear(); //try to reset a list of structures for single piece placing
         StructureBuildIndices.Clear();
         Waypoints.Clear();
+        _zoopStartRotation = Quaternion.identity;
+        _zoopStartWallNormal = Vector3.zero;
+        _zoopStartWallPositionOffset = Vector3.zero;
       }
 
       if (InventoryManager.ConstructionCursor != null)
@@ -301,7 +319,7 @@ namespace ZoopMod.Zoop
               else if (IsZoopingBigGrid())
               {
                 Vector3 startPos = Waypoints[0].Value;
-                Vector3 endPos = currentPos.Value;
+                Vector3 endPos = ClampWallZoopPositionToStartPlane(startPos, currentPos.Value);
 
                 ZoopPlane plane = new ZoopPlane();
                 CalculateZoopPlane(startPos, endPos, plane);
@@ -373,15 +391,11 @@ namespace ZoopMod.Zoop
                           break;
                       }
 
-                      if (structures[structureCounter] is Wall)
-                      {//TODO for future update
-                        SetStraightRotationBigGrid(structures[structureCounter], zoopDirection1);
-                      }
-
                       Vector3 offset = new Vector3(xOffset, yOffset, zOffset);
+                      Vector3 previewPosition = GetBigGridPreviewPosition(startPos, offset);
                       structures[structureCounter].GameObject.SetActive(true);
-                      structures[structureCounter].ThingTransformPosition = startPos + offset;
-                      structures[structureCounter].Position = startPos + offset;
+                      structures[structureCounter].ThingTransformPosition = previewPosition;
+                      structures[structureCounter].Position = previewPosition;
                       HasError = HasError || !CanConstructBigCell(structures[structureCounter]);
                       structureCounter++;
 
@@ -650,7 +664,45 @@ namespace ZoopMod.Zoop
         return;
       }
 
-      SetStructureRotation(structure, InventoryManager.ConstructionCursor.transform.rotation);
+      Quaternion rotation = structure is Wall && _zoopStartWallNormal != Vector3.zero
+          ? _zoopStartRotation
+          : InventoryManager.ConstructionCursor.transform.rotation;
+
+      SetStructureRotation(structure, rotation);
+    }
+
+    private static Vector3 ClampWallZoopPositionToStartPlane(Vector3 startPos, Vector3 targetPos)
+    {
+      if (InventoryManager.ConstructionCursor is not Wall || _zoopStartWallNormal == Vector3.zero)
+      {
+        return targetPos;
+      }
+
+      if (Mathf.Abs(_zoopStartWallNormal.x) > 0.99f)
+      {
+        targetPos.x = startPos.x;
+      }
+      else if (Mathf.Abs(_zoopStartWallNormal.y) > 0.99f)
+      {
+        targetPos.y = startPos.y;
+      }
+      else
+      {
+        targetPos.z = startPos.z;
+      }
+
+      return targetPos;
+    }
+
+    private static Vector3 GetBigGridPreviewPosition(Vector3 startPos, Vector3 offset)
+    {
+      Vector3 previewPosition = startPos + offset;
+      if (InventoryManager.ConstructionCursor is Wall && _zoopStartWallNormal != Vector3.zero)
+      {
+        previewPosition += _zoopStartWallPositionOffset;
+      }
+
+      return previewPosition;
     }
 
     private static void SetStructureRotation(Structure structure, Quaternion rotation)
@@ -713,9 +765,21 @@ namespace ZoopMod.Zoop
     #endregion
 
     #region Conditionnal Methods
+    private static Structure GetSelectedConstructable(InventoryManager inventoryManager)
+    {
+      List<Structure> constructables = inventoryManager.ConstructionPanel.Parent.Constructables;
+      int selectedIndex = inventoryManager.ConstructionPanel.Parent.LastSelectedIndex;
+      if (selectedIndex >= 0 && selectedIndex < constructables.Count)
+      {
+        return constructables[selectedIndex];
+      }
+
+      return InventoryManager.ConstructionCursor;
+    }
+
     private static bool IsAllowed(Structure constructionCursor)
     {
-      return constructionCursor is Pipe or Cable or Chute or Frame;
+      return constructionCursor is Pipe or Cable or Chute or Frame or Wall;
     }
 
     private static bool IsZoopingSmallGrid()
@@ -1044,6 +1108,26 @@ namespace ZoopMod.Zoop
       }
     }
 
+    private static Vector3 GetCardinalAxis(Vector3 vector)
+    {
+      Vector3 normalized = vector.normalized;
+      float xAbs = Mathf.Abs(normalized.x);
+      float yAbs = Mathf.Abs(normalized.y);
+      float zAbs = Mathf.Abs(normalized.z);
+
+      if (xAbs >= yAbs && xAbs >= zAbs)
+      {
+        return normalized.x >= 0f ? Vector3.right : Vector3.left;
+      }
+
+      if (yAbs >= zAbs)
+      {
+        return normalized.y >= 0f ? Vector3.up : Vector3.down;
+      }
+
+      return normalized.z >= 0f ? Vector3.forward : Vector3.back;
+    }
+
     #endregion
 
     #region Calculation Methods
@@ -1073,26 +1157,6 @@ namespace ZoopMod.Zoop
         case ZoopDirection.none:
         default:
           throw new ArgumentOutOfRangeException(nameof(zoopDirection), zoopDirection, null);
-      }
-    }
-
-    private static void SetStraightRotationBigGrid(Structure structure, ZoopDirection zoopDirection1)
-    {
-      //TODO change fonctionnement for wall
-      switch (zoopDirection1)
-      {
-        case ZoopDirection.x:
-          SetStructureRotation(structure, SmartRotate.RotX.Rotation);
-          break;
-        case ZoopDirection.y:
-          SetStructureRotation(structure, SmartRotate.RotY.Rotation);
-          break;
-        case ZoopDirection.z:
-          SetStructureRotation(structure, SmartRotate.RotZ.Rotation);
-          break;
-        case ZoopDirection.none:
-        default:
-          throw new ArgumentOutOfRangeException(nameof(zoopDirection1), zoopDirection1, null);
       }
     }
 
