@@ -400,3 +400,4 @@ FodyWeavers.xsd
 Zoop*\-*.cs
 .dotnet/.dotnet/
 _mod_output/
+ZoopMod.VS.props

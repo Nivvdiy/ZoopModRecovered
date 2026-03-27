@@ -34,8 +34,8 @@
 		<Prefer32Bit>false</Prefer32Bit>
 	</PropertyGroup>
 
-	<!-- Import Props -->
-	<Import Project="$(SolutionDir)ZoopMod.VS.props" />
+	<!-- Import machine-local build props when present -->
+	<Import Project="$(MSBuildProjectDirectory)\ZoopMod.VS.props" Condition="Exists('$(MSBuildProjectDirectory)\ZoopMod.VS.props')" />
 	<PropertyGroup>
 		<TargetFramework>net48</TargetFramework>
 		<AllowUnsafeBlocks>true</AllowUnsafeBlocks>
@@ -46,6 +46,10 @@
 			https://nuget.daxcess.io/v3/index.json
 		</RestoreAdditionalProjectSources>
 	</PropertyGroup>
+
+	<Target Name="ValidateLocalBuildProps" BeforeTargets="ResolveReferences" Condition="!Exists('$(MSBuildProjectDirectory)\ZoopMod.VS.props')">
+		<Error Text="Missing ZoopMod.VS.props. Copy ZoopMod.VS.props.example to ZoopMod.VS.props and update the machine-specific paths for your setup." />
+	</Target>
 
 	<!-- References -->
 	<ItemGroup>
