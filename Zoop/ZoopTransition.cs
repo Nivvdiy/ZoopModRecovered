@@ -2,7 +2,7 @@
 {
     public enum ZoopTransition
     {
-        
+
         xPyP,
         xPyN,
         xNyP,
