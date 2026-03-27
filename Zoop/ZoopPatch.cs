@@ -44,7 +44,7 @@ namespace ZoopMod.Zoop {
 		}
 	}
 
-	[HarmonyPatch(typeof(InventoryManager), "UpdatePlacement", new Type[] { typeof(Constructor) })]
+	[HarmonyPatch(typeof(InventoryManager), "UpdatePlacement", [typeof(Constructor)])]
 	public class InventoryManagerUpdatePlacementConstructor {
 		[UsedImplicitly]
 		public static bool Prefix(InventoryManager __instance) {
@@ -52,7 +52,7 @@ namespace ZoopMod.Zoop {
 		}
 	}
 
-	[HarmonyPatch(typeof(InventoryManager), "UpdatePlacement", new Type[] { typeof(Structure) })]
+	[HarmonyPatch(typeof(InventoryManager), "UpdatePlacement", [typeof(Structure)])]
 	public class InventoryManagerUpdatePlacementStructure {
 		[UsedImplicitly]
 		public static bool Prefix(InventoryManager __instance) {
@@ -61,17 +61,16 @@ namespace ZoopMod.Zoop {
 	}
 
 	[HarmonyPatch(typeof(InventoryManager), "WaitUntilDone",
-		new Type[] { typeof(InventoryManager.DelegateEvent), typeof(float), typeof(Structure) })]
+		[typeof(InventoryManager.DelegateEvent), typeof(float), typeof(Structure)])]
 	public class InventoryManagerWaitUntilDone0 {
 		[UsedImplicitly]
 		public static void Prefix(InventoryManager __instance, InventoryManager.DelegateEvent onFinished, ref float timeToWait, Structure structure) {
-			if(!InventoryManager.IsAuthoringMode) {
-				if(ZoopUtility.structures.Count <= 0) {
-					timeToWait = Math.Min(timeToWait * 1, timeToWait * 10);
-				} else {
-					timeToWait = Math.Min(timeToWait * ZoopUtility.structures.Count, timeToWait * 10); //PROBLEM same time of placement for single pieces after zooping
-					//switch(ZoopConfig.GetDifficulty())
-				}
+			if(!InventoryManager.IsAuthoringMode)
+			{
+				timeToWait = ZoopUtility.structures.Count <= 0
+					? Math.Min(timeToWait * 1, timeToWait * 10)
+					: Math.Min(timeToWait * ZoopUtility.structures.Count, timeToWait * 10); //PROBLEM same time of placement for single pieces after zooping
+				//switch(ZoopConfig.GetDifficulty())
 			} else timeToWait = 0f; //try to make it instant for creative tool
 		}
 	}
@@ -81,11 +80,6 @@ namespace ZoopMod.Zoop {
 		//public static bool CFree = false;
 		[UsedImplicitly]
 		public static bool Prefix(InventoryManager __instance) {
-			// if(GameManager.RunSimulation) //not let it work in multiplayer client, as it bring errors there
-			// {
-
-				bool scrollUp = __instance.newScrollData > 0f;
-				bool scrollDown = __instance.newScrollData < 0f;
 				ZoopUtility.isZoopKeyPressed = KeyManager.GetButton(ZoopMod.ZoopHold);
 				bool secondary = KeyManager.GetMouseDown("Secondary");
 				bool primary = KeyManager.GetMouseDown("Primary");
@@ -113,7 +107,7 @@ namespace ZoopMod.Zoop {
 						//NotAuthoringMode.Completion = true; //try not let original InventoryManager.UsePrimaryComplete override completion for Authoring Tool
 
 						//CHANGE tried to evade authoring mode check, as zero placement time is it
-						if(!InventoryManager.IsAuthoringMode && (double)InventoryManager.ConstructionCursor.BuildPlacementTime > 0.0) {
+						if(!InventoryManager.IsAuthoringMode && InventoryManager.ConstructionCursor.BuildPlacementTime > 0.0) {
 							float num1 = 1f;
 							//if (InventoryManager.ParentHuman.Suit == null)//((UnityEngine.Object)InventoryManager.ParentHuman.Suit == (UnityEngine.Object)null) //did make errors at stable update 24.04.2024
 							//    num1 += 0.2f; //whyyy make it longer in suit there...
@@ -122,17 +116,19 @@ namespace ZoopMod.Zoop {
 							Type inventoryManagerType = typeof(InventoryManager);
 							MethodInfo method = inventoryManagerType.GetMethod("WaitUntilDone",
 								BindingFlags.NonPublic | BindingFlags.Instance, null,
-								new Type[] { typeof(InventoryManager.DelegateEvent), typeof(float), typeof(Structure) },
+								[typeof(InventoryManager.DelegateEvent), typeof(float), typeof(Structure)],
 								null);
-							ZoopUtility.ActionCoroutine = __instance.StartCoroutine((IEnumerator)method.Invoke(__instance,
-								new Object[]
-								{
-								//new InventoryManager.DelegateEvent(() => UniTask.Run(async () => await ZoopUtility.BuildZoopAsync(__instance))),
-								new InventoryManager.DelegateEvent(() => ZoopUtility.BuildZoop(__instance)),
-								InventoryManager.ConstructionCursor.BuildPlacementTime / num1,//num2, //bigger number makes it spend less time
-                                InventoryManager.ConstructionCursor
-								})
-							);
+							if (method != null)
+								ZoopUtility.ActionCoroutine = __instance.StartCoroutine((IEnumerator)method.Invoke(
+									__instance,
+									[
+										//new InventoryManager.DelegateEvent(() => UniTask.Run(async () => await ZoopUtility.BuildZoopAsync(__instance))),
+										new InventoryManager.DelegateEvent(() => ZoopUtility.BuildZoop(__instance)),
+										InventoryManager.ConstructionCursor.BuildPlacementTime /
+										num1, //num2, //bigger number makes it spend less time
+										InventoryManager.ConstructionCursor
+									])
+								);
 						} else
 							ZoopUtility.BuildZoop(__instance);
 						//UniTask.Run(async () => await ZoopUtility.BuildZoopAsync(__instance)); //not finishing line properly stop but don't know why with waypoints addition feature
@@ -148,7 +144,6 @@ namespace ZoopMod.Zoop {
 				}
 
 				return !ZoopUtility.isZoopKeyPressed;
-			// } else return true; //let normal building work in multiplayer client too.
 		}
 	}
 

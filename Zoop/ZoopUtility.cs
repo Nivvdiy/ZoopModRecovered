@@ -1,7 +1,5 @@
-﻿using Assets.Scripts;
-using Assets.Scripts.GridSystem;
+﻿using Assets.Scripts.GridSystem;
 using Assets.Scripts.Inventory;
-using Assets.Scripts.Networking;
 using Assets.Scripts.Objects;
 using Assets.Scripts.Objects.Electrical;
 using Assets.Scripts.Objects.Items;
@@ -13,14 +11,10 @@ using System;
 using System.Collections.Generic;
 using System.Reflection;
 using System.Threading;
-using Assets.Scripts.Objects.Structures;
 using UnityEngine;
 using Object = UnityEngine.Object; //SOMETHING NEW
 
-//using creativefreedom;
-
 //TODO make it work in authoring mode
-// let it ignore collisions if CreativeFreedom mod is enabled.
 
 namespace ZoopMod.Zoop {
 
@@ -28,17 +22,17 @@ namespace ZoopMod.Zoop {
 
 		#region Fields
 		
-		public static List<Structure> structures = new List<Structure>();
-		private static readonly List<int> StructureBuildIndices = new List<int>();
-		private static List<Structure> structuresCacheStraight = new List<Structure>();
-		private static readonly List<int> StructureCacheStraightBuildIndices = new List<int>();
-		private static List<Structure> structuresCacheCorner = new List<Structure>();
-		private static readonly List<int> StructureCacheCornerBuildIndices = new List<int>();
+		public static List<Structure> structures = [];
+		private static readonly List<int> StructureBuildIndices = [];
+		private static List<Structure> structuresCacheStraight = [];
+		private static readonly List<int> StructureCacheStraightBuildIndices = [];
+		private static List<Structure> structuresCacheCorner = [];
+		private static readonly List<int> StructureCacheCornerBuildIndices = [];
 		
-		private static readonly List<Vector3?> Waypoints = new List<Vector3?>();
+		private static readonly List<Vector3?> Waypoints = [];
 
 		//preferred zoop order is built up by every first detection of a direction
-		private static readonly List<ZoopDirection> PreferredZoopOrder = new List<ZoopDirection>();
+		private static readonly List<ZoopDirection> PreferredZoopOrder = [];
 		
 		public static bool HasError { get; private set; }
 		public static Coroutine ActionCoroutine { get; set; }
@@ -52,7 +46,6 @@ namespace ZoopMod.Zoop {
 		public static bool isZooping { get; private set; }
 		private static int spacing = 1;
 		
-		private static Vector3? previousCurrentPos;
 		public static Color lineColor = Color.green;
 		private static Color errorColor = Color.red;
 		private static readonly Color WaypointColor = Color.blue;
@@ -84,7 +77,7 @@ namespace ZoopMod.Zoop {
 
 					if(Waypoints.Count > 0) {
 						_cancellationToken = new CancellationTokenSource();
-						UniTask.Run(async () => await ZoopAsync(_cancellationToken.Token, inventoryManager));
+						UniTask.RunOnThreadPool(async () => await ZoopAsync(_cancellationToken.Token, inventoryManager));
 					}
 				} else {
 					CancelZoop();
@@ -100,7 +93,6 @@ namespace ZoopMod.Zoop {
 				_cancellationToken.Cancel();
 				_cancellationToken = null;
 				ClearStructureCache();
-				previousCurrentPos = null;
 				structures.Clear(); //try to reset a list of structures for single piece placing
 				StructureBuildIndices.Clear();
 				Waypoints.Clear();
@@ -114,7 +106,7 @@ namespace ZoopMod.Zoop {
 
 			await UniTask.SwitchToMainThread(); // Switch to main thread for Unity API calls
 
-			List<ZoopSegment> zoops = new List<ZoopSegment>();
+			List<ZoopSegment> zoops = [];
 			if(InventoryManager.ConstructionCursor != null)
 				InventoryManager.ConstructionCursor.gameObject.SetActive(false);
 
@@ -320,21 +312,21 @@ namespace ZoopMod.Zoop {
 													break;
 												case ZoopDirection.y:
 													yOffset = indexDirection1 * value1;
-													break;
+													break; 
 												case ZoopDirection.z:
 													zOffset = indexDirection1 * value1;
 													break;
 											}
 
 											if(structures[structureCounter] is Wall) {//TODO for future update
-												SetStraightRotationBigGrid(structures[structureCounter], zoopDirection1, zoopDirection2);
+												SetStraightRotationBigGrid(structures[structureCounter], zoopDirection1);
 											}
 
 											Vector3 offset = new Vector3(xOffset, yOffset, zOffset);
 											structures[structureCounter].GameObject.SetActive(true);
 											structures[structureCounter].ThingTransformPosition = startPos + offset;
 											structures[structureCounter].Position = startPos + offset;
-											HasError = HasError || !CanConstructBigCell(inventoryManager, structures[structureCounter]);
+											HasError = HasError || !CanConstructBigCell(structures[structureCounter]);
 											structureCounter++;
 
 										}
@@ -348,45 +340,12 @@ namespace ZoopMod.Zoop {
 						}
 					}
 
-					await UniTask.Delay(100, DelayType.Realtime);
+					await UniTask.Delay(100, DelayType.Realtime, cancellationToken: cancellationToken);
 				} catch(Exception e) {
 					Debug.Log(e.Message);
 					Debug.LogException(e);
 				}
 			}
-		}
-
-		public static async UniTask BuildZoopAsync(InventoryManager inventoryManager) //public static void BuildZoopAsync(InventoryManager inventoryManager)
-		{
-			await UniTask.SwitchToMainThread();
-			for(int structureIndex = 0; structureIndex < structures.Count; structureIndex++) {
-				Structure item = structures[structureIndex];
-				if(InventoryManager.ActiveHandSlot.Get() == null) {
-					break;
-				}
-				//if (ZoopMod.CFree)
-				//{
-				//    Grid3 loc = item.GetLocalGrid();
-				//    SmallCell cell = item.GridController.GetSmallCell(loc);
-				//    if (cell != null)
-				//    {
-				//        Cable cab = item as Cable;
-				//        if (cab && cell.Cable != null && cell.Cable.CustomColor != cab.CustomColor)
-				//        {
-				//            //cab.WillMergeWhenPlaced = false;
-				//            //CUMBERSOME!
-				//        }
-				//    }
-				//}
-				//if (NetworkManager.IsClient) //may it need client role check to evade exceptions?
-				// disabled for clients anyway for now, as I cannot make it work in multiplayer client side
-				await UniTask.SwitchToMainThread();
-				await UniTask.Delay(10, DelayType.Realtime);
-				PlaceStructure(inventoryManager, item, structureIndex);
-			}
-
-			//Debug.Log("zoop canceled at BuildZoopAsync");
-			CancelZoop();
 		}
 
 		public static void BuildZoop(InventoryManager inventoryManager) {
@@ -491,14 +450,14 @@ namespace ZoopMod.Zoop {
 					};
 
 					if(canMakeItem && canBuildNext) {
-						MakeItem(constructables, corner, index, im, !corner ? selectedIndex : 1);
+						MakeItem(constructables, corner, index, !corner ? selectedIndex : 1);
 						canBuildNext = true;
 					} else {
 						canBuildNext = false;
 					}
 					break;
 				case AuthoringTool:
-					MakeItem(constructables, corner, index, im, !corner ? selectedIndex : 1);
+					MakeItem(constructables, corner, index, !corner ? selectedIndex : 1);
 					canBuildNext = true;
 					break;
 			}
@@ -507,7 +466,7 @@ namespace ZoopMod.Zoop {
 		private static void ClearStructureCache() {
 			foreach(Structure structure in structuresCacheStraight) {
 				structure.gameObject.SetActive(false);
-				MonoBehaviour.Destroy(structure);
+                Object.Destroy(structure);
 			}
 
 			structuresCacheStraight.Clear();
@@ -515,7 +474,7 @@ namespace ZoopMod.Zoop {
 
 			foreach(Structure structure in structuresCacheCorner) {
 				structure.gameObject.SetActive(false);
-				MonoBehaviour.Destroy(structure);
+                Object.Destroy(structure);
 			}
 
 			structuresCacheCorner.Clear();
@@ -532,7 +491,7 @@ namespace ZoopMod.Zoop {
 
 		}
 
-		private static void MakeItem(List<Structure> constructables, bool corner, int index, InventoryManager inventoryManager, int selectedIndex) {
+		private static void MakeItem(List<Structure> constructables, bool corner, int index, int selectedIndex) {
 			if(!corner && structuresCacheStraight.Count > index) {
 				structures.Add(structuresCacheStraight[index]);
 				StructureBuildIndices.Add(StructureCacheStraightBuildIndices[index]);
@@ -545,7 +504,7 @@ namespace ZoopMod.Zoop {
 					return;
 				}
 
-				Structure structureNew = MonoBehaviour.Instantiate(InventoryManager.GetStructureCursor(structure.PrefabName));
+				Structure structureNew = Object.Instantiate(InventoryManager.GetStructureCursor(structure.PrefabName));
 				if(structureNew != null) {
 					structureNew.gameObject.SetActive(true);
 					structures.Add(structureNew);
@@ -565,29 +524,29 @@ namespace ZoopMod.Zoop {
 			bool canConstruct = !hasError;
 			bool isWaypoint = Waypoints.Contains(structure.Position);
 			//check if structure is first element of waypoints
-			bool isStart = isWaypoint && Waypoints.First<Vector3?>().Equals(structure.Position);
+			bool isStart = isWaypoint && Waypoints.First().Equals(structure.Position);
 			Color color = canConstruct ? isWaypoint ? isStart ? StartColor : WaypointColor : lineColor : errorColor;
 			if(structure is SmallGrid smallGrid) {
 				List<Connection> list = smallGrid.WillJoinNetwork();
 				foreach(Connection openEnd in smallGrid.OpenEnds) {
 					if(canConstruct) {
 						Color colorToSet = list.Contains(openEnd) ? Color.yellow.SetAlpha(inventoryManager.CursorAlphaConstructionHelper) : Color.green.SetAlpha(inventoryManager.CursorAlphaConstructionHelper);
-						foreach(ThingRenderer renderer in structure.Renderers) {
+						foreach(ThingRenderer renderer in smallGrid.Renderers) {
 							if(renderer.HasRenderer()) {
 								renderer.SetColor(colorToSet);
 							}
 						}
 
-						foreach(Connection end in ((SmallGrid)structure).OpenEnds) {
+						foreach(Connection end in smallGrid.OpenEnds) {
 							end.HelperRenderer.material.color = colorToSet;
 						}
 					} else {
-						foreach(ThingRenderer renderer in structure.Renderers) {
+						foreach(ThingRenderer renderer in smallGrid.Renderers) {
 							if(renderer.HasRenderer())
 								renderer.SetColor(Color.red.SetAlpha(inventoryManager.CursorAlphaConstructionHelper));
 						}
 
-						foreach(Connection end in ((SmallGrid)structure).OpenEnds) {
+						foreach(Connection end in smallGrid.OpenEnds) {
 							end.HelperRenderer.material.color = Color.red.SetAlpha(inventoryManager.CursorAlphaConstructionHelper);
 						}
 					}
@@ -619,9 +578,9 @@ namespace ZoopMod.Zoop {
 		private static bool CanConstructSmallCell(InventoryManager inventoryManager, Structure structure) {
 			SmallCell smallCell = structure.GridController.GetSmallCell(structure.ThingTransformLocalPosition);
 			bool invalidStructureExistsOnGrid = smallCell != null &&
-												(smallCell.Device != (Object)null &&
+												(smallCell.Device != null &&
 													!(structure is Piping pipe && pipe == pipe.IsStraight && smallCell.Device is DevicePipeMounted device && device.contentType == pipe.PipeContentType ||
-													  structure is Cable cable && cable == cable.IsStraight && smallCell.Device is DeviceCableMounted) || smallCell.Other != (Object)null);
+													  structure is Cable cable && cable == cable.IsStraight && smallCell.Device is DeviceCableMounted) || smallCell.Other != null);
 
 			bool differentEndsCollision = false;
 			Type structureType = null;
@@ -641,9 +600,9 @@ namespace ZoopMod.Zoop {
 				MethodInfo method = structureType.GetMethod("_IsCollision", BindingFlags.Instance | BindingFlags.NonPublic);
 
 				if(method != null) {
-					differentEndsCollision = smallCell != null && smallCell.Cable != null && (bool)method.Invoke(structure, new object[] { smallCell.Cable });
-					differentEndsCollision |= smallCell != null && smallCell.Pipe != null && (bool)method.Invoke(structure, new object[] { smallCell.Pipe });
-					differentEndsCollision |= smallCell != null && smallCell.Chute != null && (bool)method.Invoke(structure, new object[] { smallCell.Chute });
+					differentEndsCollision = smallCell != null && smallCell.Cable != null && (bool)method.Invoke(structure, [smallCell.Cable]);
+					differentEndsCollision |= smallCell != null && smallCell.Pipe != null && (bool)method.Invoke(structure, [smallCell.Pipe]);
+					differentEndsCollision |= smallCell != null && smallCell.Chute != null && (bool)method.Invoke(structure, [smallCell.Chute]);
 				}
 
 			}
@@ -651,25 +610,21 @@ namespace ZoopMod.Zoop {
 			bool canConstruct = !invalidStructureExistsOnGrid && !differentEndsCollision; // || ZoopMod.CFree;
 
 			if(smallCell != null && smallCell.IsValid() && structure is Piping && smallCell.Pipe is Piping piping) {
-				int optionIndex = inventoryManager.ConstructionPanel.Parent.Constructables.FindIndex(item => structure.PrefabName == item.PrefabName);
-				MultiConstructor activeHandOccupant = inventoryManager.ActiveHand.Slot.Get() as MultiConstructor;
 				Item inactiveHandOccupant = InventoryManager.Parent.Slots[inventoryManager.InactiveHand.SlotId].Get() as Item;
 				CanConstructInfo canReplace = piping.CanReplace(inventoryManager.ConstructionPanel.Parent, inactiveHandOccupant);
 				canConstruct &= canReplace.CanConstruct;
-			} else if(smallCell != null && smallCell.IsValid() && structure is Cable && smallCell.Cable is Cable cable2) {
-				int optionIndex = inventoryManager.ConstructionPanel.Parent.Constructables.FindIndex(item => structure.PrefabName == item.PrefabName);
-				MultiConstructor activeHandOccupant = inventoryManager.ActiveHand.Slot.Get() as MultiConstructor;
+			} else if(smallCell != null && smallCell.IsValid() && structure is Cable && smallCell.Cable is { } cable2) {
 				Item inactiveHandOccupant = InventoryManager.Parent.Slots[inventoryManager.InactiveHand.SlotId].Get() as Item;
 				CanConstructInfo canReplace = cable2.CanReplace(inventoryManager.ConstructionPanel.Parent, inactiveHandOccupant);
 				canConstruct &= canReplace.CanConstruct;
-			} else if(smallCell != null && smallCell.IsValid() && structure is Chute && smallCell.Chute is Chute) {
+			} else if(smallCell != null && smallCell.IsValid() && structure is Chute && smallCell.Chute is not null) {
 				canConstruct &= false;
 			}
 
 			return canConstruct;
 		}
 
-		private static bool CanConstructBigCell(InventoryManager inventoryManager, Structure structure) {
+		private static bool CanConstructBigCell(Structure structure) {
 			Cell cell = structure.GridController.GetCell(structure.ThingTransformLocalPosition);
 			if(cell != null) {
 				foreach(Structure cellStructure in cell.AllStructures) {
@@ -816,9 +771,9 @@ namespace ZoopMod.Zoop {
 
 			directions.Sort((a, b) => b.value.CompareTo(a.value));
 
-			plane.Directions = plane.Directions with { direction1 = directions[0].direction, direction2 = directions[1].direction };
-			plane.Count = plane.Count with { direction1 = directions[0].count, direction2 = directions[1].count };
-			plane.Increasing = plane.Increasing with { direction1 = directions[0].increasing, direction2 = directions[1].increasing };
+			plane.Directions = (direction1: directions[0].direction, direction2: directions[1].direction);
+			plane.Count = (direction1: directions[0].count, direction2: directions[1].count);
+			plane.Increasing = (direction1: directions[0].increasing, direction2: directions[1].increasing);
 		}
 
 		private static void BuildBigStructureList(InventoryManager inventoryManager, ZoopPlane plane) {
@@ -850,27 +805,21 @@ namespace ZoopMod.Zoop {
 		private static void SetStraightRotationSmallGrid(Structure structure, ZoopDirection zoopDirection) {
 			switch(zoopDirection) {
 				case ZoopDirection.x:
-					if(structure is Chute) {
-						structure.ThingTransformRotation = SmartRotate.RotX.Rotation;
-					} else {
-						structure.ThingTransformRotation = SmartRotate.RotY.Rotation;
-					}
+					structure.ThingTransformRotation = structure is Chute
+						? SmartRotate.RotX.Rotation
+						: SmartRotate.RotY.Rotation;
 
 					break;
 				case ZoopDirection.y:
-					if(structure is Chute) {
-						structure.ThingTransformRotation = SmartRotate.RotZ.Rotation;
-					} else {
-						structure.ThingTransformRotation = SmartRotate.RotX.Rotation;
-					}
+					structure.ThingTransformRotation = structure is Chute
+						? SmartRotate.RotZ.Rotation
+						: SmartRotate.RotX.Rotation;
 
 					break;
 				case ZoopDirection.z:
-					if(structure is Chute) {
-						structure.ThingTransformRotation = SmartRotate.RotY.Rotation;
-					} else {
-						structure.ThingTransformRotation = SmartRotate.RotZ.Rotation;
-					}
+					structure.ThingTransformRotation = structure is Chute
+						? SmartRotate.RotY.Rotation
+						: SmartRotate.RotZ.Rotation;
 
 					break;
 				case ZoopDirection.none:
@@ -879,7 +828,7 @@ namespace ZoopMod.Zoop {
 			}
 		}
 
-		private static void SetStraightRotationBigGrid(Structure structure, ZoopDirection zoopDirection1, ZoopDirection zoopDirection2) {
+		private static void SetStraightRotationBigGrid(Structure structure, ZoopDirection zoopDirection1) {
 			//TODO change fonctionnement for wall
 			switch(zoopDirection1) {
 				case ZoopDirection.x:
@@ -905,14 +854,22 @@ namespace ZoopMod.Zoop {
 				xOffset = 180.0f;
 			}
 
-			if(structure.GetPrefabName().Equals("StructureChuteCorner")) {
+			if(structure.GetPrefabName().Equals("StructureChuteCorner"))
+			{
 				xOffset = -90.0f;
-				if(zoopDirectionTo == ZoopDirection.z && zoopDirectionFrom == ZoopDirection.x)
-					yOffset = increasingTo ? -90.0f : 90f;
-				else if(zoopDirectionTo == ZoopDirection.x && zoopDirectionFrom == ZoopDirection.z) //good
-					yOffset = increasingFrom ? 90.0f : -90f;
-				else
-					yOffset = 180.0f;
+				switch (zoopDirectionTo)
+				{
+					case ZoopDirection.z when zoopDirectionFrom == ZoopDirection.x:
+						yOffset = increasingTo ? -90.0f : 90f;
+						break;
+					//good
+					case ZoopDirection.x when zoopDirectionFrom == ZoopDirection.z:
+						yOffset = increasingFrom ? 90.0f : -90f;
+						break;
+					default:
+						yOffset = 180.0f;
+						break;
+				}
 			}
 
 			structure.ThingTransformRotation = ZoopUtils.GetCornerRotation(zoopDirectionFrom, increasingFrom, zoopDirectionTo, increasingTo, xOffset, yOffset, zOffset);
