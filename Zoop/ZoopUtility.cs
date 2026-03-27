@@ -398,6 +398,11 @@ namespace ZoopMod.Zoop
 
                     await UniTask.Delay(100, DelayType.Realtime, cancellationToken: cancellationToken);
                 }
+                catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+                {
+                    // Cancellation is expected, dont log anything
+                    break;
+                }
                 catch (Exception e)
                 {
                     Debug.Log(e.Message);
@@ -413,13 +418,6 @@ namespace ZoopMod.Zoop
             {
                 Structure item = structures[structureIndex];
                 PlaceStructure(inventoryManager, item, structureIndex);
-                /* if it's working thanks to Katsuk for the help */
-                Structure lastItem = Structure.LastCreatedStructure;
-                if (InventoryManager.IsAuthoringMode && lastItem.NextBuildState != null)
-                {
-                    int lastBuildStateIndex = lastItem.BuildStates.Count - 1;
-                    lastItem.UpdateBuildStateAndVisualizer(lastBuildStateIndex);
-                }
             }
 
             inventoryManager.CancelPlacement();
@@ -478,10 +476,21 @@ namespace ZoopMod.Zoop
             }
             UsePrimaryCompleteMethod.Invoke(inventoryManager, null);
 
-            if (InventoryManager.IsAuthoringMode && item.BuildStates.Count > 1)
+            if (!InventoryManager.IsAuthoringMode)
             {
-                //item.LocalGrid = 
-                //item.UpdateBuildStateAndVisualizer(item.BuildStates.Count - 1);
+                return;
+            }
+
+            Structure placedStructure = Structure.LastCreatedStructure;
+            if (placedStructure?.NextBuildState == null)
+            {
+                return;
+            }
+
+            int lastBuildStateIndex = placedStructure.BuildStates.Count - 1;
+            if (lastBuildStateIndex >= 0)
+            {
+                placedStructure.UpdateBuildStateAndVisualizer(lastBuildStateIndex);
             }
         }
 
