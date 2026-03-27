@@ -399,3 +399,4 @@ FodyWeavers.xsd
 * - Copy.cs
 Zoop*\-*.cs
 .dotnet/.dotnet/
+_mod_output/

@@ -21,6 +21,7 @@ namespace ZoopMod.Zoop
       if (ZoopUtility.isZooping)
       {
         //ConsoleWindow.Print("detected: " + multiConstructorItem.PrefabHash);
+        ZoopMod.Log("detected: " + multiConstructorItem.PrefabHash, ZoopMod.Logs.debug);
         ZoopUtility.StartZoop(__instance);
       }
     }
@@ -35,6 +36,7 @@ namespace ZoopMod.Zoop
       if (ZoopUtility.isZooping)
       {
         //ConsoleWindow.Print("detected: " + constructorItem.PrefabHash);
+        ZoopMod.Log("detected: " + constructorItem.PrefabHash, ZoopMod.Logs.debug);
         ZoopUtility.StartZoop(__instance);
       }
     }
@@ -48,7 +50,7 @@ namespace ZoopMod.Zoop
     {
       if (ZoopUtility.isZooping)
       {
-        //Debug.Log("zoop canceled at CancelPlacement");
+        ZoopMod.Log("zoop canceled at CancelPlacement", ZoopMod.Logs.debug);
         ZoopUtility.CancelZoop();
         ZoopUtility.isZoopKeyPressed = false;
       }
@@ -101,7 +103,6 @@ namespace ZoopMod.Zoop
   [HarmonyPatch(typeof(InventoryManager), "PlacementMode")]
   public class InventoryManagerPlacementMode
   {
-    //public static bool CFree = false;
     [UsedImplicitly]
     public static bool Prefix(InventoryManager __instance)
     {
@@ -111,11 +112,10 @@ namespace ZoopMod.Zoop
       bool spec = KeyManager.GetButtonDown(ZoopMod.ZoopSwitch);
       bool addWaypoint = KeyManager.GetButtonDown(ZoopMod.ZoopAddWaypoint);
       bool removeWaypoint = KeyManager.GetButtonDown(ZoopMod.ZoopRemoveWaypoint);
-      //bool place = KeyManager.GetButton(KeyMap.PrecisionPlace);
 
-      if (ZoopUtility.isZoopKeyPressed && primary || spec)
+      if ((ZoopUtility.isZoopKeyPressed && primary) || spec)
       {
-        // Debug.Log("zoop must start now");
+        ZoopMod.Log("zoop must start now", ZoopMod.Logs.debug);
         ZoopUtility.StartZoop(__instance);
       }
 
@@ -134,15 +134,9 @@ namespace ZoopMod.Zoop
       {
         if (!ZoopUtility.HasError)
         {
-          //NotAuthoringMode.Completion = true; //try not let original InventoryManager.UsePrimaryComplete override completion for Authoring Tool
-
-          //CHANGE tried to evade authoring mode check, as zero placement time is it
           if (!InventoryManager.IsAuthoringMode && InventoryManager.ConstructionCursor.BuildPlacementTime > 0.0)
           {
             float num1 = 1f;
-            //if (InventoryManager.ParentHuman.Suit == null)//((UnityEngine.Object)InventoryManager.ParentHuman.Suit == (UnityEngine.Object)null) //did make errors at stable update 24.04.2024
-            //    num1 += 0.2f; //whyyy make it longer in suit there...
-            //float num2 = Mathf.Clamp(num1, 0.2f, 5f); //nosuit make number bigger
 
             Type inventoryManagerType = typeof(InventoryManager);
             MethodInfo method = inventoryManagerType.GetMethod("WaitUntilDone",
@@ -154,11 +148,10 @@ namespace ZoopMod.Zoop
               Coroutine actionCoroutine = __instance.StartCoroutine((IEnumerator)method.Invoke(
                   __instance,
                   [
-                      //new InventoryManager.DelegateEvent(() => UniTask.Run(async () => await ZoopUtility.BuildZoopAsync(__instance))),
                       new InventoryManager.DelegateEvent(() => ZoopUtility.BuildZoop(__instance)),
                                         InventoryManager.ConstructionCursor.BuildPlacementTime /
-                                        num1, //num2, //bigger number makes it spend less time
-										InventoryManager.ConstructionCursor
+                                        num1,
+                    InventoryManager.ConstructionCursor
                   ])
               );
               ZoopUtility.SetPendingBuild(__instance, actionCoroutine);
@@ -166,15 +159,14 @@ namespace ZoopMod.Zoop
           }
           else
             ZoopUtility.BuildZoop(__instance);
-          //UniTask.Run(async () => await ZoopUtility.BuildZoopAsync(__instance)); //not finishing line properly stop but don't know why with waypoints addition feature
         }
 
         return !ZoopUtility.isZooping;
       }
 
-      if (secondary)// || drop)
+      if (secondary)
       {
-        //Debug.Log("zoop canceled by rmb");
+        ZoopMod.Log("zoop canceled by rmb", ZoopMod.Logs.debug);
         ZoopUtility.CancelZoop();
       }
 

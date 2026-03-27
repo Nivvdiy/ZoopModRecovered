@@ -7,131 +7,34 @@ namespace ZoopMod.Zoop
   {
     public static ZoopTransition GetTransition(ZoopDirection zoopDirectionFrom, bool increasingFrom, ZoopDirection zoopDirectionTo, bool increasingTo)
     {
-      if (zoopDirectionFrom == ZoopDirection.x)
+      return (zoopDirectionFrom, increasingFrom, zoopDirectionTo, increasingTo) switch
       {
-        if (zoopDirectionTo == ZoopDirection.y)
-        {
-          if (increasingFrom && increasingTo)
-          {
-            return ZoopTransition.xPyP;
-          }
-          else if (increasingFrom && !increasingTo)
-          {
-            return ZoopTransition.xPyN;
-          }
-          else if (!increasingFrom && increasingTo)
-          {
-            return ZoopTransition.xNyP;
-          }
-          else
-          {
-            return ZoopTransition.xNyN;
-          }
-        }
-        else if (zoopDirectionTo == ZoopDirection.z)
-        {
-          if (increasingFrom && increasingTo)
-          {
-            return ZoopTransition.xPzP;
-          }
-          else if (increasingFrom && !increasingTo)
-          {
-            return ZoopTransition.xPzN;
-          }
-          else if (!increasingFrom && increasingTo)
-          {
-            return ZoopTransition.xNzP;
-          }
-          else
-          {
-            return ZoopTransition.xNzN;
-          }
-        }
-      }
-      else if (zoopDirectionFrom == ZoopDirection.y)
-      {
-        if (zoopDirectionTo == ZoopDirection.x)
-        {
-          if (increasingFrom && increasingTo)
-          {
-            return ZoopTransition.yPxP;
-          }
-          else if (increasingFrom && !increasingTo)
-          {
-            return ZoopTransition.yPxN;
-          }
-          else if (!increasingFrom && increasingTo)
-          {
-            return ZoopTransition.yNxP;
-          }
-          else
-          {
-            return ZoopTransition.yNxN;
-          }
-        }
-        else if (zoopDirectionTo == ZoopDirection.z)
-        {
-          if (increasingFrom && increasingTo)
-          {
-            return ZoopTransition.yPzP;
-          }
-          else if (increasingFrom && !increasingTo)
-          {
-            return ZoopTransition.yPzN;
-          }
-          else if (!increasingFrom && increasingTo)
-          {
-            return ZoopTransition.yNzP;
-          }
-          else
-          {
-            return ZoopTransition.yNzN;
-          }
-        }
-      }
-      else if (zoopDirectionFrom == ZoopDirection.z)
-      {
-        if (zoopDirectionTo == ZoopDirection.x)
-        {
-          if (increasingFrom && increasingTo)
-          {
-            return ZoopTransition.zPxP;
-          }
-          else if (increasingFrom && !increasingTo)
-          {
-            return ZoopTransition.zPxN;
-          }
-          else if (!increasingFrom && increasingTo)
-          {
-            return ZoopTransition.zNxP;
-          }
-          else
-          {
-            return ZoopTransition.zNxN;
-          }
-        }
-        else if (zoopDirectionTo == ZoopDirection.y)
-        {
-          if (increasingFrom && increasingTo)
-          {
-            return ZoopTransition.zPyP;
-          }
-          else if (increasingFrom && !increasingTo)
-          {
-            return ZoopTransition.zPyN;
-          }
-          else if (!increasingFrom && increasingTo)
-          {
-            return ZoopTransition.zNyP;
-          }
-          else
-          {
-            return ZoopTransition.zNyN;
-          }
-        }
-      }
-
-      throw new ArgumentException();
+        (ZoopDirection.x, true, ZoopDirection.y, true) => ZoopTransition.xPyP,
+        (ZoopDirection.x, true, ZoopDirection.y, false) => ZoopTransition.xPyN,
+        (ZoopDirection.x, false, ZoopDirection.y, true) => ZoopTransition.xNyP,
+        (ZoopDirection.x, false, ZoopDirection.y, false) => ZoopTransition.xNyN,
+        (ZoopDirection.x, true, ZoopDirection.z, true) => ZoopTransition.xPzP,
+        (ZoopDirection.x, true, ZoopDirection.z, false) => ZoopTransition.xPzN,
+        (ZoopDirection.x, false, ZoopDirection.z, true) => ZoopTransition.xNzP,
+        (ZoopDirection.x, false, ZoopDirection.z, false) => ZoopTransition.xNzN,
+        (ZoopDirection.y, true, ZoopDirection.x, true) => ZoopTransition.yPxP,
+        (ZoopDirection.y, true, ZoopDirection.x, false) => ZoopTransition.yPxN,
+        (ZoopDirection.y, false, ZoopDirection.x, true) => ZoopTransition.yNxP,
+        (ZoopDirection.y, false, ZoopDirection.x, false) => ZoopTransition.yNxN,
+        (ZoopDirection.y, true, ZoopDirection.z, true) => ZoopTransition.yPzP,
+        (ZoopDirection.y, true, ZoopDirection.z, false) => ZoopTransition.yPzN,
+        (ZoopDirection.y, false, ZoopDirection.z, true) => ZoopTransition.yNzP,
+        (ZoopDirection.y, false, ZoopDirection.z, false) => ZoopTransition.yNzN,
+        (ZoopDirection.z, true, ZoopDirection.x, true) => ZoopTransition.zPxP,
+        (ZoopDirection.z, true, ZoopDirection.x, false) => ZoopTransition.zPxN,
+        (ZoopDirection.z, false, ZoopDirection.x, true) => ZoopTransition.zNxP,
+        (ZoopDirection.z, false, ZoopDirection.x, false) => ZoopTransition.zNxN,
+        (ZoopDirection.z, true, ZoopDirection.y, true) => ZoopTransition.zPyP,
+        (ZoopDirection.z, true, ZoopDirection.y, false) => ZoopTransition.zPyN,
+        (ZoopDirection.z, false, ZoopDirection.y, true) => ZoopTransition.zNyP,
+        (ZoopDirection.z, false, ZoopDirection.y, false) => ZoopTransition.zNyN,
+        _ => throw new ArgumentException("Invalid zoop transition.")
+      };
     }
 
     public static Quaternion GetCornerRotation(ZoopDirection zoopDirectionFrom, bool increasingFrom, ZoopDirection zoopDirectionTo, bool increasingTo, float xOffset, float yOffset, float zOffset)
@@ -174,9 +77,9 @@ namespace ZoopMod.Zoop
         case ZoopTransition.yNzP:
         case ZoopTransition.zNyP:
           return Quaternion.Euler(xOffset + 90.0f, yOffset + 90f, zOffset + 0.0f);
+        default:
+          return Quaternion.identity;
       }
-
-      return Quaternion.identity;
     }
   }
 }

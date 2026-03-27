@@ -19,7 +19,7 @@ namespace ZoopMod.Zoop
       {
         // We need to add a custom control group for the keys to be attached to, and create 
         // the Lookout reference.
-        Debug.Log("Adding custom Shortcuts group");
+        ZoopMod.Log("Adding custom Shortcuts group", ZoopMod.Logs.debug);
         ControlsGroup controlsGroup1 = new ControlsGroup("Zoop");
         KeyManager.AddGroupLookup(controlsGroup1);
 
@@ -33,10 +33,6 @@ namespace ZoopMod.Zoop
         ShortcutInjectBindingGroup.AddKey("Zoop Switch", KeyCode.Z, controlsGroup1, false);
         ShortcutInjectBindingGroup.AddKey("Zoop Add Waypoint", KeyCode.Mouse2, controlsGroup1, false);
         ShortcutInjectBindingGroup.AddKey("Zoop Remove Last Waypoint", KeyCode.V, controlsGroup1, false);
-
-
-        // We need to restore the name of the control group back to its correct string
-        //controlsGroup1.Name = "ShortCuts";
 
         ControlsAssignment.RefreshState();
       }

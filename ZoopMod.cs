@@ -10,29 +10,36 @@ namespace ZoopMod
   public class ZoopMod : ModBehaviour
   {
 
-    public static KeyCode ZoopHold;// = KeyCode.LeftShift;
-    public static KeyCode ZoopSwitch;// = KeyCode.Z;
-    public static KeyCode ZoopAddWaypoint;// = KeyCode.Mouse2
-    public static KeyCode ZoopRemoveWaypoint;// = KeyCode.V
+    public static KeyCode ZoopHold;
+    public static KeyCode ZoopSwitch;
+    public static KeyCode ZoopAddWaypoint;
+    public static KeyCode ZoopRemoveWaypoint;
 
     public static ZoopMod Instance;
 
     public static bool CFree;
 
-    private static string loglevel = "info";
+    private static Logs CurrentLogLevel = Logs.debug;
 
     public enum Logs
     {
-      debug = 1,
+      debug = 0,
+      info = 1,
       error = 2,
-      info = 0,
     }
 
     public static void Log(string line, Logs level)
     {
-      if ((int)Enum.Parse(typeof(Logs), loglevel) - (int)level >= 0)
+#if !DEBUG
+      if (level == Logs.debug)
       {
-        Debug.Log("[" + level + " : Zoop Mod] " + line);
+        return;
+      }
+#endif
+
+      if (level >= CurrentLogLevel)
+      {
+        Debug.Log($"[{level} : Zoop Mod] {line}");
       }
     }
 
@@ -55,7 +62,7 @@ namespace ZoopMod
       catch (Exception e)
       {
         Log("Patch Failed", Logs.error);
-        Debug.Log(e.ToString());
+        Log(e.ToString(), Logs.error);
       }
     }
 

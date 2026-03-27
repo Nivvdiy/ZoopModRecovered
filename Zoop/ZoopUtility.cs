@@ -13,7 +13,7 @@ using Assets.Scripts.Util;
 using Cysharp.Threading.Tasks;
 using Objects.Structures;
 using UnityEngine;
-using Object = UnityEngine.Object; //SOMETHING NEW
+using UnityObject = UnityEngine.Object;
 
 //TODO make it work in authoring mode
 
@@ -27,15 +27,12 @@ namespace ZoopMod.Zoop
 
     public static List<Structure> structures = [];
     private static readonly List<int> StructureBuildIndices = [];
-    private static List<Structure> structuresCacheStraight = [];
+    private static readonly List<Structure> structuresCacheStraight = [];
     private static readonly List<int> StructureCacheStraightBuildIndices = [];
-    private static List<Structure> structuresCacheCorner = [];
+    private static readonly List<Structure> structuresCacheCorner = [];
     private static readonly List<int> StructureCacheCornerBuildIndices = [];
 
     private static readonly List<Vector3?> Waypoints = [];
-
-    //preferred zoop order is built up by every first detection of a direction
-    private static readonly List<ZoopDirection> PreferredZoopOrder = [];
 
     public static bool HasError { get; private set; }
     public static Coroutine ActionCoroutine { get; private set; }
@@ -70,7 +67,6 @@ namespace ZoopMod.Zoop
         isZooping = true;
         if (_cancellationToken == null)
         {
-          PreferredZoopOrder.Clear();
           Waypoints.Clear();
           _zoopSpawnPrefab = InventoryManager.SpawnPrefab;
           if (InventoryManager.ConstructionCursor != null)
@@ -117,7 +113,6 @@ namespace ZoopMod.Zoop
 
     public static void CancelZoop()
     {
-      // NotAuthoringMode.Completion = false;
       isZooping = false;
       CancelPendingBuild();
       if (_cancellationToken != null)
@@ -235,14 +230,7 @@ namespace ZoopMod.Zoop
                       bool increasing = GetIncreasingForDirection(zoopDirection, segment);
                       int zoopCounter = GetCountForDirection(zoopDirection, segment);
 
-                      if (segmentIndex < zoops.Count - 1 && directionIndex == segment.Directions.Count - 1)
-                      {
-                        zoopCounter--;
-                      }
-                      else if (directionIndex < segment.Directions.Count - 1)
-                      {
-                        zoopCounter--;
-                      }
+                      zoopCounter = GetPlacementCount(zoops.Count, segmentIndex, segment.Directions.Count, directionIndex, zoopCounter);
 
                       for (int zi = 0; zi < zoopCounter; zi++)
                       {
@@ -254,18 +242,7 @@ namespace ZoopMod.Zoop
                         spacing = Mathf.Max(spacing, 1);
                         float minValue = InventoryManager.ConstructionCursor is SmallGrid ? 0.5f : 2f;
                         float value = increasing ? minValue * spacing : -(minValue * spacing);
-                        switch (zoopDirection)
-                        {
-                          case ZoopDirection.x:
-                            xOffset = zi * value;
-                            break;
-                          case ZoopDirection.y:
-                            yOffset = zi * value;
-                            break;
-                          case ZoopDirection.z:
-                            zOffset = zi * value;
-                            break;
-                        }
+                        SetDirectionalOffset(ref xOffset, ref yOffset, ref zOffset, zoopDirection, zi * value);
 
                         bool increasingTo = increasing;
                         bool increasingFrom = lastDirection != ZoopDirection.none && GetIncreasingForDirection(lastDirection, segment);
@@ -320,21 +297,7 @@ namespace ZoopMod.Zoop
                         structureCounter++;
                         if (zi == zoopCounter - 1)
                         {
-                          switch (zoopDirection)
-                          {
-                            case ZoopDirection.x:
-                              xOffset = (zi + 1) * value;
-                              break;
-                            case ZoopDirection.y:
-                              yOffset = (zi + 1) * value;
-                              break;
-                            case ZoopDirection.z:
-                              zOffset = (zi + 1) * value;
-                              break;
-                            case ZoopDirection.none:
-                            default:
-                              throw new ArgumentOutOfRangeException();
-                          }
+                          SetDirectionalOffset(ref xOffset, ref yOffset, ref zOffset, zoopDirection, (zi + 1) * value);
                         }
                       }
                     }
@@ -380,18 +343,7 @@ namespace ZoopMod.Zoop
                     bool increasing2 = plane.Increasing.direction2;
 
                     float value2 = increasing2 ? 2f * spacing : -(2f * spacing);
-                    switch (zoopDirection2)
-                    {
-                      case ZoopDirection.x:
-                        xOffset = indexDirection2 * value2;
-                        break;
-                      case ZoopDirection.y:
-                        yOffset = indexDirection2 * value2;
-                        break;
-                      case ZoopDirection.z:
-                        zOffset = indexDirection2 * value2;
-                        break;
-                    }
+                    SetDirectionalOffset(ref xOffset, ref yOffset, ref zOffset, zoopDirection2, indexDirection2 * value2);
 
                     for (int indexDirection1 = 0; indexDirection1 < plane.Count.direction1; indexDirection1++)
                     {
@@ -404,18 +356,7 @@ namespace ZoopMod.Zoop
                       bool increasing1 = plane.Increasing.direction1;
 
                       float value1 = increasing1 ? 2f * spacing : -(2f * spacing);
-                      switch (zoopDirection1)
-                      {
-                        case ZoopDirection.x:
-                          xOffset = indexDirection1 * value1;
-                          break;
-                        case ZoopDirection.y:
-                          yOffset = indexDirection1 * value1;
-                          break;
-                        case ZoopDirection.z:
-                          zOffset = indexDirection1 * value1;
-                          break;
-                      }
+                      SetDirectionalOffset(ref xOffset, ref yOffset, ref zOffset, zoopDirection1, indexDirection1 * value1);
 
                       Vector3 offset = new Vector3(xOffset, yOffset, zOffset);
                       Vector3 previewPosition = startPos + offset;
@@ -446,8 +387,7 @@ namespace ZoopMod.Zoop
         }
         catch (Exception e)
         {
-          Debug.Log(e.Message);
-          Debug.LogException(e);
+          ZoopMod.Log(e.ToString(), ZoopMod.Logs.error);
         }
       }
     }
@@ -607,7 +547,7 @@ namespace ZoopMod.Zoop
       foreach (Structure structure in structuresCacheStraight)
       {
         structure.gameObject.SetActive(false);
-        Object.Destroy(structure);
+        UnityObject.Destroy(structure);
       }
 
       structuresCacheStraight.Clear();
@@ -616,7 +556,7 @@ namespace ZoopMod.Zoop
       foreach (Structure structure in structuresCacheCorner)
       {
         structure.gameObject.SetActive(false);
-        Object.Destroy(structure);
+        UnityObject.Destroy(structure);
       }
 
       structuresCacheCorner.Clear();
@@ -668,7 +608,7 @@ namespace ZoopMod.Zoop
           return;
         }
 
-        Structure structureNew = Object.Instantiate(InventoryManager.GetStructureCursor(structure.PrefabName));
+        Structure structureNew = UnityObject.Instantiate(InventoryManager.GetStructureCursor(structure.PrefabName));
         if (structureNew != null)
         {
           structureNew.gameObject.SetActive(true);
@@ -967,7 +907,6 @@ namespace ZoopMod.Zoop
       {
         segment.CountX = 1 + (int)(Math.Abs(startX - endX) * 2);
         segment.IncreasingX = startX < endX;
-        UpdateZoopOrder(ZoopDirection.x);
         segment.Directions.Add(ZoopDirection.x);
       }
 
@@ -975,7 +914,6 @@ namespace ZoopMod.Zoop
       {
         segment.CountY = 1 + (int)(Math.Abs(startY - endY) * 2);
         segment.IncreasingY = startY < endY;
-        UpdateZoopOrder(ZoopDirection.y);
         segment.Directions.Add(ZoopDirection.y);
       }
 
@@ -983,7 +921,6 @@ namespace ZoopMod.Zoop
       {
         segment.CountZ = 1 + (int)(Math.Abs(startZ - endZ) * 2);
         segment.IncreasingZ = startZ < endZ;
-        UpdateZoopOrder(ZoopDirection.z);
         segment.Directions.Add(ZoopDirection.z);
       }
     }
@@ -1007,15 +944,7 @@ namespace ZoopMod.Zoop
           ZoopDirection zoopDirection = segment.Directions[directionIndex];
           int zoopCounter = GetCountForDirection(zoopDirection, segment);
 
-          // If it's not the last segment and it's the last direction in the segment, reduce the counter by 1
-          if (segmentIndex < zoops.Count - 1 && directionIndex == segment.Directions.Count - 1)
-          {
-            zoopCounter--;
-          }
-          else if (directionIndex < segment.Directions.Count - 1)
-          {
-            zoopCounter--;
-          }
+          zoopCounter = GetPlacementCount(zoops.Count, segmentIndex, segment.Directions.Count, directionIndex, zoopCounter);
 
           for (int j = 0; j < zoopCounter; j++)
           {
@@ -1098,34 +1027,24 @@ namespace ZoopMod.Zoop
 
     private static int GetCountForDirection(ZoopDirection direction, ZoopSegment segment)
     {
-      switch (direction)
+      return direction switch
       {
-        case ZoopDirection.x:
-          return segment.CountX;
-        case ZoopDirection.y:
-          return segment.CountY;
-        case ZoopDirection.z:
-          return segment.CountZ;
-        case ZoopDirection.none:
-        default:
-          throw new ArgumentOutOfRangeException();
-      }
+        ZoopDirection.x => segment.CountX,
+        ZoopDirection.y => segment.CountY,
+        ZoopDirection.z => segment.CountZ,
+        _ => throw new ArgumentOutOfRangeException(nameof(direction), direction, null)
+      };
     }
 
     private static bool GetIncreasingForDirection(ZoopDirection direction, ZoopSegment segment)
     {
-      switch (direction)
+      return direction switch
       {
-        case ZoopDirection.x:
-          return segment.IncreasingX;
-        case ZoopDirection.y:
-          return segment.IncreasingY;
-        case ZoopDirection.z:
-          return segment.IncreasingZ;
-        case ZoopDirection.none:
-        default:
-          throw new ArgumentOutOfRangeException();
-      }
+        ZoopDirection.x => segment.IncreasingX,
+        ZoopDirection.y => segment.IncreasingY,
+        ZoopDirection.z => segment.IncreasingZ,
+        _ => throw new ArgumentOutOfRangeException(nameof(direction), direction, null)
+      };
     }
 
     #endregion
@@ -1177,15 +1096,6 @@ namespace ZoopMod.Zoop
       }
     }
 
-    private static void UpdateZoopOrder(ZoopDirection direction)
-    {
-      // add if this direction is not yet in the list
-      if (!PreferredZoopOrder.Contains(direction))
-      {
-        PreferredZoopOrder.Add(direction);
-      }
-    }
-
     private static Vector3 GetCardinalAxis(Vector3 vector)
     {
       Vector3 normalized = vector.normalized;
@@ -1204,6 +1114,35 @@ namespace ZoopMod.Zoop
       }
 
       return normalized.z >= 0f ? Vector3.forward : Vector3.back;
+    }
+
+    private static int GetPlacementCount(int segmentCount, int segmentIndex, int directionCount, int directionIndex, int zoopCount)
+    {
+      if ((segmentIndex < segmentCount - 1 && directionIndex == directionCount - 1) ||
+          directionIndex < directionCount - 1)
+      {
+        return zoopCount - 1;
+      }
+
+      return zoopCount;
+    }
+
+    private static void SetDirectionalOffset(ref float xOffset, ref float yOffset, ref float zOffset, ZoopDirection direction, float value)
+    {
+      switch (direction)
+      {
+        case ZoopDirection.x:
+          xOffset = value;
+          return;
+        case ZoopDirection.y:
+          yOffset = value;
+          return;
+        case ZoopDirection.z:
+          zOffset = value;
+          return;
+        default:
+          throw new ArgumentOutOfRangeException(nameof(direction), direction, null);
+      }
     }
 
     #endregion

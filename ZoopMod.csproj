@@ -109,7 +109,4 @@
 		<Copy SourceFiles="$(ProjectDir)\bin\Debug\$(ModName).dll.mdb" DestinationFolder="$(StationeersModOutputFolder)\$(ModName)" ContinueOnError="true" Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' " />
 	</Target>
 
-	<!-- Import CSharp Targets -->
-	<Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
-
 </Project>
