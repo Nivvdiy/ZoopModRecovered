@@ -81,13 +81,17 @@ namespace ZoopMod.Zoop
     [UsedImplicitly]
     public static void Prefix(InventoryManager __instance, InventoryManager.DelegateEvent onFinished, ref float timeToWait, Structure structure)
     {
+      if (!ZoopUtility.isZooping)
+      {
+        return;
+      }
+
       if (!InventoryManager.IsAuthoringMode)
       {
-        var structureCount = Math.Min(ZoopUtility.structures.Count, 1);
+        int structureCount = Math.Max(ZoopUtility.structures.Count, 1);
         // TODO Consider putting this into config
         const int timeToWaitMultiplier = 5;
-        timeToWait = Math.Min(timeToWait * structureCount, timeToWait * timeToWaitMultiplier); //PROBLEM same time of placement for single pieces after zooping
-                                                                                               //switch(ZoopConfig.GetDifficulty())
+        timeToWait *= Math.Min(structureCount, timeToWaitMultiplier); //switch(ZoopConfig.GetDifficulty())
       }
       else timeToWait = 0f; //try to make it instant for creative tool
     }
