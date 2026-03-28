@@ -259,6 +259,28 @@ public static class ZoopUtility
   private static async UniTask ZoopSmallGrid(InventoryManager inventoryManager, Vector3 currentPos,
     List<ZoopSegment> zoops)
   {
+    var singleItem = BuildSmallGridSegments(currentPos, zoops);
+
+    await UniTask.SwitchToMainThread(); // Switch to main thread for Unity API calls
+
+    var supportsCornerVariant =
+      SupportsCornerVariant(inventoryManager.ConstructionPanel.Parent.Constructables,
+        inventoryManager.ConstructionPanel.Parent.LastSelectedIndex);
+    BuildSmallStructureList(inventoryManager, zoops, supportsCornerVariant);
+
+    if (Structures.Count <= 0)
+    {
+      return;
+    }
+
+    PositionSmallGridStructures(inventoryManager, zoops, supportsCornerVariant, singleItem);
+  }
+
+  /// <summary>
+  /// Builds the small-grid zoop segments for the current waypoint path.
+  /// </summary>
+  private static bool BuildSmallGridSegments(Vector3 currentPos, List<ZoopSegment> zoops)
+  {
     zoops.Clear();
 
     var singleItem = true;
@@ -281,20 +303,18 @@ public static class ZoopUtility
       zoops.Add(segment);
     }
 
-    await UniTask.SwitchToMainThread(); // Switch to main thread for Unity API calls
+    return singleItem;
+  }
 
-    var supportsCornerVariant =
-      SupportsCornerVariant(inventoryManager.ConstructionPanel.Parent.Constructables,
-        inventoryManager.ConstructionPanel.Parent.LastSelectedIndex);
-    BuildSmallStructureList(inventoryManager, zoops, supportsCornerVariant);
-
+  /// <summary>
+  /// Positions the active small-grid preview structures along the zoop segments.
+  /// </summary>
+  private static void PositionSmallGridStructures(InventoryManager inventoryManager, List<ZoopSegment> zoops,
+    bool supportsCornerVariant, bool singleItem)
+  {
     var structureCounter = 0;
-    if (Structures.Count <= 0)
-    {
-      return;
-    }
-
     var lastDirection = ZoopDirection.none;
+
     for (var segmentIndex = 0; segmentIndex < zoops.Count; segmentIndex++)
     {
       var segment = zoops[segmentIndex];
@@ -311,10 +331,9 @@ public static class ZoopUtility
 
         var zoopDirection = segment.Directions[directionIndex];
         var increasing = GetIncreasingForDirection(zoopDirection, segment);
-        var zoopCounter = GetCountForDirection(zoopDirection, segment);
-
-        zoopCounter = GetPlacementCount(zoops.Count, segmentIndex, segment.Directions.Count, directionIndex,
-          zoopCounter);
+        var zoopCounter = GetPlacementCount(zoops.Count, segmentIndex, segment.Directions.Count, directionIndex,
+          GetCountForDirection(zoopDirection, segment));
+        var value = GetDirectionalPlacementValue(increasing);
 
         for (var zi = 0; zi < zoopCounter; zi++)
         {
@@ -323,53 +342,12 @@ public static class ZoopUtility
             break;
           }
 
-          spacing = Mathf.Max(spacing, 1);
-          var minValue = InventoryManager.ConstructionCursor is SmallGrid ? 0.5f : 2f;
-          var value = increasing ? minValue * spacing : -(minValue * spacing);
           SetDirectionalOffset(ref xOffset, ref yOffset, ref zOffset, zoopDirection, zi * value);
 
-          var increasingTo = increasing;
-          var increasingFrom = lastDirection != ZoopDirection.none &&
-                               GetIncreasingForDirection(lastDirection, segment);
-          if (segmentIndex > 0 && directionIndex == 0 && zi == 0)
-          {
-            var lastSegmentDirection = zoops[segmentIndex - 1].Directions.Last();
-            switch (lastSegmentDirection)
-            {
-              case ZoopDirection.x:
-                increasingFrom = zoops[segmentIndex - 1].IncreasingX;
-                break;
-              case ZoopDirection.y:
-                increasingFrom = zoops[segmentIndex - 1].IncreasingY;
-                break;
-              case ZoopDirection.z:
-                increasingFrom = zoops[segmentIndex - 1].IncreasingZ;
-                break;
-              case ZoopDirection.none:
-              default:
-                throw new ArgumentOutOfRangeException();
-            }
-          }
-
-          if (supportsCornerVariant)
-          {
-            if ((directionIndex > 0 || (segmentIndex > 0 && directionIndex == 0)) && zi == 0)
-            {
-              if (lastDirection == zoopDirection)
-              {
-                SetStraightRotationSmallGrid(Structures[structureCounter], zoopDirection);
-              }
-              else
-              {
-                SetCornerRotation(Structures[structureCounter], lastDirection, increasingFrom,
-                  zoopDirection, increasingTo);
-              }
-            }
-            else if (!singleItem)
-            {
-              SetStraightRotationSmallGrid(Structures[structureCounter], zoopDirection);
-            }
-          }
+          var increasingFrom = GetIncreasingFromPreviousDirection(zoops, segment, segmentIndex, directionIndex, zi,
+            lastDirection);
+          ApplySmallGridRotation(structureCounter, supportsCornerVariant, singleItem, segmentIndex, directionIndex, zi,
+            lastDirection, zoopDirection, increasingFrom, increasing);
 
           lastDirection = zoopDirection;
 
@@ -389,6 +367,66 @@ public static class ZoopUtility
           }
         }
       }
+    }
+  }
+
+  /// <summary>
+  /// Returns the placement spacing value for the current small-grid direction.
+  /// </summary>
+  private static float GetDirectionalPlacementValue(bool increasing)
+  {
+    spacing = Mathf.Max(spacing, 1);
+    var minValue = InventoryManager.ConstructionCursor is SmallGrid ? 0.5f : 2f;
+    return increasing ? minValue * spacing : -(minValue * spacing);
+  }
+
+  /// <summary>
+  /// Resolves the incoming direction polarity used when orienting a small-grid preview.
+  /// </summary>
+  private static bool GetIncreasingFromPreviousDirection(List<ZoopSegment> zoops, ZoopSegment segment, int segmentIndex,
+    int directionIndex, int placementIndex, ZoopDirection lastDirection)
+  {
+    var increasingFrom = lastDirection != ZoopDirection.none &&
+                         GetIncreasingForDirection(lastDirection, segment);
+    if (segmentIndex <= 0 || directionIndex != 0 || placementIndex != 0)
+    {
+      return increasingFrom;
+    }
+
+    var lastSegment = zoops[segmentIndex - 1];
+    return GetIncreasingForDirection(lastSegment.Directions.Last(), lastSegment);
+  }
+
+  /// <summary>
+  /// Applies the correct rotation to a small-grid preview structure.
+  /// </summary>
+  private static void ApplySmallGridRotation(int structureCounter, bool supportsCornerVariant, bool singleItem,
+    int segmentIndex, int directionIndex, int placementIndex, ZoopDirection lastDirection, ZoopDirection zoopDirection,
+    bool increasingFrom, bool increasingTo)
+  {
+    if (!supportsCornerVariant)
+    {
+      return;
+    }
+
+    var isSegmentTurnStart = (directionIndex > 0 || (segmentIndex > 0 && directionIndex == 0)) && placementIndex == 0;
+    if (isSegmentTurnStart)
+    {
+      if (lastDirection == zoopDirection)
+      {
+        SetStraightRotationSmallGrid(Structures[structureCounter], zoopDirection);
+      }
+      else
+      {
+        SetCornerRotation(Structures[structureCounter], lastDirection, increasingFrom, zoopDirection, increasingTo);
+      }
+
+      return;
+    }
+
+    if (!singleItem)
+    {
+      SetStraightRotationSmallGrid(Structures[structureCounter], zoopDirection);
     }
   }
 
@@ -904,7 +942,7 @@ public static class ZoopUtility
 
   #endregion
 
-  #region Conditionnal Methods
+  #region Conditional Methods
 
   /// <summary>
   /// Returns the constructable currently selected in the construction panel.
