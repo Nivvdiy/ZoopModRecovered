@@ -40,9 +40,9 @@ public static class ZoopUtility
   private static Vector3 _zoopStartWallNormal = Vector3.zero;
   private const float PositionToleranceSqr = 0.0001f;
 
-  private readonly struct SmallCellValidationCursorState
+  private readonly struct ValidationCursorState
   {
-    public SmallCellValidationCursorState(int originalBuildIndex, int validationBuildIndex, bool needsCursorSwap,
+    public ValidationCursorState(int originalBuildIndex, int validationBuildIndex, bool needsCursorSwap,
       Vector3 originalCursorPosition, Vector3 originalCursorLocalPosition, Quaternion originalCursorRotation,
       Quaternion originalCursorLocalRotation)
     {
@@ -511,7 +511,7 @@ public static class ZoopUtility
         Structures[structureCounter].GameObject.SetActive(true);
         Structures[structureCounter].ThingTransformPosition = previewPosition;
         Structures[structureCounter].Position = previewPosition;
-        HasError = HasError || !CanConstructBigCell(Structures[structureCounter]);
+        HasError = HasError || !CanConstructBigCell(inventoryManager, Structures[structureCounter], structureCounter);
         structureCounter++;
       }
     }
@@ -1051,7 +1051,7 @@ public static class ZoopUtility
     }
 
     // Capture the currently selected cursor before we temporarily retarget it to the zoop preview piece.
-    if (!TryGetSmallCellValidationTarget(inventoryManager, structure, structureIndex, originalCursor,
+    if (!TryGetValidationTarget(inventoryManager, structure, structureIndex, originalCursor,
           out var validationConstructable, out var cursorState))
     {
       return false;
@@ -1061,7 +1061,7 @@ public static class ZoopUtility
     try
     {
       // Rebuild the live cursor so the game validates this preview as if the player were placing it directly.
-      var validationCursor = PrepareSmallCellValidationCursor(inventoryManager, structure, validationConstructable,
+      var validationCursor = PrepareValidationCursor(inventoryManager, structure, validationConstructable,
         cursorState);
       if (validationCursor == null)
       {
@@ -1077,16 +1077,16 @@ public static class ZoopUtility
     }
     finally
     {
-      RestoreSmallCellValidationCursor(inventoryManager, cursorState);
+      RestoreValidationCursor(inventoryManager, cursorState);
     }
   }
 
   /// <summary>
   /// Resolves the constructable and cursor snapshot needed for temporary small-grid validation.
   /// </summary>
-  private static bool TryGetSmallCellValidationTarget(InventoryManager inventoryManager, Structure structure,
+  private static bool TryGetValidationTarget(InventoryManager inventoryManager, Structure structure,
     int structureIndex, Structure originalCursor, out Structure validationConstructable,
-    out SmallCellValidationCursorState cursorState)
+    out ValidationCursorState cursorState)
   {
     var originalBuildIndex = inventoryManager.ConstructionPanel.BuildIndex;
     var validationBuildIndex = ResolveBuildIndex(inventoryManager, structure, structureIndex);
@@ -1099,7 +1099,7 @@ public static class ZoopUtility
 
     var needsCursorSwap = originalBuildIndex != validationBuildIndex ||
                           originalCursor.PrefabName != validationConstructable.PrefabName;
-    cursorState = new SmallCellValidationCursorState(
+    cursorState = new ValidationCursorState(
       originalBuildIndex,
       validationBuildIndex,
       needsCursorSwap,
@@ -1113,8 +1113,8 @@ public static class ZoopUtility
   /// <summary>
   /// Prepares the live construction cursor so the game can validate one zoop preview piece.
   /// </summary>
-  private static Structure PrepareSmallCellValidationCursor(InventoryManager inventoryManager, Structure structure,
-    Structure validationConstructable, SmallCellValidationCursorState cursorState)
+  private static Structure PrepareValidationCursor(InventoryManager inventoryManager, Structure structure,
+    Structure validationConstructable, ValidationCursorState cursorState)
   {
     if (cursorState.NeedsCursorSwap)
     {
@@ -1155,8 +1155,8 @@ public static class ZoopUtility
   /// <summary>
   /// Restores the live construction cursor after a temporary small-grid validation check.
   /// </summary>
-  private static void RestoreSmallCellValidationCursor(InventoryManager inventoryManager,
-    SmallCellValidationCursorState cursorState)
+  private static void RestoreValidationCursor(InventoryManager inventoryManager,
+    ValidationCursorState cursorState)
   {
     try
     {
@@ -1207,46 +1207,49 @@ public static class ZoopUtility
   /// <summary>
   /// Checks whether a large-grid preview structure can be built in its current cell.
   /// </summary>
-  private static bool CanConstructBigCell(Structure structure)
+  private static bool CanConstructBigCell(InventoryManager inventoryManager, Structure structure, int structureIndex)
   {
-    if (ShouldUseAuthoringPlacementValidation() &&
-        TryCanConstructAuthoringPlacement(structure, out var authoringCanConstruct))
+    var originalCursor = InventoryManager.ConstructionCursor;
+    if (originalCursor == null)
     {
-      return authoringCanConstruct;
+      return false;
     }
 
-    var cell = structure.GridController.GetCell(structure.ThingTransformLocalPosition);
-    if (cell != null)
+    if (!TryGetValidationTarget(inventoryManager, structure, structureIndex, originalCursor,
+          out var validationConstructable, out var cursorState))
     {
-      if (structure is Wall wall)
+      return false;
+    }
+
+    AllowPlacementUpdate = true;
+    try
+    {
+      var validationCursor = PrepareValidationCursor(inventoryManager, structure, validationConstructable,
+        cursorState);
+      if (validationCursor == null)
       {
-        foreach (var cellStructure in cell.AllStructures)
-        {
-          if (cellStructure is Wall existingWall)
-          {
-            var samePosition = IsSameZoopPosition(existingWall.ThingTransformPosition, wall.ThingTransformPosition);
-            var sameFace = Vector3.Dot(existingWall.transform.forward, wall.transform.forward) > 0.99f;
-            if (samePosition && sameFace)
-            {
-              return false;
-            }
-
-            continue;
-          }
-
-          if (cellStructure is LargeStructure)
-          {
-            return false;
-          }
-        }
-
-        return true;
+        return false;
       }
 
-      return !cell.AllStructures.Any(static cellStructure => cellStructure is LargeStructure);
-    }
+      if (validationCursor is Wall)
+      {
+        var canMount = validationCursor.CanMountOnWall();
+        if (!canMount)
+        {
+          return false;
+        }
+      }
 
-    return true;
+      return validationCursor.CanConstruct().CanConstruct;
+    }
+    catch
+    {
+      return false;
+    }
+    finally
+    {
+      RestoreValidationCursor(inventoryManager, cursorState);
+    }
   }
 
   #endregion
