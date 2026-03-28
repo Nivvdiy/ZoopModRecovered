@@ -505,15 +505,15 @@ namespace ZoopMod.Zoop
       return inventoryManager.ConstructionPanel.BuildIndex;
     }
 
-    private static void AddStructure(List<Structure> constructables, bool corner, int index, int secondaryCount, ref bool canBuildNext, InventoryManager im, bool supportsCornerVariant)
+    private static void AddStructure(List<Structure> constructables, bool isCorner, int index, int secondaryCount, ref bool canBuildNext, InventoryManager im, bool supportsCornerVariant)
     {
 
       int selectedIndex = im.ConstructionPanel.Parent.LastSelectedIndex;
-      int straightCount = corner ? secondaryCount : index;
-      int cornerCount = corner ? index : secondaryCount;
+      int straightCount = isCorner ? secondaryCount : index;
+      int cornerCount = isCorner ? index : secondaryCount;
 
       Structure activeItem = constructables[selectedIndex];
-      if (!corner && supportsCornerVariant)
+      if (!isCorner && supportsCornerVariant)
       {
         switch (activeItem)
         {
@@ -531,13 +531,13 @@ namespace ZoopMod.Zoop
           bool canMakeItem = activeItem switch
           {
             Chute when selectedIndex == 0 => constructor.Quantity > Structures.Count,
-            Chute when selectedIndex == 2 => constructor.Quantity > ((straightCount) * 2) + (corner ? 0 : 1) + cornerCount,
+            Chute when selectedIndex == 2 => constructor.Quantity > ((straightCount) * 2) + (isCorner ? 0 : 1) + cornerCount,
             _ => constructor.Quantity > Structures.Count
           };
 
           if (canMakeItem && canBuildNext)
           {
-            MakeItem(constructables, corner, index, !corner ? selectedIndex : 1, supportsCornerVariant);
+            MakeItem(constructables, isCorner, index, !isCorner ? selectedIndex : 1, supportsCornerVariant);
             canBuildNext = true;
           }
           else
@@ -546,7 +546,7 @@ namespace ZoopMod.Zoop
           }
           break;
         case AuthoringTool:
-          MakeItem(constructables, corner, index, !corner ? selectedIndex : 1, supportsCornerVariant);
+          MakeItem(constructables, isCorner, index, !isCorner ? selectedIndex : 1, supportsCornerVariant);
           canBuildNext = true;
           break;
       }
@@ -590,55 +590,62 @@ namespace ZoopMod.Zoop
 
     }
 
-    private static void MakeItem(List<Structure> constructables, bool corner, int index, int selectedIndex, bool supportsCornerVariant)
+    private static void MakeItem(List<Structure> constructables, bool isCorner, int index, int selectedIndex, bool supportsCornerVariant)
     {
-      if (!corner && structuresCacheStraight.Count > index)
+      switch (isCorner)
       {
-        if (!supportsCornerVariant)
-        {
-          ApplyCursorRotation(structuresCacheStraight[index]);
-        }
-        Structures.Add(structuresCacheStraight[index]);
-        StructureBuildIndices.Add(StructureCacheStraightBuildIndices[index]);
-      }
-      else if (corner && structuresCacheCorner.Count > index)
-      {
-        if (!supportsCornerVariant)
-        {
-          ApplyCursorRotation(structuresCacheCorner[index]);
-        }
-        Structures.Add(structuresCacheCorner[index]);
-        StructureBuildIndices.Add(StructureCacheCornerBuildIndices[index]);
-      }
-      else
-      {
-        Structure structure = constructables[selectedIndex];
-        if (structure == null)
-        {
-          return;
-        }
+        case false when structuresCacheStraight.Count > index:
+          {
+            if (!supportsCornerVariant)
+            {
+              ApplyCursorRotation(structuresCacheStraight[index]);
+            }
+            Structures.Add(structuresCacheStraight[index]);
+            StructureBuildIndices.Add(StructureCacheStraightBuildIndices[index]);
+            break;
+          }
+        case true when structuresCacheCorner.Count > index:
+          {
+            if (!supportsCornerVariant)
+            {
+              ApplyCursorRotation(structuresCacheCorner[index]);
+            }
+            Structures.Add(structuresCacheCorner[index]);
+            StructureBuildIndices.Add(StructureCacheCornerBuildIndices[index]);
+            break;
+          }
+        default:
+          {
+            Structure structure = constructables[selectedIndex];
+            if (structure == null)
+            {
+              return;
+            }
 
-        Structure structureNew = UnityObject.Instantiate(InventoryManager.GetStructureCursor(structure.PrefabName));
-        if (structureNew != null)
-        {
-          structureNew.gameObject.SetActive(true);
-          if (!supportsCornerVariant)
-          {
-            ApplyCursorRotation(structureNew);
+            Structure structureNew = UnityObject.Instantiate(InventoryManager.GetStructureCursor(structure.PrefabName));
+            if (structureNew != null)
+            {
+              structureNew.gameObject.SetActive(true);
+              if (!supportsCornerVariant)
+              {
+                ApplyCursorRotation(structureNew);
+              }
+              Structures.Add(structureNew);
+              StructureBuildIndices.Add(selectedIndex);
+              if (isCorner)
+              {
+                structuresCacheCorner.Add(structureNew);
+                StructureCacheCornerBuildIndices.Add(selectedIndex);
+              }
+              else
+              {
+                structuresCacheStraight.Add(structureNew);
+                StructureCacheStraightBuildIndices.Add(selectedIndex);
+              }
+            }
+
+            break;
           }
-          Structures.Add(structureNew);
-          StructureBuildIndices.Add(selectedIndex);
-          if (corner)
-          {
-            structuresCacheCorner.Add(structureNew);
-            StructureCacheCornerBuildIndices.Add(selectedIndex);
-          }
-          else
-          {
-            structuresCacheStraight.Add(structureNew);
-            StructureCacheStraightBuildIndices.Add(selectedIndex);
-          }
-        }
       }
     }
 
@@ -810,10 +817,11 @@ namespace ZoopMod.Zoop
     private static bool CanConstructSmallCell(InventoryManager inventoryManager, Structure structure)
     {
       SmallCell smallCell = structure.GridController.GetSmallCell(structure.ThingTransformLocalPosition);
-      bool invalidStructureExistsOnGrid = smallCell != null &&
-                                          (smallCell.Device != null &&
-                                              !(structure is Piping pipe && pipe == pipe.IsStraight && smallCell.Device is DevicePipeMounted device && device.contentType == pipe.PipeContentType ||
-                                                structure is Cable cable && cable == cable.IsStraight && smallCell.Device is DeviceCableMounted) || smallCell.Other != null);
+      bool invalidStructureExistsOnGrid =
+          smallCell != null &&
+          (smallCell.Device != null &&
+              !(structure is Piping pipe && pipe == pipe.IsStraight && smallCell.Device is DevicePipeMounted device && device.contentType == pipe.PipeContentType ||
+                structure is Cable cable && cable == cable.IsStraight && smallCell.Device is DeviceCableMounted) || smallCell.Other != null);
 
       bool differentEndsCollision = false;
       Type structureType = null;
