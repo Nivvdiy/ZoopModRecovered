@@ -3,33 +3,30 @@ using HarmonyLib;
 using StationeersMods.Interface;
 using UnityEngine;
 
+namespace ZoopMod;
 
-
-namespace ZoopMod
+public class ZoopMod : ModBehaviour
 {
-  public class ZoopMod : ModBehaviour
+  public enum Logs
   {
+    debug = 0,
+    info = 1,
+    error = 2
+  }
 
-    public static KeyCode ZoopHold;
-    public static KeyCode ZoopSwitch;
-    public static KeyCode ZoopAddWaypoint;
-    public static KeyCode ZoopRemoveWaypoint;
+  public static KeyCode ZoopHold;
+  public static KeyCode ZoopSwitch;
+  public static KeyCode ZoopAddWaypoint;
+  public static KeyCode ZoopRemoveWaypoint;
 
-    public static ZoopMod Instance;
+  public static ZoopMod Instance;
 
-    public static bool CFree;
+  public static bool CFree;
 
-    private static Logs CurrentLogLevel = Logs.debug;
+  private static readonly Logs CurrentLogLevel = Logs.debug;
 
-    public enum Logs
-    {
-      debug = 0,
-      info = 1,
-      error = 2,
-    }
-
-    public static void Log(string line, Logs level)
-    {
+  public static void Log(string line, Logs level)
+  {
 #if !DEBUG
       if (level == Logs.debug)
       {
@@ -37,45 +34,39 @@ namespace ZoopMod
       }
 #endif
 
-      if (level >= CurrentLogLevel)
-      {
-        Debug.Log($"[{level} : Zoop Mod] {line}");
-      }
-    }
+    if (level >= CurrentLogLevel) Debug.Log($"[{level} : Zoop Mod] {line}");
+  }
 
-    public override void OnLoaded(ContentHandler contentHandler)
+  public override void OnLoaded(ContentHandler contentHandler)
+  {
+    try
     {
-
-      try
-      {
-        Instance = this;
-        Harmony harmony = new Harmony("ZoopMod");
-        harmony.PatchAll();
-        Log("Patch succeeded", Logs.info);
-        KeyManager.OnControlsChanged += ControlsChangedEvent;
+      Instance = this;
+      var harmony = new Harmony("ZoopMod");
+      harmony.PatchAll();
+      Log("Patch succeeded", Logs.info);
+      KeyManager.OnControlsChanged += ControlsChangedEvent;
 
 
-        Type type = Type.GetType("CreativeFreedom.CreativeFreedom, CreativeFreedom");
-        CFree = type != null;
-
-      }
-      catch (Exception e)
-      {
-        Log("Patch Failed", Logs.error);
-        Log(e.ToString(), Logs.error);
-      }
+      var type = Type.GetType("CreativeFreedom.CreativeFreedom, CreativeFreedom");
+      CFree = type != null;
     }
-
-
-    /* Track current player keybinding selection, event trigger after any
- * keybinding change.
- */
-    private static void ControlsChangedEvent()
+    catch (Exception e)
     {
-      ZoopHold = KeyManager.GetKey("Zoop Hold");
-      ZoopSwitch = KeyManager.GetKey("Zoop Switch");
-      ZoopAddWaypoint = KeyManager.GetKey("Zoop Add Waypoint");
-      ZoopRemoveWaypoint = KeyManager.GetKey("Zoop Remove Last Waypoint");
+      Log("Patch Failed", Logs.error);
+      Log(e.ToString(), Logs.error);
     }
+  }
+
+
+  /* Track current player keybinding selection, event trigger after any
+   * keybinding change.
+   */
+  private static void ControlsChangedEvent()
+  {
+    ZoopHold = KeyManager.GetKey("Zoop Hold");
+    ZoopSwitch = KeyManager.GetKey("Zoop Switch");
+    ZoopAddWaypoint = KeyManager.GetKey("Zoop Add Waypoint");
+    ZoopRemoveWaypoint = KeyManager.GetKey("Zoop Remove Last Waypoint");
   }
 }

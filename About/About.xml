@@ -1,92 +1,102 @@
-<?xml version="1.0" encoding="utf-8"?><ModMetadata xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"><Name>ZoopMod [StationeersLaunchPad]</Name><Author>MerGatto</Author><Version>2026.27.03</Version><Description>
-	[h1]ZoopMod[/h1]
+﻿<?xml version="1.0" encoding="utf-8"?>
 
-	Fork maintained by [b]MerGatto[/b]. Compatible with [b]The Gases Update[/b] and confirmed to work as a [b]client on multiplayer servers[/b].
+<ModMetadata xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <Name>ZoopMod [StationeersLaunchPad]</Name><Author>MerGatto</Author><Version>2026.28.03</Version>
+  <Description>
+    [h1]ZoopMod[/h1]
 
-	[b]WARNING:[/b]
-	This mod requires the StationeersLaunchPad Plugin Mod and BepInEx to be installed.
-	For installation, see the detailed guide at https://github.com/StationeersLaunchPad/StationeersLaunchPad
-	If you have an older loader setup installed, please remove it and use StationeersLaunchPad instead.
+    Fork maintained by [b]MerGatto[/b]. Compatible with [b]The Gases Update[/b] and confirmed to work as a [b]client on multiplayer servers[/b].
 
-	Please ensure you are unsubscribed from old versions of this mod:
-	https://steamcommunity.com/sharedfiles/filedetails/?id=3310094883
+    [b]WARNING:[/b]
+    This mod requires the StationeersLaunchPad Plugin Mod and BepInEx to be installed.
+    For installation, see the detailed guide at https://github.com/StationeersLaunchPad/StationeersLaunchPad
+    If you have an older loader setup installed, please remove it and use StationeersLaunchPad instead.
 
-	[b]AI DISCLAIMER:[/b]
-	This fork was developed with AI-assisted tooling, with all changes reviewed and integrated by [b]MerGatto[/b].
+    Please ensure you are unsubscribed from old versions of this mod:
+    https://steamcommunity.com/sharedfiles/filedetails/?id=3310094883
 
-	[b]Cables, Pipes, Chutes[/b]
-	Allows you to build long lines between two points in a single action.
-	Lines cannot exceed the quantity of building materials in hand.
-	Waypoints can be added to extend the length of cables.
-	Works when joining a multiplayer server as a client.
+    [b]AI DISCLAIMER:[/b]
+    This fork was developed with AI-assisted tooling, with all changes reviewed and integrated by [b]MerGatto[/b].
 
-	[b]Frames[/b]
-	Can build long surface between two points.
-	Zooping take biggest surface, can't build a big cube on zoop mode.
-	Frames can't be placed if another frame, walls or any other large structure is in the way (it's to avoid error and wrong consumption of item).
-	No waypoints for frames.
+    [b]Cables, Pipes, Chutes[/b]
+    Allows you to build long lines between two points in a single action.
+    Lines cannot exceed the quantity of building materials in hand.
+    Waypoints can be added to extend the length of cables.
+    Works when joining a multiplayer server as a client.
 
-	[b]Additions:[/b]
-	[list]
-	[*]Fix for completion time, ensuring consistency in subsequent building actions.
-	[*]Bindable keys.
-	[*]Authoring tool usage
-	[*]Zooping for frames
-	[*]Multiplayer client support
-	[*]Compatibility with The Gases Update
-	[/list]
+    [b]Frames[/b]
+    Can build long surface between two points.
+    Zooping take biggest surface, can't build a big cube on zoop mode.
+    Frames can't be placed if another frame, walls or any other large structure is in the way (it's to avoid error and wrong consumption of item).
+    No waypoints for frames.
 
-	[b]Usage:[/b]
-	While in construction mode, hold [b]Left Shift[/b] [i](by default)[/i] and press the primary action, then move the mouse to zoop. Hold primary to complete.
-	Alternatively, press [b]Z[/b] [i](by default)[/i] once to start zooping without hold+click.
-	You can add a waypoint by pressing [b]mouse middle-click[/b] [i](by default)[/i] and cancel the last one with [b]V[/b] [i](by default)[/i].
+    [b]Additions:[/b]
+    [list]
+    [*]Fix for completion time, ensuring consistency in subsequent building actions.
+    [*]Bindable keys.
+    [*]Authoring tool usage
+    [*]Zooping for frames
+    [*]Multiplayer client support
+    [*]Compatibility with The Gases Update
+    [/list]
 
-	All keys can be customized in the Stationeers settings.
+    [b]Usage:[/b]
+    While in construction mode, hold [b]Left Shift[/b] [i](by default)[/i] and press the primary action, then move the mouse to zoop. Hold primary to complete.
+    Alternatively, press [b]Z[/b] [i](by default)[/i] once to start zooping without hold+click.
+    You can add a waypoint by pressing [b]mouse middle-click[/b] [i](by default)[/i] and cancel the last one with [b]V[/b] [i](by default)[/i].
 
-	[b]Special thanks to:[/b]
-	[list]
-	[*]Elmotrix for the original mod
-	[*]jixxed for the advanced version
-	[*]Katsuk for the updated version
-	[*]tsholmes for the last fix
-	[*]Nivvdiy for the previous public releases and maintenance before this fork
-	[*]The Stationeers community for their support and feedback
-	[/list]
+    All keys can be customized in the Stationeers settings.
 
-	[b]Respect note:[/b]
-	If any previous maintainer asks for this fork to be taken down, I will take it down.
-	[i]"If I have seen further, it is by standing on the shoulders of giants." - Isaac Newton[/i]
+    [b]Special thanks to:[/b]
+    [list]
+    [*]Elmotrix for the original mod
+    [*]jixxed for the advanced version
+    [*]Katsuk for the updated version
+    [*]tsholmes for the last fix
+    [*]Nivvdiy for the previous public releases and maintenance before this fork
+    [*]The Stationeers community for their support and feedback
+    [/list]
 
-	[b]TODO:[/b]
-	[list]
-	[*][x]Work on client side
-	[*][x]Work with authoring tool
-	[*][x]Add waypoints functionality (Version 2024.16.08)
-	[*][x]Add zooping for frames (Version 2024.30.10)
-	[*][x]Add possibility to zoop windowed chute (Version 2024.27.10)
-	[*][x]Add zooping for wall
-	[/list]
+    [b]Respect note:[/b]
+    If any previous maintainer asks for this fork to be taken down, I will take it down.
+    [i]"If I have seen further, it is by standing on the shoulders of giants." - Isaac Newton[/i]
 
-	[b]Actually working on[/b]
-	No work in progress at the moment.
+    [b]TODO:[/b]
+    [list]
+    [*][x]Work on client side
+    [*][x]Work with authoring tool
+    [*][x]Add waypoints functionality (Version 2024.16.08)
+    [*][x]Add zooping for frames (Version 2024.30.10)
+    [*][x]Add possibility to zoop windowed chute (Version 2024.27.10)
+    [*][x]Add zooping for wall
+    [/list]
 
-	[b]Known Issues:[/b]
-	[list]
-	[*][strike]Does not currently work in Authoring mode.[/strike] (Fixed in version 2024.17.10.01)
-	[*]The mod is always in CreativeFreedom mode, even without the CreativeFreedom mod installed.
-	[/list]
+    [b]Actually working on[/b]
+    No work in progress at the moment.
 
-	[b]Works for:[/b]
-	[list]
-	[*]"The Gases Update" (March 19, 2026)
-	[*]"Bug Fixing" update (December 12, 2024)
-	[*]"Emergency Kit: Gas Masks and Engine Upgrade" update (December 11, 2024)
-	[*]"Short Circuit: Liquid Device Interactions" update (October 28, 2024)
-	[*]"In World Water" update (October 11, 2024)
-	[*]"Bug Fixing" update (August 13, 2024)
-	[*]"Tutorials and Helper Hints" update (August 5, 2024)
-	[/list]
-</Description><ChangeLog xsi:nil="true" /><WorkshopHandle>3310094883</WorkshopHandle><Tags><Tag>StationeersLaunchPad</Tag></Tags><Dependencies /><LoadBefore /><LoadAfter /><InGameDescription><![CDATA[<size="30"><color=#ffa500>ZoopMod</color></size>
+    [b]Known Issues:[/b]
+    [list]
+    [*][strike]Does not currently work in Authoring mode.[/strike] (Fixed in version 2024.17.10.01)
+    [*]The mod is always in CreativeFreedom mode, even without the CreativeFreedom mod installed.
+    [/list]
+
+    [b]Works for:[/b]
+    [list]
+    [*]"The Gases Update" (March 19, 2026)
+    [*]"Bug Fixing" update (December 12, 2024)
+    [*]"Emergency Kit: Gas Masks and Engine Upgrade" update (December 11, 2024)
+    [*]"Short Circuit: Liquid Device Interactions" update (October 28, 2024)
+    [*]"In World Water" update (October 11, 2024)
+    [*]"Bug Fixing" update (August 13, 2024)
+    [*]"Tutorials and Helper Hints" update (August 5, 2024)
+    [/list]
+  </Description>
+  <ChangeLog xsi:nil="true" />
+  <Tags>
+    <Tag>StationeersLaunchPad</Tag>
+  </Tags>
+  <Dependencies /><LoadBefore /><LoadAfter />
+  <InGameDescription><![CDATA[<size="30"><color=#ffa500>ZoopMod</color></size>
 <b>Maintained by:</b> MerGatto
 <b>WARNING:</b> <color=#ff0000>This mod requires the StationeersLaunchPad Plugin and BepInEx to function properly.</color>
 Make sure you are unsubscribed from any previous versions. Installation details are available at <b><u><color=#00ccff>https://github.com/StationeersLaunchPad/StationeersLaunchPad</color></u></b>.
@@ -102,4 +112,5 @@ Waypoints can be added to extend the length of cables.
 Can build long surface between two points.
 Zooping take biggest surface, can't build a big cube on zoop mode.
 Frames can't be placed if another frame, walls or any other large structure is in the way (it's to avoid error and wrong consumption of item).
-No waypoints for frames.]]></InGameDescription></ModMetadata>
+No waypoints for frames.]]></InGameDescription>
+</ModMetadata>
