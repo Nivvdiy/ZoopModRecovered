@@ -74,14 +74,6 @@
 			<SpecificVersion>False</SpecificVersion>
 			<HintPath>$(ManagedDirectory)\UniTask.dll</HintPath>
 		</Reference>
-		<!-- Other References -->
-		<Reference Include="StationeersLaunchPad">
-			<HintPath>$(StationeersModDirectory)StationeersLaunchPad.dll</HintPath>
-		</Reference>
-		<Reference Include="StationeersMods.Interface">
-			<HintPath>$(StationeersModDirectory)StationeersMods.Interface.dll</HintPath>
-			<Private>False</Private>
-		</Reference>
 	</ItemGroup>
 
 	<!-- Compile Items -->
@@ -107,10 +99,10 @@
 		<!--<Exec Command="&quot;B:\pdb2mdb.exe&quot; &quot;$(ProjectDir)\bin\Debug\$(ModName).dll&quot;" Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' " />-->
 		<RemoveDir Directories="$(StationeersModOutputFolder)\$(ModName)" />
 		<Copy SourceFiles="$(ProjectDir)\$(ModName).info" DestinationFolder="$(StationeersModOutputFolder)\$(ModName)" ContinueOnError="false" />
-		<Copy SourceFiles="$(ProjectDir)\bin\Debug\$(ModName).dll" DestinationFolder="$(StationeersModOutputFolder)\$(ModName)" ContinueOnError="true" />
+		<Copy SourceFiles="$(ProjectDir)\bin\Debug\net48\$(ModName).dll" DestinationFolder="$(StationeersModOutputFolder)\$(ModName)" ContinueOnError="true" />
 		<Copy SourceFiles="@(_CopyItemsGameData)" DestinationFolder="$(StationeersModOutputFolder)\$(ModName)\GameData\%(RecursiveDir)" ContinueOnError="true" />
 		<Copy SourceFiles="@(_CopyItemsAbout)" DestinationFolder="$(StationeersModOutputFolder)\$(ModName)\About\%(RecursiveDir)" ContinueOnError="true" />
-		<Copy SourceFiles="$(ProjectDir)\bin\Debug\$(ModName).dll.mdb" DestinationFolder="$(StationeersModOutputFolder)\$(ModName)" ContinueOnError="true" Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' " />
+		<Copy SourceFiles="$(ProjectDir)\bin\Debug\net48\$(ModName).dll.mdb" DestinationFolder="$(StationeersModOutputFolder)\$(ModName)" ContinueOnError="true" Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' " />
 	</Target>
 
 </Project>

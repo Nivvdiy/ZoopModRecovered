@@ -1,11 +1,13 @@
 using System;
+using BepInEx;
+using BepInEx.Configuration;
 using HarmonyLib;
-using StationeersMods.Interface;
 using UnityEngine;
 
 namespace ZoopMod;
 
-public class ZoopMod : ModBehaviour
+[BepInPlugin("ZoopMod", "ZoopMod", "2026.28.03")]
+public class ZoopMod : BaseUnityPlugin
 {
   public enum Logs
   {
@@ -22,8 +24,35 @@ public class ZoopMod : ModBehaviour
   public static ZoopMod Instance;
 
   public static bool CFree;
+  public static ConfigEntry<int> MaxZoopWaitTimeMultiplier;
 
   private static readonly Logs CurrentLogLevel = Logs.debug;
+
+  private void Awake()
+  {
+    try
+    {
+      Instance = this;
+      MaxZoopWaitTimeMultiplier =
+        Config.Bind(
+          new ConfigDefinition("Zoop", nameof(MaxZoopWaitTimeMultiplier)),
+          5,
+          new ConfigDescription("Maximum multiplier applied to placement wait time when building multiple structures in one zoop."));
+
+      var harmony = new Harmony("ZoopMod");
+      harmony.PatchAll();
+      Log("Patch succeeded", Logs.info);
+      KeyManager.OnControlsChanged += ControlsChangedEvent;
+
+      var type = Type.GetType("CreativeFreedom.CreativeFreedom, CreativeFreedom");
+      CFree = type != null;
+    }
+    catch (Exception e)
+    {
+      Log("Patch Failed", Logs.error);
+      Log(e.ToString(), Logs.error);
+    }
+  }
 
   public static void Log(string line, Logs level)
   {
@@ -39,28 +68,6 @@ public class ZoopMod : ModBehaviour
       Debug.Log($"[{level} : Zoop Mod] {line}");
     }
   }
-
-  public override void OnLoaded(ContentHandler contentHandler)
-  {
-    try
-    {
-      Instance = this;
-      var harmony = new Harmony("ZoopMod");
-      harmony.PatchAll();
-      Log("Patch succeeded", Logs.info);
-      KeyManager.OnControlsChanged += ControlsChangedEvent;
-
-
-      var type = Type.GetType("CreativeFreedom.CreativeFreedom, CreativeFreedom");
-      CFree = type != null;
-    }
-    catch (Exception e)
-    {
-      Log("Patch Failed", Logs.error);
-      Log(e.ToString(), Logs.error);
-    }
-  }
-
 
   /* Track current player keybinding selection, event trigger after any
    * keybinding change.

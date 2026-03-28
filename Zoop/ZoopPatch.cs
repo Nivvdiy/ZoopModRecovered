@@ -92,8 +92,7 @@ public class InventoryManagerWaitUntilDone0
     if (!InventoryManager.IsAuthoringMode)
     {
       var structureCount = Math.Max(ZoopUtility.Structures.Count, 1);
-      // TODO Consider putting this into config
-      const int timeToWaitMultiplier = 5;
+      var timeToWaitMultiplier = Math.Max(1, ZoopMod.MaxZoopWaitTimeMultiplier.Value);
       timeToWait *= Math.Min(structureCount, timeToWaitMultiplier); //switch(ZoopConfig.GetDifficulty())
     }
     else
