@@ -1,8 +1,8 @@
 {
     "_name":  "ZoopMod",
-    "_author":  "MerGatto",
-    "_description":  "Fork maintained by MerGatto. Compatible with The Gases Update and works as a multiplayer client.",
-    "_version":  "2026.27.03",
+    "_author":  "Nivvdiy, MerGatto",
+    "_description":  "ZoopMod",
+    "_version":  "2026.28.03",
     "_unityVersion":  "2022.3.7f1",
     "_platforms":  1,
     "_content":  4,
