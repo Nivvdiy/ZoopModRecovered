@@ -333,6 +333,7 @@ public static class ZoopUtility
   {
     var structureCounter = 0;
     var lastDirection = ZoopDirection.none;
+    var occupiedCells = new HashSet<Vector3Int>();
 
     for (var segmentIndex = 0; segmentIndex < zoops.Count; segmentIndex++)
     {
@@ -371,11 +372,18 @@ public static class ZoopUtility
           lastDirection = zoopDirection;
 
           var offset = new Vector3(xOffset, yOffset, zOffset);
+          var previewPosition = startPos + offset;
           Structures[structureCounter].GameObject.SetActive(true);
-          Structures[structureCounter].ThingTransformPosition = startPos + offset;
-          Structures[structureCounter].Position = startPos + offset;
+          Structures[structureCounter].ThingTransformPosition = previewPosition;
+          Structures[structureCounter].Position = previewPosition;
           if (!ZoopMod.CFree)
           {
+            // Small-grid zoops cannot safely revisit the same cell: cables can overlap incorrectly and chutes
+            // do not have a valid intersection piece at all.
+            var cellKey = GetSmallGridCellKey(previewPosition);
+            var revisitsExistingZoopCell = occupiedCells.Contains(cellKey);
+            occupiedCells.Add(cellKey);
+            HasError = HasError || revisitsExistingZoopCell;
             HasError = HasError || !CanConstructSmallCell(inventoryManager, Structures[structureCounter], structureCounter);
           }
 
@@ -874,6 +882,17 @@ public static class ZoopUtility
     }
 
     return IsSameZoopPosition(first.Value, second.Value);
+  }
+
+  /// <summary>
+  /// Converts a small-grid position into a stable half-grid cell key.
+  /// </summary>
+  private static Vector3Int GetSmallGridCellKey(Vector3 position)
+  {
+    return new Vector3Int(
+      Mathf.RoundToInt(position.x * 2f),
+      Mathf.RoundToInt(position.y * 2f),
+      Mathf.RoundToInt(position.z * 2f));
   }
 
   /// <summary>
