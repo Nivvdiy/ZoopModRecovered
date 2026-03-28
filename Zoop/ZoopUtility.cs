@@ -221,205 +221,15 @@ public static class ZoopUtility
           var currentPos = GetCurrentMouseGridPosition();
           if (currentPos.HasValue)
           {
-            zoops.Clear();
             HasError = false;
-            var singleItem = true;
 
             if (IsZoopingSmallGrid())
             {
-              // Iterate over each pair of waypoints
-              for (var wpIndex = 0; wpIndex < Waypoints.Count; wpIndex++)
-              {
-                var startPos = Waypoints[wpIndex].Value;
-                var endPos = wpIndex < Waypoints.Count - 1 ? Waypoints[wpIndex + 1].Value : currentPos.Value;
-
-                var segment = new ZoopSegment();
-                CalculateZoopSegments(startPos, endPos, segment);
-
-                singleItem = IsSameZoopPosition(startPos, endPos);
-                if (singleItem)
-                {
-                  segment.CountX = 1 + (int)(Math.Abs(startPos.x - endPos.x) * 2);
-                  segment.IncreasingX = startPos.x < endPos.x;
-                  segment.Directions.Add(ZoopDirection.x); // unused for single item
-                }
-
-                zoops.Add(segment);
-              }
-
-              await UniTask.SwitchToMainThread(); // Switch to main thread for Unity API calls
-
-              var supportsCornerVariant =
-                SupportsCornerVariant(inventoryManager.ConstructionPanel.Parent.Constructables,
-                  inventoryManager.ConstructionPanel.Parent.LastSelectedIndex);
-              BuildSmallStructureList(inventoryManager, zoops, supportsCornerVariant);
-
-              var structureCounter = 0;
-
-              if (Structures.Count > 0)
-              {
-                var lastDirection = ZoopDirection.none;
-                for (var segmentIndex = 0; segmentIndex < zoops.Count; segmentIndex++)
-                {
-                  var segment = zoops[segmentIndex];
-                  float xOffset = 0;
-                  float yOffset = 0;
-                  float zOffset = 0;
-                  var startPos = Waypoints[segmentIndex].Value;
-                  for (var directionIndex = 0; directionIndex < segment.Directions.Count; directionIndex++)
-                  {
-                    if (structureCounter == Structures.Count)
-                    {
-                      break;
-                    }
-
-                    var zoopDirection = segment.Directions[directionIndex];
-                    var increasing = GetIncreasingForDirection(zoopDirection, segment);
-                    var zoopCounter = GetCountForDirection(zoopDirection, segment);
-
-                    zoopCounter = GetPlacementCount(zoops.Count, segmentIndex, segment.Directions.Count, directionIndex,
-                      zoopCounter);
-
-                    for (var zi = 0; zi < zoopCounter; zi++)
-                    {
-                      if (structureCounter == Structures.Count)
-                      {
-                        break;
-                      }
-
-                      spacing = Mathf.Max(spacing, 1);
-                      var minValue = InventoryManager.ConstructionCursor is SmallGrid ? 0.5f : 2f;
-                      var value = increasing ? minValue * spacing : -(minValue * spacing);
-                      SetDirectionalOffset(ref xOffset, ref yOffset, ref zOffset, zoopDirection, zi * value);
-
-                      var increasingTo = increasing;
-                      var increasingFrom = lastDirection != ZoopDirection.none &&
-                                           GetIncreasingForDirection(lastDirection, segment);
-                      // Correct the logic to avoid overlapping
-                      if (segmentIndex > 0 && directionIndex == 0 && zi == 0)
-                      {
-                        var lastSegmentDirection = zoops[segmentIndex - 1].Directions.Last();
-                        switch (lastSegmentDirection)
-                        {
-                          case ZoopDirection.x:
-                            increasingFrom = zoops[segmentIndex - 1].IncreasingX;
-                            break;
-                          case ZoopDirection.y:
-                            increasingFrom = zoops[segmentIndex - 1].IncreasingY;
-                            break;
-                          case ZoopDirection.z:
-                            increasingFrom = zoops[segmentIndex - 1].IncreasingZ;
-                            break;
-                          case ZoopDirection.none:
-                          default:
-                            throw new ArgumentOutOfRangeException();
-                        }
-                      }
-
-                      if (supportsCornerVariant)
-                      {
-                        if ((directionIndex > 0 || (segmentIndex > 0 && directionIndex == 0)) && zi == 0)
-                        {
-                          if (lastDirection == zoopDirection)
-                          {
-                            SetStraightRotationSmallGrid(Structures[structureCounter], zoopDirection);
-                          }
-                          else
-                          {
-                            SetCornerRotation(Structures[structureCounter], lastDirection, increasingFrom,
-                              zoopDirection, increasingTo);
-                          }
-                        }
-                        else if (!singleItem)
-                        {
-                          SetStraightRotationSmallGrid(Structures[structureCounter], zoopDirection);
-                        }
-                      }
-
-                      lastDirection = zoopDirection;
-
-                      var offset = new Vector3(xOffset, yOffset, zOffset);
-                      Structures[structureCounter].GameObject.SetActive(true);
-                      Structures[structureCounter].ThingTransformPosition = startPos + offset;
-                      Structures[structureCounter].Position = startPos + offset;
-                      if (!ZoopMod.CFree)
-                      {
-                        HasError = HasError || !CanConstructSmallCell(inventoryManager, Structures[structureCounter]);
-                      }
-
-                      structureCounter++;
-                      if (zi == zoopCounter - 1)
-                      {
-                        SetDirectionalOffset(ref xOffset, ref yOffset, ref zOffset, zoopDirection, (zi + 1) * value);
-                      }
-                    }
-                  }
-                }
-              }
+              await ZoopSmallGrid(inventoryManager, currentPos.Value, zoops);
             }
             else if (IsZoopingBigGrid())
             {
-              var startPos = Waypoints[0].Value;
-              var endPos = ClampWallZoopPositionToStartPlane(startPos, currentPos.Value);
-
-              var plane = new ZoopPlane();
-              CalculateZoopPlane(startPos, endPos, plane);
-
-              singleItem = IsSameZoopPosition(startPos, endPos);
-              if (singleItem)
-              {
-                plane.Count = (direction1: 1 + (int)(Math.Abs(startPos.x - endPos.x) / 2),
-                  direction2: 1 + (int)(Math.Abs(startPos.x - endPos.x) / 2));
-                plane.Increasing = (direction1: startPos.x < endPos.x, direction2: startPos.y < endPos.y);
-                plane.Directions = (direction1: ZoopDirection.x, direction2: ZoopDirection.y);
-              }
-
-              await UniTask.SwitchToMainThread(); // Switch to main thread for Unity API calls
-
-              BuildBigStructureList(inventoryManager, plane);
-
-              var structureCounter = 0;
-
-              if (Structures.Count > 0)
-              {
-                float xOffset = 0;
-                float yOffset = 0;
-                float zOffset = 0;
-
-                spacing = Mathf.Max(spacing, 1);
-
-                for (var indexDirection2 = 0; indexDirection2 < plane.Count.direction2; indexDirection2++)
-                {
-                  var zoopDirection2 = plane.Directions.direction2;
-                  var increasing2 = plane.Increasing.direction2;
-
-                  var value2 = increasing2 ? 2f * spacing : -(2f * spacing);
-                  SetDirectionalOffset(ref xOffset, ref yOffset, ref zOffset, zoopDirection2, indexDirection2 * value2);
-
-                  for (var indexDirection1 = 0; indexDirection1 < plane.Count.direction1; indexDirection1++)
-                  {
-                    if (structureCounter == Structures.Count)
-                    {
-                      break;
-                    }
-
-                    var zoopDirection1 = plane.Directions.direction1;
-                    var increasing1 = plane.Increasing.direction1;
-
-                    var value1 = increasing1 ? 2f * spacing : -(2f * spacing);
-                    SetDirectionalOffset(ref xOffset, ref yOffset, ref zOffset, zoopDirection1,
-                      indexDirection1 * value1);
-
-                    var offset = new Vector3(xOffset, yOffset, zOffset);
-                    var previewPosition = startPos + offset;
-                    Structures[structureCounter].GameObject.SetActive(true);
-                    Structures[structureCounter].ThingTransformPosition = previewPosition;
-                    Structures[structureCounter].Position = previewPosition;
-                    HasError = HasError || !CanConstructBigCell(Structures[structureCounter]);
-                    structureCounter++;
-                  }
-                }
-              }
+              await ZoopBigGrid(inventoryManager, currentPos.Value);
             }
 
             foreach (var structure in Structures)
@@ -439,6 +249,213 @@ public static class ZoopUtility
       catch (Exception e)
       {
         ZoopMod.Log(e.ToString(), ZoopMod.Logs.error);
+      }
+    }
+  }
+
+  /// <summary>
+  /// Updates small-grid zoop previews for the current cursor position.
+  /// </summary>
+  private static async UniTask ZoopSmallGrid(InventoryManager inventoryManager, Vector3 currentPos,
+    List<ZoopSegment> zoops)
+  {
+    zoops.Clear();
+
+    var singleItem = true;
+    for (var wpIndex = 0; wpIndex < Waypoints.Count; wpIndex++)
+    {
+      var startPos = Waypoints[wpIndex].Value;
+      var endPos = wpIndex < Waypoints.Count - 1 ? Waypoints[wpIndex + 1].Value : currentPos;
+
+      var segment = new ZoopSegment();
+      CalculateZoopSegments(startPos, endPos, segment);
+
+      singleItem = IsSameZoopPosition(startPos, endPos);
+      if (singleItem)
+      {
+        segment.CountX = 1 + (int)(Math.Abs(startPos.x - endPos.x) * 2);
+        segment.IncreasingX = startPos.x < endPos.x;
+        segment.Directions.Add(ZoopDirection.x); // unused for single item
+      }
+
+      zoops.Add(segment);
+    }
+
+    await UniTask.SwitchToMainThread(); // Switch to main thread for Unity API calls
+
+    var supportsCornerVariant =
+      SupportsCornerVariant(inventoryManager.ConstructionPanel.Parent.Constructables,
+        inventoryManager.ConstructionPanel.Parent.LastSelectedIndex);
+    BuildSmallStructureList(inventoryManager, zoops, supportsCornerVariant);
+
+    var structureCounter = 0;
+    if (Structures.Count <= 0)
+    {
+      return;
+    }
+
+    var lastDirection = ZoopDirection.none;
+    for (var segmentIndex = 0; segmentIndex < zoops.Count; segmentIndex++)
+    {
+      var segment = zoops[segmentIndex];
+      float xOffset = 0;
+      float yOffset = 0;
+      float zOffset = 0;
+      var startPos = Waypoints[segmentIndex].Value;
+      for (var directionIndex = 0; directionIndex < segment.Directions.Count; directionIndex++)
+      {
+        if (structureCounter == Structures.Count)
+        {
+          break;
+        }
+
+        var zoopDirection = segment.Directions[directionIndex];
+        var increasing = GetIncreasingForDirection(zoopDirection, segment);
+        var zoopCounter = GetCountForDirection(zoopDirection, segment);
+
+        zoopCounter = GetPlacementCount(zoops.Count, segmentIndex, segment.Directions.Count, directionIndex,
+          zoopCounter);
+
+        for (var zi = 0; zi < zoopCounter; zi++)
+        {
+          if (structureCounter == Structures.Count)
+          {
+            break;
+          }
+
+          spacing = Mathf.Max(spacing, 1);
+          var minValue = InventoryManager.ConstructionCursor is SmallGrid ? 0.5f : 2f;
+          var value = increasing ? minValue * spacing : -(minValue * spacing);
+          SetDirectionalOffset(ref xOffset, ref yOffset, ref zOffset, zoopDirection, zi * value);
+
+          var increasingTo = increasing;
+          var increasingFrom = lastDirection != ZoopDirection.none &&
+                               GetIncreasingForDirection(lastDirection, segment);
+          if (segmentIndex > 0 && directionIndex == 0 && zi == 0)
+          {
+            var lastSegmentDirection = zoops[segmentIndex - 1].Directions.Last();
+            switch (lastSegmentDirection)
+            {
+              case ZoopDirection.x:
+                increasingFrom = zoops[segmentIndex - 1].IncreasingX;
+                break;
+              case ZoopDirection.y:
+                increasingFrom = zoops[segmentIndex - 1].IncreasingY;
+                break;
+              case ZoopDirection.z:
+                increasingFrom = zoops[segmentIndex - 1].IncreasingZ;
+                break;
+              case ZoopDirection.none:
+              default:
+                throw new ArgumentOutOfRangeException();
+            }
+          }
+
+          if (supportsCornerVariant)
+          {
+            if ((directionIndex > 0 || (segmentIndex > 0 && directionIndex == 0)) && zi == 0)
+            {
+              if (lastDirection == zoopDirection)
+              {
+                SetStraightRotationSmallGrid(Structures[structureCounter], zoopDirection);
+              }
+              else
+              {
+                SetCornerRotation(Structures[structureCounter], lastDirection, increasingFrom,
+                  zoopDirection, increasingTo);
+              }
+            }
+            else if (!singleItem)
+            {
+              SetStraightRotationSmallGrid(Structures[structureCounter], zoopDirection);
+            }
+          }
+
+          lastDirection = zoopDirection;
+
+          var offset = new Vector3(xOffset, yOffset, zOffset);
+          Structures[structureCounter].GameObject.SetActive(true);
+          Structures[structureCounter].ThingTransformPosition = startPos + offset;
+          Structures[structureCounter].Position = startPos + offset;
+          if (!ZoopMod.CFree)
+          {
+            HasError = HasError || !CanConstructSmallCell(inventoryManager, Structures[structureCounter]);
+          }
+
+          structureCounter++;
+          if (zi == zoopCounter - 1)
+          {
+            SetDirectionalOffset(ref xOffset, ref yOffset, ref zOffset, zoopDirection, (zi + 1) * value);
+          }
+        }
+      }
+    }
+  }
+
+  /// <summary>
+  /// Updates large-grid zoop previews for the current cursor position.
+  /// </summary>
+  private static async UniTask ZoopBigGrid(InventoryManager inventoryManager, Vector3 currentPos)
+  {
+    var startPos = Waypoints[0].Value;
+    var endPos = ClampWallZoopPositionToStartPlane(startPos, currentPos);
+
+    var plane = new ZoopPlane();
+    CalculateZoopPlane(startPos, endPos, plane);
+
+    var singleItem = IsSameZoopPosition(startPos, endPos);
+    if (singleItem)
+    {
+      plane.Count = (direction1: 1 + (int)(Math.Abs(startPos.x - endPos.x) / 2),
+        direction2: 1 + (int)(Math.Abs(startPos.x - endPos.x) / 2));
+      plane.Increasing = (direction1: startPos.x < endPos.x, direction2: startPos.y < endPos.y);
+      plane.Directions = (direction1: ZoopDirection.x, direction2: ZoopDirection.y);
+    }
+
+    await UniTask.SwitchToMainThread(); // Switch to main thread for Unity API calls
+
+    BuildBigStructureList(inventoryManager, plane);
+
+    var structureCounter = 0;
+    if (Structures.Count <= 0)
+    {
+      return;
+    }
+
+    float xOffset = 0;
+    float yOffset = 0;
+    float zOffset = 0;
+
+    spacing = Mathf.Max(spacing, 1);
+
+    for (var indexDirection2 = 0; indexDirection2 < plane.Count.direction2; indexDirection2++)
+    {
+      var zoopDirection2 = plane.Directions.direction2;
+      var increasing2 = plane.Increasing.direction2;
+
+      var value2 = increasing2 ? 2f * spacing : -(2f * spacing);
+      SetDirectionalOffset(ref xOffset, ref yOffset, ref zOffset, zoopDirection2, indexDirection2 * value2);
+
+      for (var indexDirection1 = 0; indexDirection1 < plane.Count.direction1; indexDirection1++)
+      {
+        if (structureCounter == Structures.Count)
+        {
+          break;
+        }
+
+        var zoopDirection1 = plane.Directions.direction1;
+        var increasing1 = plane.Increasing.direction1;
+
+        var value1 = increasing1 ? 2f * spacing : -(2f * spacing);
+        SetDirectionalOffset(ref xOffset, ref yOffset, ref zOffset, zoopDirection1, indexDirection1 * value1);
+
+        var offset = new Vector3(xOffset, yOffset, zOffset);
+        var previewPosition = startPos + offset;
+        Structures[structureCounter].GameObject.SetActive(true);
+        Structures[structureCounter].ThingTransformPosition = previewPosition;
+        Structures[structureCounter].Position = previewPosition;
+        HasError = HasError || !CanConstructBigCell(Structures[structureCounter]);
+        structureCounter++;
       }
     }
   }
