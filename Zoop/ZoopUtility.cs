@@ -721,13 +721,24 @@ public static class ZoopUtility
   private static bool CanConstructSmallCell(InventoryManager inventoryManager, Structure structure)
   {
     var smallCell = structure.GridController.GetSmallCell(structure.ThingTransformLocalPosition);
-    var invalidStructureExistsOnGrid =
-      smallCell != null &&
-      ((smallCell.Device != null &&
-        !((structure is Piping pipe && pipe == pipe.IsStraight && smallCell.Device is DevicePipeMounted device &&
-           device.contentType == pipe.PipeContentType) ||
-          (structure is Cable cable && cable == cable.IsStraight && smallCell.Device is DeviceCableMounted))) ||
-       smallCell.Other != null);
+    var hasBlockingOtherStructure = smallCell?.Other != null;
+    var hasDeviceOnCell = smallCell?.Device != null;
+    var canShareWithMatchingPipeDevice =
+      structure is Piping pipe
+      && pipe == pipe.IsStraight
+      && smallCell?.Device is DevicePipeMounted device
+      && device.contentType == pipe.PipeContentType;
+
+    var canShareWithMatchingCableDevice =
+      structure is Cable cable
+      && cable == cable.IsStraight
+      && smallCell?.Device is DeviceCableMounted;
+
+    var hasBlockingDevice = hasDeviceOnCell
+                            && !canShareWithMatchingPipeDevice
+                            && !canShareWithMatchingCableDevice;
+
+    var invalidStructureExistsOnGrid = hasBlockingOtherStructure || hasBlockingDevice;
 
     var differentEndsCollision = false;
     var collisionMethod = structure switch
@@ -738,14 +749,19 @@ public static class ZoopUtility
       _ => null
     };
 
+    // Straight previews can still be invalid if they would intersect an existing end-piece
+    // already occupying this cell, so probe the cable/pipe/chute slots separately.
     if (collisionMethod != null)
     {
-      differentEndsCollision = smallCell != null && smallCell.Cable != null &&
-                               (bool)collisionMethod.Invoke(structure, [smallCell.Cable]);
-      differentEndsCollision |= smallCell != null && smallCell.Pipe != null &&
-                                (bool)collisionMethod.Invoke(structure, [smallCell.Pipe]);
-      differentEndsCollision |= smallCell != null && smallCell.Chute != null &&
-                                (bool)collisionMethod.Invoke(structure, [smallCell.Chute]);
+      bool CollidesWith(object existingEndPiece)
+      {
+        return existingEndPiece != null && (bool)collisionMethod.Invoke(structure, [existingEndPiece]);
+      }
+
+      differentEndsCollision =
+        CollidesWith(smallCell?.Cable) ||
+        CollidesWith(smallCell?.Pipe) ||
+        CollidesWith(smallCell?.Chute);
     }
 
     var canConstruct = !invalidStructureExistsOnGrid && !differentEndsCollision;
