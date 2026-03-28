@@ -40,6 +40,30 @@ public static class ZoopUtility
   private static Vector3 _zoopStartWallNormal = Vector3.zero;
   private const float PositionToleranceSqr = 0.0001f;
 
+  private readonly struct ValidationCursorState
+  {
+    public ValidationCursorState(int originalBuildIndex, int validationBuildIndex, bool needsCursorSwap,
+      Vector3 originalCursorPosition, Vector3 originalCursorLocalPosition, Quaternion originalCursorRotation,
+      Quaternion originalCursorLocalRotation)
+    {
+      OriginalBuildIndex = originalBuildIndex;
+      ValidationBuildIndex = validationBuildIndex;
+      NeedsCursorSwap = needsCursorSwap;
+      OriginalCursorPosition = originalCursorPosition;
+      OriginalCursorLocalPosition = originalCursorLocalPosition;
+      OriginalCursorRotation = originalCursorRotation;
+      OriginalCursorLocalRotation = originalCursorLocalRotation;
+    }
+
+    public int OriginalBuildIndex { get; }
+    public int ValidationBuildIndex { get; }
+    public bool NeedsCursorSwap { get; }
+    public Vector3 OriginalCursorPosition { get; }
+    public Vector3 OriginalCursorLocalPosition { get; }
+    public Quaternion OriginalCursorRotation { get; }
+    public Quaternion OriginalCursorLocalRotation { get; }
+  }
+
   private static readonly FieldInfo UsePrimaryPositionField =
     typeof(InventoryManager).GetField("_usePrimaryPosition", BindingFlags.Instance | BindingFlags.NonPublic);
 
@@ -48,15 +72,6 @@ public static class ZoopUtility
 
   private static readonly MethodInfo UsePrimaryCompleteMethod = typeof(InventoryManager).GetMethod("UsePrimaryComplete",
     BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-
-  private static readonly MethodInfo PipingIsCollisionMethod =
-    typeof(Piping).GetMethod("_IsCollision", BindingFlags.Instance | BindingFlags.NonPublic);
-
-  private static readonly MethodInfo CableIsCollisionMethod =
-    typeof(Cable).GetMethod("_IsCollision", BindingFlags.Instance | BindingFlags.NonPublic);
-
-  private static readonly MethodInfo ChuteIsCollisionMethod =
-    typeof(Chute).GetMethod("_IsCollision", BindingFlags.Instance | BindingFlags.NonPublic);
 
   public static bool IsZoopKeyPressed { get; set; }
 
@@ -361,7 +376,7 @@ public static class ZoopUtility
           Structures[structureCounter].Position = startPos + offset;
           if (!ZoopMod.CFree)
           {
-            HasError = HasError || !CanConstructSmallCell(inventoryManager, Structures[structureCounter]);
+            HasError = HasError || !CanConstructSmallCell(inventoryManager, Structures[structureCounter], structureCounter);
           }
 
           structureCounter++;
@@ -496,7 +511,7 @@ public static class ZoopUtility
         Structures[structureCounter].GameObject.SetActive(true);
         Structures[structureCounter].ThingTransformPosition = previewPosition;
         Structures[structureCounter].Position = previewPosition;
-        HasError = HasError || !CanConstructBigCell(Structures[structureCounter]);
+        HasError = HasError || !CanConstructBigCell(inventoryManager, Structures[structureCounter], structureCounter);
         structureCounter++;
       }
     }
@@ -623,6 +638,17 @@ public static class ZoopUtility
     }
 
     return inventoryManager.ConstructionPanel.BuildIndex;
+  }
+
+  /// <summary>
+  /// Returns the constructable at the given build index, or null when the index is invalid.
+  /// </summary>
+  private static Structure GetConstructableForBuildIndex(InventoryManager inventoryManager, int buildIndex)
+  {
+    var constructables = inventoryManager.ConstructionPanel.Parent.Constructables;
+    return buildIndex >= 0 && buildIndex < constructables.Count
+      ? constructables[buildIndex]
+      : null;
   }
 
   /// <summary>
@@ -1016,123 +1042,200 @@ public static class ZoopUtility
   /// <summary>
   /// Checks whether a small-grid preview structure can be built in its current cell.
   /// </summary>
-  private static bool CanConstructSmallCell(InventoryManager inventoryManager, Structure structure)
+  private static bool CanConstructSmallCell(InventoryManager inventoryManager, Structure structure, int structureIndex)
   {
-    if (ShouldUseAuthoringPlacementValidation() &&
-        TryCanConstructAuthoringPlacement(structure, out var authoringCanConstruct))
-    {
-      return authoringCanConstruct;
-    }
-
-    var smallCell = structure.GridController.GetSmallCell(structure.ThingTransformLocalPosition);
-    var hasBlockingOtherStructure = smallCell?.Other != null;
-    var hasDeviceOnCell = smallCell?.Device != null;
-    var canShareWithMatchingPipeDevice =
-      structure is Piping pipe
-      && pipe == pipe.IsStraight
-      && smallCell?.Device is DevicePipeMounted device
-      && device.contentType == pipe.PipeContentType;
-
-    var canShareWithMatchingCableDevice =
-      structure is Cable cable
-      && cable == cable.IsStraight
-      && smallCell?.Device is DeviceCableMounted;
-
-    var hasBlockingDevice = hasDeviceOnCell
-                            && !canShareWithMatchingPipeDevice
-                            && !canShareWithMatchingCableDevice;
-
-    var invalidStructureExistsOnGrid = hasBlockingOtherStructure || hasBlockingDevice;
-
-    var differentEndsCollision = false;
-    var collisionMethod = structure switch
-    {
-      Piping => PipingIsCollisionMethod,
-      Cable => CableIsCollisionMethod,
-      Chute => ChuteIsCollisionMethod,
-      _ => null
-    };
-
-    // Straight previews can still be invalid if they would intersect an existing end-piece
-    // already occupying this cell, so probe the cable/pipe/chute slots separately.
-    if (collisionMethod != null)
-    {
-      bool CollidesWith(object existingEndPiece)
-      {
-        return existingEndPiece != null && (bool)collisionMethod.Invoke(structure, [existingEndPiece]);
-      }
-
-      differentEndsCollision =
-        CollidesWith(smallCell?.Cable) ||
-        CollidesWith(smallCell?.Pipe) ||
-        CollidesWith(smallCell?.Chute);
-    }
-
-    var canConstruct = !invalidStructureExistsOnGrid && !differentEndsCollision;
-
-    if (smallCell != null && smallCell.IsValid() && structure is Piping && smallCell.Pipe is Piping piping)
-    {
-      var inactiveHandOccupant = InventoryManager.Parent.Slots[inventoryManager.InactiveHand.SlotId].Get() as Item;
-      var canReplace = piping.CanReplace(inventoryManager.ConstructionPanel.Parent, inactiveHandOccupant);
-      canConstruct &= canReplace.CanConstruct;
-    }
-    else if (smallCell != null && smallCell.IsValid() && structure is Cable && smallCell.Cable is { } cable2)
-    {
-      var inactiveHandOccupant = InventoryManager.Parent.Slots[inventoryManager.InactiveHand.SlotId].Get() as Item;
-      var canReplace = cable2.CanReplace(inventoryManager.ConstructionPanel.Parent, inactiveHandOccupant);
-      canConstruct &= canReplace.CanConstruct;
-    }
-    else if (smallCell != null && smallCell.IsValid() && structure is Chute && smallCell.Chute is not null)
-    {
-      canConstruct &= false;
-    }
-
-    return canConstruct;
+    return CanConstructWithValidationCursor(inventoryManager, structure, structureIndex,
+      validationCursor => ValidateSmallCellCursor(inventoryManager, validationCursor));
   }
 
   /// <summary>
   /// Checks whether a large-grid preview structure can be built in its current cell.
   /// </summary>
-  private static bool CanConstructBigCell(Structure structure)
+  private static bool CanConstructBigCell(InventoryManager inventoryManager, Structure structure, int structureIndex)
   {
-    if (ShouldUseAuthoringPlacementValidation() &&
-        TryCanConstructAuthoringPlacement(structure, out var authoringCanConstruct))
+    return CanConstructWithValidationCursor(inventoryManager, structure, structureIndex, ValidateLargeGridCursor);
+  }
+
+  /// <summary>
+  /// Validates a zoop preview by temporarily retargeting the live construction cursor.
+  /// </summary>
+  private static bool CanConstructWithValidationCursor(InventoryManager inventoryManager, Structure structure,
+    int structureIndex, Func<Structure, bool> validator)
+  {
+    var originalCursor = InventoryManager.ConstructionCursor;
+    if (originalCursor == null)
     {
-      return authoringCanConstruct;
+      return false;
     }
 
-    var cell = structure.GridController.GetCell(structure.ThingTransformLocalPosition);
-    if (cell != null)
+    // Capture the currently selected cursor before we temporarily retarget it to the zoop preview piece.
+    if (!TryGetValidationTarget(inventoryManager, structure, structureIndex, originalCursor,
+          out var validationConstructable, out var cursorState))
     {
-      if (structure is Wall wall)
+      return false;
+    }
+
+    AllowPlacementUpdate = true;
+    try
+    {
+      // Rebuild the live cursor so the game validates this preview as if the player were placing it directly.
+      var validationCursor = PrepareValidationCursor(inventoryManager, structure, validationConstructable,
+        cursorState);
+      if (validationCursor == null)
       {
-        foreach (var cellStructure in cell.AllStructures)
-        {
-          if (cellStructure is Wall existingWall)
-          {
-            var samePosition = IsSameZoopPosition(existingWall.ThingTransformPosition, wall.ThingTransformPosition);
-            var sameFace = Vector3.Dot(existingWall.transform.forward, wall.transform.forward) > 0.99f;
-            if (samePosition && sameFace)
-            {
-              return false;
-            }
-
-            continue;
-          }
-
-          if (cellStructure is LargeStructure)
-          {
-            return false;
-          }
-        }
-
-        return true;
+        return false;
       }
 
-      return !cell.AllStructures.Any(static cellStructure => cellStructure is LargeStructure);
+      return validator(validationCursor);
+    }
+    catch
+    {
+      return false;
+    }
+    finally
+    {
+      RestoreValidationCursor(inventoryManager, cursorState);
+    }
+  }
+
+  /// <summary>
+  /// Resolves the constructable and cursor snapshot needed for temporary small-grid validation.
+  /// </summary>
+  private static bool TryGetValidationTarget(InventoryManager inventoryManager, Structure structure,
+    int structureIndex, Structure originalCursor, out Structure validationConstructable,
+    out ValidationCursorState cursorState)
+  {
+    var originalBuildIndex = inventoryManager.ConstructionPanel.BuildIndex;
+    var validationBuildIndex = ResolveBuildIndex(inventoryManager, structure, structureIndex);
+    validationConstructable = GetConstructableForBuildIndex(inventoryManager, validationBuildIndex);
+    if (validationConstructable == null)
+    {
+      cursorState = default;
+      return false;
     }
 
+    var needsCursorSwap = originalBuildIndex != validationBuildIndex ||
+                          originalCursor.PrefabName != validationConstructable.PrefabName;
+    cursorState = new ValidationCursorState(
+      originalBuildIndex,
+      validationBuildIndex,
+      needsCursorSwap,
+      originalCursor.ThingTransformPosition,
+      originalCursor.ThingTransformLocalPosition,
+      originalCursor.ThingTransformRotation,
+      originalCursor.ThingTransformLocalRotation);
     return true;
+  }
+
+  /// <summary>
+  /// Prepares the live construction cursor so the game can validate one zoop preview piece.
+  /// </summary>
+  private static Structure PrepareValidationCursor(InventoryManager inventoryManager, Structure structure,
+    Structure validationConstructable, ValidationCursorState cursorState)
+  {
+    if (cursorState.NeedsCursorSwap)
+    {
+      inventoryManager.ConstructionPanel.BuildIndex = cursorState.ValidationBuildIndex;
+      InventoryManager.UpdatePlacement(validationConstructable);
+    }
+
+    var validationCursor = InventoryManager.ConstructionCursor;
+    if (validationCursor == null)
+    {
+      return null;
+    }
+
+    ApplyStructurePlacementState(validationCursor, structure.ThingTransformPosition, structure.ThingTransformLocalPosition,
+      structure.ThingTransformRotation, structure.ThingTransformLocalRotation);
+    validationCursor.CheckBounds();
+    validationCursor.RebuildGridState();
+    return validationCursor;
+  }
+
+  /// <summary>
+  /// Applies the same native placement checks the game uses for the live preview cursor.
+  /// </summary>
+  private static bool ValidateSmallCellCursor(InventoryManager inventoryManager, Structure validationCursor)
+  {
+    var canConstruct = validationCursor.CanConstruct().CanConstruct;
+    if (!canConstruct || InventoryManager.IsAuthoringMode || validationCursor is not IGridMergeable mergeable)
+    {
+      return canConstruct;
+    }
+
+    // Non-authoring previews do an extra merge/tool check for cables, pipes, and other grid-mergeables.
+    var activeConstructor = InventoryManager.Parent.Slots[inventoryManager.ActiveHand.SlotId].Get() as MultiConstructor;
+    var inactiveHandOccupant = InventoryManager.Parent.Slots[inventoryManager.InactiveHand.SlotId].Get() as Item;
+    return mergeable.CanReplace(activeConstructor, inactiveHandOccupant).CanConstruct;
+  }
+
+  /// <summary>
+  /// Checks whether a large-grid preview should be considered valid by the live cursor.
+  /// </summary>
+  private static bool ValidateLargeGridCursor(Structure validationCursor)
+  {
+    if (validationCursor is Wall)
+    {
+      var canMount = validationCursor.CanMountOnWall();
+      if (!canMount)
+      {
+        return false;
+      }
+    }
+
+    return validationCursor.CanConstruct().CanConstruct;
+  }
+
+  /// <summary>
+  /// Restores the live construction cursor after a temporary small-grid validation check.
+  /// </summary>
+  private static void RestoreValidationCursor(InventoryManager inventoryManager,
+    ValidationCursorState cursorState)
+  {
+    try
+    {
+      if (cursorState.NeedsCursorSwap)
+      {
+        inventoryManager.ConstructionPanel.BuildIndex = cursorState.OriginalBuildIndex;
+        var originalConstructable = GetConstructableForBuildIndex(inventoryManager, cursorState.OriginalBuildIndex);
+        if (originalConstructable != null)
+        {
+          InventoryManager.UpdatePlacement(originalConstructable);
+        }
+      }
+
+      var restoredCursor = InventoryManager.ConstructionCursor;
+      if (!cursorState.NeedsCursorSwap && restoredCursor != null)
+      {
+        ApplyStructurePlacementState(restoredCursor, cursorState.OriginalCursorPosition,
+          cursorState.OriginalCursorLocalPosition, cursorState.OriginalCursorRotation,
+          cursorState.OriginalCursorLocalRotation);
+      }
+
+      if (restoredCursor != null)
+      {
+        restoredCursor.gameObject.SetActive(false);
+      }
+    }
+    finally
+    {
+      AllowPlacementUpdate = false;
+    }
+  }
+
+  /// <summary>
+  /// Applies world and local placement state to a structure.
+  /// </summary>
+  private static void ApplyStructurePlacementState(Structure structure, Vector3 position, Vector3 localPosition,
+    Quaternion rotation, Quaternion localRotation)
+  {
+    structure.ThingTransformPosition = position;
+    structure.Position = position;
+    structure.transform.position = position;
+    structure.ThingTransformLocalPosition = localPosition;
+    structure.ThingTransformLocalRotation = localRotation;
+    structure.ThingTransformRotation = rotation;
+    structure.transform.rotation = rotation;
   }
 
   #endregion
