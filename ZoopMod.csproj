@@ -41,6 +41,8 @@
 		<AllowUnsafeBlocks>true</AllowUnsafeBlocks>
 		<LangVersion>latest</LangVersion>
 		<GitVersion>false</GitVersion>
+		<Pdb2MdbPath Condition=" '$(Pdb2MdbPath)' == '' "></Pdb2MdbPath>
+		<Pdb2MdbOutputPath Condition=" '$(Pdb2MdbOutputPath)' == '' ">$(TargetPath).mdb</Pdb2MdbOutputPath>
 		<RestoreAdditionalProjectSources>
 			https://api.nuget.org/v3/index.json;
 			https://nuget.bepinex.dev/v3/index.json;
@@ -98,13 +100,17 @@
 	<!-- Post-Build Events -->
 	<Target Name="CustomAfterBuild" AfterTargets="Build">
 		<Message Importance="High" Text="Start building project files" />
-		<!--<Exec Command="&quot;B:\pdb2mdb.exe&quot; &quot;$(ProjectDir)\bin\Debug\$(ModName).dll&quot;" Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' " />-->
+		<Warning Text="Configured Pdb2MdbPath was not found. Skipping .mdb generation: $(Pdb2MdbPath)"
+		         Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' and '$(Pdb2MdbPath)' != '' and !Exists('$(Pdb2MdbPath)')" />
+		<Exec Command="&quot;$(Pdb2MdbPath)&quot; &quot;$(TargetPath)&quot;"
+		      Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' and '$(Pdb2MdbPath)' != '' and Exists('$(Pdb2MdbPath)')" />
 		<RemoveDir Directories="$(StationeersModOutputFolder)\$(ModName)" />
 		<Copy SourceFiles="$(ProjectDir)\$(ModName).info" DestinationFolder="$(StationeersModOutputFolder)\$(ModName)" ContinueOnError="false" />
 		<Copy SourceFiles="$(ProjectDir)\bin\Debug\net48\$(ModName).dll" DestinationFolder="$(StationeersModOutputFolder)\$(ModName)" ContinueOnError="true" />
 		<Copy SourceFiles="@(_CopyItemsGameData)" DestinationFolder="$(StationeersModOutputFolder)\$(ModName)\GameData\%(RecursiveDir)" ContinueOnError="true" />
 		<Copy SourceFiles="@(_CopyItemsAbout)" DestinationFolder="$(StationeersModOutputFolder)\$(ModName)\About\%(RecursiveDir)" ContinueOnError="true" />
-		<Copy SourceFiles="$(ProjectDir)\bin\Debug\net48\$(ModName).dll.mdb" DestinationFolder="$(StationeersModOutputFolder)\$(ModName)" ContinueOnError="true" Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' " />
+		<Copy SourceFiles="$(Pdb2MdbOutputPath)" DestinationFolder="$(StationeersModOutputFolder)\$(ModName)" ContinueOnError="true"
+		      Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' and Exists('$(Pdb2MdbOutputPath)')" />
 	</Target>
 
 </Project>

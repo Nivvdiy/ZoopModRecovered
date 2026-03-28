@@ -9,5 +9,7 @@
 		<ManagedDirectory>$(StationeersDirectory)\rocketstation_Data\Managed\</ManagedDirectory>
 		<StationeersModOutputFolder Condition=" '$(StationeersModOutputFolder)' == '' ">C:\Users\%USERNAME%\Documents\My Games\Stationeers\mods</StationeersModOutputFolder>
 		<CreativeFreedomModPath Condition=" '$(CreativeFreedomModPath)' == '' ">$(RootFolder)\workshop\content\544550\3193624149</CreativeFreedomModPath>
+		<!-- Optional: set this to enable pdb2mdb generation for debug builds. -->
+		<Pdb2MdbPath Condition=" '$(Pdb2MdbPath)' == '' "></Pdb2MdbPath>
 	</PropertyGroup>
 </Project>
