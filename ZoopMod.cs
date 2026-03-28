@@ -34,7 +34,10 @@ public class ZoopMod : ModBehaviour
       }
 #endif
 
-    if (level >= CurrentLogLevel) Debug.Log($"[{level} : Zoop Mod] {line}");
+    if (level >= CurrentLogLevel)
+    {
+      Debug.Log($"[{level} : Zoop Mod] {line}");
+    }
   }
 
   public override void OnLoaded(ContentHandler contentHandler)

@@ -84,7 +84,10 @@ public class InventoryManagerWaitUntilDone0
   public static void Prefix(InventoryManager __instance, InventoryManager.DelegateEvent onFinished,
     ref float timeToWait, Structure structure)
   {
-    if (!ZoopUtility.IsZooping) return;
+    if (!ZoopUtility.IsZooping)
+    {
+      return;
+    }
 
     if (!InventoryManager.IsAuthoringMode)
     {
@@ -119,10 +122,15 @@ public class InventoryManagerPlacementMode
       ZoopUtility.StartZoop(__instance);
     }
 
-    if (addWaypoint && ZoopUtility.IsZooping) ZoopUtility.AddWaypoint();
+    if (addWaypoint && ZoopUtility.IsZooping)
+    {
+      ZoopUtility.AddWaypoint();
+    }
 
-    if (removeWaypoint && ZoopUtility.IsZooping) ZoopUtility.RemoveLastWaypoint();
-
+    if (removeWaypoint && ZoopUtility.IsZooping)
+    {
+      ZoopUtility.RemoveLastWaypoint();
+    }
 
     if (primary && ZoopUtility.IsZooping && !ZoopUtility.IsZoopKeyPressed)
     {
@@ -197,7 +205,9 @@ public class CursorManagerSetSelectionColor
   public static void Postfix()
   {
     if (ZoopUtility.IsZooping)
+    {
       CursorManager.CursorSelectionRenderer.material.color =
         ZoopUtility.LineColor.SetAlpha(InventoryManager.Instance.CursorAlphaInteractable);
+    }
   }
 }

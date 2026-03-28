@@ -13,6 +13,7 @@ max_line_length = 120
 [*.cs]
 spelling_languages = en-us,fr-fr
 
+csharp_prefer_braces = true
 csharp_new_line_before_open_brace = all
 csharp_indent_block_contents = true
 csharp_indent_case_contents = true
