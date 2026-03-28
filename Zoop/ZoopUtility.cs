@@ -122,22 +122,26 @@ public static class ZoopUtility
 
     if (Waypoints.Count <= 0)
     {
+      IsZooping = false;
       return;
     }
 
     var cts = new CancellationTokenSource();
     _zoopCancellationSource = cts;
     var ct = cts.Token;
-    try
+    UniTask.RunOnThreadPool(async () =>
     {
-      UniTask.RunOnThreadPool(async () => { await ZoopAsync(ct, inventoryManager); }, cancellationToken: ct);
-    }
-    finally
-    {
-      cts.Dispose();
-      _zoopCancellationSource = null;
-      IsZooping = false;
-    }
+      try
+      {
+        await ZoopAsync(ct, inventoryManager);
+      }
+      finally
+      {
+        cts.Dispose();
+        _zoopCancellationSource = null;
+        IsZooping = false;
+      }
+    }, cancellationToken: ct);
   }
 
   /// <summary>
