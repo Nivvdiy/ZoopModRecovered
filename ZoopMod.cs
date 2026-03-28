@@ -42,6 +42,7 @@ public class ZoopMod : BaseUnityPlugin
       var harmony = new Harmony("ZoopMod");
       harmony.PatchAll();
       Log("Patch succeeded", Logs.info);
+      Log($"Build commit: {GetBuildCommitHash()}", Logs.info);
       KeyManager.OnControlsChanged += ControlsChangedEvent;
 
       var type = Type.GetType("CreativeFreedom.CreativeFreedom, CreativeFreedom");
@@ -78,5 +79,10 @@ public class ZoopMod : BaseUnityPlugin
     ZoopSwitch = KeyManager.GetKey("Zoop Switch");
     ZoopAddWaypoint = KeyManager.GetKey("Zoop Add Waypoint");
     ZoopRemoveWaypoint = KeyManager.GetKey("Zoop Remove Last Waypoint");
+  }
+
+  private static string GetBuildCommitHash()
+  {
+    return ThisAssembly.Git.Commit.Substring(0, 7);
   }
 }

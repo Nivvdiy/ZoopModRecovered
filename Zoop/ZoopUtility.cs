@@ -1330,11 +1330,11 @@ public static class ZoopUtility
     for (var indexDirection2 = 0; indexDirection2 < plane.Count.direction2; indexDirection2++)
     {
       for (var indexDirection1 = 0; indexDirection1 < plane.Count.direction1; indexDirection1++)
-    {
-      AddStructure(inventoryManager.ConstructionPanel.Parent.Constructables, false, count, 0, ref canBuildNext,
-        inventoryManager, false);
-      count++;
-    }
+      {
+        AddStructure(inventoryManager.ConstructionPanel.Parent.Constructables, false, count, 0, ref canBuildNext,
+          inventoryManager, false);
+        count++;
+      }
     }
   }
 
