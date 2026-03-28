@@ -402,3 +402,4 @@ Zoop*\-*.cs
 _mod_output/
 ZoopMod.VS.props
 .tools/
+.dotnet-cli/.dotnet
