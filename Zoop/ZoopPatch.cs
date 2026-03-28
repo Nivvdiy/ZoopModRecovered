@@ -52,7 +52,7 @@ namespace ZoopMod.Zoop
       {
         ZoopMod.Log("zoop canceled at CancelPlacement", ZoopMod.Logs.debug);
         ZoopUtility.CancelZoop();
-        ZoopUtility.isZoopKeyPressed = false;
+        ZoopUtility.IsZoopKeyPressed = false;
       }
     }
   }
@@ -91,7 +91,7 @@ namespace ZoopMod.Zoop
 
       if (!InventoryManager.IsAuthoringMode)
       {
-        int structureCount = Math.Max(ZoopUtility.structures.Count, 1);
+        int structureCount = Math.Max(ZoopUtility.Structures.Count, 1);
         // TODO Consider putting this into config
         const int timeToWaitMultiplier = 5;
         timeToWait *= Math.Min(structureCount, timeToWaitMultiplier); //switch(ZoopConfig.GetDifficulty())
@@ -106,14 +106,14 @@ namespace ZoopMod.Zoop
     [UsedImplicitly]
     public static bool Prefix(InventoryManager __instance)
     {
-      ZoopUtility.isZoopKeyPressed = KeyManager.GetButton(ZoopMod.ZoopHold);
+      ZoopUtility.IsZoopKeyPressed = KeyManager.GetButton(ZoopMod.ZoopHold);
       bool secondary = KeyManager.GetMouseDown("Secondary");
       bool primary = KeyManager.GetMouseDown("Primary");
       bool spec = KeyManager.GetButtonDown(ZoopMod.ZoopSwitch);
       bool addWaypoint = KeyManager.GetButtonDown(ZoopMod.ZoopAddWaypoint);
       bool removeWaypoint = KeyManager.GetButtonDown(ZoopMod.ZoopRemoveWaypoint);
 
-      if ((ZoopUtility.isZoopKeyPressed && primary) || spec)
+      if ((ZoopUtility.IsZoopKeyPressed && primary) || spec)
       {
         ZoopMod.Log("zoop must start now", ZoopMod.Logs.debug);
         ZoopUtility.StartZoop(__instance);
@@ -130,7 +130,7 @@ namespace ZoopMod.Zoop
       }
 
 
-      if (primary && ZoopUtility.isZooping && !ZoopUtility.isZoopKeyPressed)
+      if (primary && ZoopUtility.isZooping && !ZoopUtility.IsZoopKeyPressed)
       {
         if (!ZoopUtility.HasError)
         {
@@ -170,7 +170,7 @@ namespace ZoopMod.Zoop
         ZoopUtility.CancelZoop();
       }
 
-      return !ZoopUtility.isZoopKeyPressed;
+      return !ZoopUtility.IsZoopKeyPressed;
     }
   }
 
@@ -180,7 +180,7 @@ namespace ZoopMod.Zoop
     [UsedImplicitly]
     public static bool Prefix()
     {
-      return !(ZoopUtility.isZoopKeyPressed);
+      return !(ZoopUtility.IsZoopKeyPressed);
     }
   }
 
@@ -190,7 +190,7 @@ namespace ZoopMod.Zoop
     [UsedImplicitly]
     public static bool Prefix()
     {
-      return !(ZoopUtility.isZoopKeyPressed);
+      return !(ZoopUtility.IsZoopKeyPressed);
     }
   }
 
@@ -203,7 +203,7 @@ namespace ZoopMod.Zoop
       if (ZoopUtility.isZooping)
       {
         CursorManager.CursorSelectionRenderer.material.color =
-            ZoopUtility.lineColor.SetAlpha(InventoryManager.Instance.CursorAlphaInteractable);
+            ZoopUtility.LineColor.SetAlpha(InventoryManager.Instance.CursorAlphaInteractable);
       }
     }
   }
