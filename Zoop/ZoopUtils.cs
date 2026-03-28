@@ -3,8 +3,14 @@ using UnityEngine;
 
 namespace ZoopMod.Zoop
 {
+  // Helper lookups for corner pieces. The rest of the zoop code works in terms of
+  // axis directions; this class translates those directions into a transition id
+  // and the final mesh rotation needed for that corner.
   public static class ZoopUtils
   {
+    // Transition names follow the pattern "xPyN" = from +X, then turn toward -Y.
+    // This lets the caller describe a corner in axis/sign terms without manually
+    // re-encoding every possible turn.
     public static ZoopTransition GetTransition(ZoopDirection zoopDirectionFrom, bool increasingFrom, ZoopDirection zoopDirectionTo, bool increasingTo)
     {
       return (zoopDirectionFrom, increasingFrom, zoopDirectionTo, increasingTo) switch
@@ -37,10 +43,14 @@ namespace ZoopMod.Zoop
       };
     }
 
+    // Returns the base rotation for a corner piece, then layers prefab-specific
+    // offsets on top so different models can reuse the same transition mapping.
     public static Quaternion GetCornerRotation(ZoopDirection zoopDirectionFrom, bool increasingFrom, ZoopDirection zoopDirectionTo, bool increasingTo, float xOffset, float yOffset, float zOffset)
     {
       switch (GetTransition(zoopDirectionFrom, increasingFrom, zoopDirectionTo, increasingTo))
       {
+        // Each paired case is the same physical corner approached from the opposite
+        // direction, so both transitions resolve to the same final orientation.
         case ZoopTransition.xPyP:
         case ZoopTransition.yNxN:
           return Quaternion.Euler(xOffset + 90f, yOffset + 0.0f, zOffset + 0.0f);
@@ -78,6 +88,8 @@ namespace ZoopMod.Zoop
         case ZoopTransition.zNyP:
           return Quaternion.Euler(xOffset + 90.0f, yOffset + 90f, zOffset + 0.0f);
         default:
+          // We should normally never get here because GetTransition already validates
+          // the input, but identity is a safe fallback if the enum mapping changes.
           return Quaternion.identity;
       }
     }
