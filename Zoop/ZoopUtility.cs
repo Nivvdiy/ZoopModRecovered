@@ -49,6 +49,15 @@ public static class ZoopUtility
   private static readonly MethodInfo UsePrimaryCompleteMethod = typeof(InventoryManager).GetMethod("UsePrimaryComplete",
     BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
 
+  private static readonly MethodInfo PipingIsCollisionMethod =
+    typeof(Piping).GetMethod("_IsCollision", BindingFlags.Instance | BindingFlags.NonPublic);
+
+  private static readonly MethodInfo CableIsCollisionMethod =
+    typeof(Cable).GetMethod("_IsCollision", BindingFlags.Instance | BindingFlags.NonPublic);
+
+  private static readonly MethodInfo ChuteIsCollisionMethod =
+    typeof(Chute).GetMethod("_IsCollision", BindingFlags.Instance | BindingFlags.NonPublic);
+
   public static bool IsZoopKeyPressed { get; set; }
 
   public static bool IsZooping { get; private set; }
@@ -721,33 +730,22 @@ public static class ZoopUtility
        smallCell.Other != null);
 
     var differentEndsCollision = false;
-    Type structureType = null;
-    switch (structure)
+    var collisionMethod = structure switch
     {
-      case Piping:
-        structureType = typeof(Piping);
-        break;
-      case Cable:
-        structureType = typeof(Cable);
-        break;
-      case Chute:
-        structureType = typeof(Chute);
-        break;
-    }
+      Piping => PipingIsCollisionMethod,
+      Cable => CableIsCollisionMethod,
+      Chute => ChuteIsCollisionMethod,
+      _ => null
+    };
 
-    if (structureType != null)
+    if (collisionMethod != null)
     {
-      var method = structureType.GetMethod("_IsCollision", BindingFlags.Instance | BindingFlags.NonPublic);
-
-      if (method != null)
-      {
-        differentEndsCollision = smallCell != null && smallCell.Cable != null &&
-                                 (bool)method.Invoke(structure, [smallCell.Cable]);
-        differentEndsCollision |= smallCell != null && smallCell.Pipe != null &&
-                                  (bool)method.Invoke(structure, [smallCell.Pipe]);
-        differentEndsCollision |= smallCell != null && smallCell.Chute != null &&
-                                  (bool)method.Invoke(structure, [smallCell.Chute]);
-      }
+      differentEndsCollision = smallCell != null && smallCell.Cable != null &&
+                               (bool)collisionMethod.Invoke(structure, [smallCell.Cable]);
+      differentEndsCollision |= smallCell != null && smallCell.Pipe != null &&
+                                (bool)collisionMethod.Invoke(structure, [smallCell.Pipe]);
+      differentEndsCollision |= smallCell != null && smallCell.Chute != null &&
+                                (bool)collisionMethod.Invoke(structure, [smallCell.Chute]);
     }
 
     var canConstruct = !invalidStructureExistsOnGrid && !differentEndsCollision;
