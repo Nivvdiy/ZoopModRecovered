@@ -40,6 +40,30 @@ public static class ZoopUtility
   private static Vector3 _zoopStartWallNormal = Vector3.zero;
   private const float PositionToleranceSqr = 0.0001f;
 
+  private readonly struct SmallCellValidationCursorState
+  {
+    public SmallCellValidationCursorState(int originalBuildIndex, int validationBuildIndex, bool needsCursorSwap,
+      Vector3 originalCursorPosition, Vector3 originalCursorLocalPosition, Quaternion originalCursorRotation,
+      Quaternion originalCursorLocalRotation)
+    {
+      OriginalBuildIndex = originalBuildIndex;
+      ValidationBuildIndex = validationBuildIndex;
+      NeedsCursorSwap = needsCursorSwap;
+      OriginalCursorPosition = originalCursorPosition;
+      OriginalCursorLocalPosition = originalCursorLocalPosition;
+      OriginalCursorRotation = originalCursorRotation;
+      OriginalCursorLocalRotation = originalCursorLocalRotation;
+    }
+
+    public int OriginalBuildIndex { get; }
+    public int ValidationBuildIndex { get; }
+    public bool NeedsCursorSwap { get; }
+    public Vector3 OriginalCursorPosition { get; }
+    public Vector3 OriginalCursorLocalPosition { get; }
+    public Quaternion OriginalCursorRotation { get; }
+    public Quaternion OriginalCursorLocalRotation { get; }
+  }
+
   private static readonly FieldInfo UsePrimaryPositionField =
     typeof(InventoryManager).GetField("_usePrimaryPosition", BindingFlags.Instance | BindingFlags.NonPublic);
 
@@ -1020,56 +1044,32 @@ public static class ZoopUtility
   /// </summary>
   private static bool CanConstructSmallCell(InventoryManager inventoryManager, Structure structure, int structureIndex)
   {
-    var originalBuildIndex = inventoryManager.ConstructionPanel.BuildIndex;
     var originalCursor = InventoryManager.ConstructionCursor;
     if (originalCursor == null)
     {
       return false;
     }
 
-    var validationBuildIndex = ResolveBuildIndex(inventoryManager, structure, structureIndex);
-    var validationConstructable = GetConstructableForBuildIndex(inventoryManager, validationBuildIndex);
-    if (validationConstructable == null)
+    // Capture the currently selected cursor before we temporarily retarget it to the zoop preview piece.
+    if (!TryGetSmallCellValidationTarget(inventoryManager, structure, structureIndex, originalCursor,
+          out var validationConstructable, out var cursorState))
     {
       return false;
     }
 
-    var originalCursorPosition = originalCursor.ThingTransformPosition;
-    var originalCursorLocalPosition = originalCursor.ThingTransformLocalPosition;
-    var originalCursorRotation = originalCursor.ThingTransformRotation;
-    var originalCursorLocalRotation = originalCursor.ThingTransformLocalRotation;
-    var needsCursorSwap = originalBuildIndex != validationBuildIndex ||
-                          originalCursor.PrefabName != validationConstructable.PrefabName;
-
     AllowPlacementUpdate = true;
     try
     {
-      if (needsCursorSwap)
-      {
-        inventoryManager.ConstructionPanel.BuildIndex = validationBuildIndex;
-        InventoryManager.UpdatePlacement(validationConstructable);
-      }
-
-      var validationCursor = InventoryManager.ConstructionCursor;
+      // Rebuild the live cursor so the game validates this preview as if the player were placing it directly.
+      var validationCursor = PrepareSmallCellValidationCursor(inventoryManager, structure, validationConstructable,
+        cursorState);
       if (validationCursor == null)
       {
         return false;
       }
 
-      ApplyStructurePlacementState(validationCursor, structure.ThingTransformPosition, structure.ThingTransformLocalPosition,
-        structure.ThingTransformRotation, structure.ThingTransformLocalRotation);
-      validationCursor.CheckBounds();
-      validationCursor.RebuildGridState();
-
-      var canConstruct = validationCursor.CanConstruct().CanConstruct;
-      if (!canConstruct || InventoryManager.IsAuthoringMode || validationCursor is not IGridMergeable mergeable)
-      {
-        return canConstruct;
-      }
-
-      var activeConstructor = InventoryManager.Parent.Slots[inventoryManager.ActiveHand.SlotId].Get() as MultiConstructor;
-      var inactiveHandOccupant = InventoryManager.Parent.Slots[inventoryManager.InactiveHand.SlotId].Get() as Item;
-      return mergeable.CanReplace(activeConstructor, inactiveHandOccupant).CanConstruct;
+      // Follow the same native preview flow as InventoryManager.PlacementMode.
+      return ValidateSmallCellCursor(inventoryManager, validationCursor);
     }
     catch
     {
@@ -1077,24 +1077,93 @@ public static class ZoopUtility
     }
     finally
     {
-      RestoreSmallCellValidationCursor(inventoryManager, originalBuildIndex, needsCursorSwap, originalCursorPosition,
-        originalCursorLocalPosition, originalCursorRotation, originalCursorLocalRotation);
+      RestoreSmallCellValidationCursor(inventoryManager, cursorState);
     }
+  }
+
+  /// <summary>
+  /// Resolves the constructable and cursor snapshot needed for temporary small-grid validation.
+  /// </summary>
+  private static bool TryGetSmallCellValidationTarget(InventoryManager inventoryManager, Structure structure,
+    int structureIndex, Structure originalCursor, out Structure validationConstructable,
+    out SmallCellValidationCursorState cursorState)
+  {
+    var originalBuildIndex = inventoryManager.ConstructionPanel.BuildIndex;
+    var validationBuildIndex = ResolveBuildIndex(inventoryManager, structure, structureIndex);
+    validationConstructable = GetConstructableForBuildIndex(inventoryManager, validationBuildIndex);
+    if (validationConstructable == null)
+    {
+      cursorState = default;
+      return false;
+    }
+
+    var needsCursorSwap = originalBuildIndex != validationBuildIndex ||
+                          originalCursor.PrefabName != validationConstructable.PrefabName;
+    cursorState = new SmallCellValidationCursorState(
+      originalBuildIndex,
+      validationBuildIndex,
+      needsCursorSwap,
+      originalCursor.ThingTransformPosition,
+      originalCursor.ThingTransformLocalPosition,
+      originalCursor.ThingTransformRotation,
+      originalCursor.ThingTransformLocalRotation);
+    return true;
+  }
+
+  /// <summary>
+  /// Prepares the live construction cursor so the game can validate one zoop preview piece.
+  /// </summary>
+  private static Structure PrepareSmallCellValidationCursor(InventoryManager inventoryManager, Structure structure,
+    Structure validationConstructable, SmallCellValidationCursorState cursorState)
+  {
+    if (cursorState.NeedsCursorSwap)
+    {
+      inventoryManager.ConstructionPanel.BuildIndex = cursorState.ValidationBuildIndex;
+      InventoryManager.UpdatePlacement(validationConstructable);
+    }
+
+    var validationCursor = InventoryManager.ConstructionCursor;
+    if (validationCursor == null)
+    {
+      return null;
+    }
+
+    ApplyStructurePlacementState(validationCursor, structure.ThingTransformPosition, structure.ThingTransformLocalPosition,
+      structure.ThingTransformRotation, structure.ThingTransformLocalRotation);
+    validationCursor.CheckBounds();
+    validationCursor.RebuildGridState();
+    return validationCursor;
+  }
+
+  /// <summary>
+  /// Applies the same native placement checks the game uses for the live preview cursor.
+  /// </summary>
+  private static bool ValidateSmallCellCursor(InventoryManager inventoryManager, Structure validationCursor)
+  {
+    var canConstruct = validationCursor.CanConstruct().CanConstruct;
+    if (!canConstruct || InventoryManager.IsAuthoringMode || validationCursor is not IGridMergeable mergeable)
+    {
+      return canConstruct;
+    }
+
+    // Non-authoring previews do an extra merge/tool check for cables, pipes, and other grid-mergeables.
+    var activeConstructor = InventoryManager.Parent.Slots[inventoryManager.ActiveHand.SlotId].Get() as MultiConstructor;
+    var inactiveHandOccupant = InventoryManager.Parent.Slots[inventoryManager.InactiveHand.SlotId].Get() as Item;
+    return mergeable.CanReplace(activeConstructor, inactiveHandOccupant).CanConstruct;
   }
 
   /// <summary>
   /// Restores the live construction cursor after a temporary small-grid validation check.
   /// </summary>
-  private static void RestoreSmallCellValidationCursor(InventoryManager inventoryManager, int originalBuildIndex,
-    bool needsCursorSwap, Vector3 originalCursorPosition, Vector3 originalCursorLocalPosition,
-    Quaternion originalCursorRotation, Quaternion originalCursorLocalRotation)
+  private static void RestoreSmallCellValidationCursor(InventoryManager inventoryManager,
+    SmallCellValidationCursorState cursorState)
   {
     try
     {
-      if (needsCursorSwap)
+      if (cursorState.NeedsCursorSwap)
       {
-        inventoryManager.ConstructionPanel.BuildIndex = originalBuildIndex;
-        var originalConstructable = GetConstructableForBuildIndex(inventoryManager, originalBuildIndex);
+        inventoryManager.ConstructionPanel.BuildIndex = cursorState.OriginalBuildIndex;
+        var originalConstructable = GetConstructableForBuildIndex(inventoryManager, cursorState.OriginalBuildIndex);
         if (originalConstructable != null)
         {
           InventoryManager.UpdatePlacement(originalConstructable);
@@ -1102,10 +1171,11 @@ public static class ZoopUtility
       }
 
       var restoredCursor = InventoryManager.ConstructionCursor;
-      if (!needsCursorSwap && restoredCursor != null)
+      if (!cursorState.NeedsCursorSwap && restoredCursor != null)
       {
-        ApplyStructurePlacementState(restoredCursor, originalCursorPosition, originalCursorLocalPosition,
-          originalCursorRotation, originalCursorLocalRotation);
+        ApplyStructurePlacementState(restoredCursor, cursorState.OriginalCursorPosition,
+          cursorState.OriginalCursorLocalPosition, cursorState.OriginalCursorRotation,
+          cursorState.OriginalCursorLocalRotation);
       }
 
       if (restoredCursor != null)
