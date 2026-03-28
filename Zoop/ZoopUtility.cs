@@ -1044,6 +1044,24 @@ public static class ZoopUtility
   /// </summary>
   private static bool CanConstructSmallCell(InventoryManager inventoryManager, Structure structure, int structureIndex)
   {
+    return CanConstructWithValidationCursor(inventoryManager, structure, structureIndex,
+      validationCursor => ValidateSmallCellCursor(inventoryManager, validationCursor));
+  }
+
+  /// <summary>
+  /// Checks whether a large-grid preview structure can be built in its current cell.
+  /// </summary>
+  private static bool CanConstructBigCell(InventoryManager inventoryManager, Structure structure, int structureIndex)
+  {
+    return CanConstructWithValidationCursor(inventoryManager, structure, structureIndex, ValidateLargeGridCursor);
+  }
+
+  /// <summary>
+  /// Validates a zoop preview by temporarily retargeting the live construction cursor.
+  /// </summary>
+  private static bool CanConstructWithValidationCursor(InventoryManager inventoryManager, Structure structure,
+    int structureIndex, Func<Structure, bool> validator)
+  {
     var originalCursor = InventoryManager.ConstructionCursor;
     if (originalCursor == null)
     {
@@ -1068,8 +1086,7 @@ public static class ZoopUtility
         return false;
       }
 
-      // Follow the same native preview flow as InventoryManager.PlacementMode.
-      return ValidateSmallCellCursor(inventoryManager, validationCursor);
+      return validator(validationCursor);
     }
     catch
     {
@@ -1153,6 +1170,23 @@ public static class ZoopUtility
   }
 
   /// <summary>
+  /// Checks whether a large-grid preview should be considered valid by the live cursor.
+  /// </summary>
+  private static bool ValidateLargeGridCursor(Structure validationCursor)
+  {
+    if (validationCursor is Wall)
+    {
+      var canMount = validationCursor.CanMountOnWall();
+      if (!canMount)
+      {
+        return false;
+      }
+    }
+
+    return validationCursor.CanConstruct().CanConstruct;
+  }
+
+  /// <summary>
   /// Restores the live construction cursor after a temporary small-grid validation check.
   /// </summary>
   private static void RestoreValidationCursor(InventoryManager inventoryManager,
@@ -1202,54 +1236,6 @@ public static class ZoopUtility
     structure.ThingTransformLocalRotation = localRotation;
     structure.ThingTransformRotation = rotation;
     structure.transform.rotation = rotation;
-  }
-
-  /// <summary>
-  /// Checks whether a large-grid preview structure can be built in its current cell.
-  /// </summary>
-  private static bool CanConstructBigCell(InventoryManager inventoryManager, Structure structure, int structureIndex)
-  {
-    var originalCursor = InventoryManager.ConstructionCursor;
-    if (originalCursor == null)
-    {
-      return false;
-    }
-
-    if (!TryGetValidationTarget(inventoryManager, structure, structureIndex, originalCursor,
-          out var validationConstructable, out var cursorState))
-    {
-      return false;
-    }
-
-    AllowPlacementUpdate = true;
-    try
-    {
-      var validationCursor = PrepareValidationCursor(inventoryManager, structure, validationConstructable,
-        cursorState);
-      if (validationCursor == null)
-      {
-        return false;
-      }
-
-      if (validationCursor is Wall)
-      {
-        var canMount = validationCursor.CanMountOnWall();
-        if (!canMount)
-        {
-          return false;
-        }
-      }
-
-      return validationCursor.CanConstruct().CanConstruct;
-    }
-    catch
-    {
-      return false;
-    }
-    finally
-    {
-      RestoreValidationCursor(inventoryManager, cursorState);
-    }
   }
 
   #endregion
