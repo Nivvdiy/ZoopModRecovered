@@ -72,6 +72,9 @@ public static class ZoopUtility
 
   #region Common Methods
 
+  /// <summary>
+  /// Starts a new zoop preview from the current construction cursor.
+  /// </summary>
   public static void StartZoop(InventoryManager inventoryManager)
   {
     if (!IsAllowed(InventoryManager.ConstructionCursor))
@@ -137,6 +140,9 @@ public static class ZoopUtility
     }
   }
 
+  /// <summary>
+  /// Cancels the current zoop preview and clears its temporary state.
+  /// </summary>
   public static void CancelZoop()
   {
     IsZooping = false;
@@ -161,6 +167,9 @@ public static class ZoopUtility
     }
   }
 
+  /// <summary>
+  /// Stores the pending build coroutine so it can be cancelled or replaced later.
+  /// </summary>
   public static void SetPendingBuild(InventoryManager inventoryManager, Coroutine coroutine)
   {
     CancelPendingBuild();
@@ -168,6 +177,9 @@ public static class ZoopUtility
     _actionCoroutineOwner = inventoryManager;
   }
 
+  /// <summary>
+  /// Stops the currently tracked build coroutine if one is running.
+  /// </summary>
   private static void CancelPendingBuild()
   {
     if (_actionCoroutineOwner != null && ActionCoroutine != null)
@@ -178,12 +190,18 @@ public static class ZoopUtility
     ClearPendingBuild();
   }
 
+  /// <summary>
+  /// Clears the tracked pending build coroutine references.
+  /// </summary>
   private static void ClearPendingBuild()
   {
     ActionCoroutine = null;
     _actionCoroutineOwner = null;
   }
 
+  /// <summary>
+  /// Continuously updates zoop preview structures until the operation is cancelled.
+  /// </summary>
   private static async UniTask ZoopAsync(CancellationToken cancellationToken, InventoryManager inventoryManager)
   {
     await UniTask.SwitchToMainThread(); // Switch to main thread for Unity API calls
@@ -425,6 +443,9 @@ public static class ZoopUtility
     }
   }
 
+  /// <summary>
+  /// Places all previewed structures into the world and ends the active zoop.
+  /// </summary>
   public static void BuildZoop(InventoryManager inventoryManager)
   {
     ClearPendingBuild();
@@ -439,6 +460,9 @@ public static class ZoopUtility
     CancelZoop();
   }
 
+  /// <summary>
+  /// Adds the current preview position as an additional zoop waypoint when valid.
+  /// </summary>
   public static void AddWaypoint()
   {
     if (InventoryManager.ConstructionCursor is Frame)
@@ -460,6 +484,9 @@ public static class ZoopUtility
     }
   }
 
+  /// <summary>
+  /// Removes the most recently added zoop waypoint when possible.
+  /// </summary>
   public static void RemoveLastWaypoint()
   {
     if (InventoryManager.ConstructionCursor is Frame)
@@ -473,6 +500,9 @@ public static class ZoopUtility
     }
   }
 
+  /// <summary>
+  /// Places a single preview structure using the correct build index and spawn source.
+  /// </summary>
   private static void PlaceStructure(InventoryManager inventoryManager, Structure item, int structureIndex)
   {
     var buildIndex = ResolveBuildIndex(inventoryManager, item, structureIndex);
@@ -515,6 +545,9 @@ public static class ZoopUtility
     }
   }
 
+  /// <summary>
+  /// Resolves the build index that matches a preview structure.
+  /// </summary>
   private static int ResolveBuildIndex(InventoryManager inventoryManager, Structure item, int structureIndex)
   {
     if (structureIndex >= 0 && structureIndex < StructureBuildIndices.Count)
@@ -533,6 +566,9 @@ public static class ZoopUtility
     return inventoryManager.ConstructionPanel.BuildIndex;
   }
 
+  /// <summary>
+  /// Adds the next straight or corner preview structure when enough resources are available.
+  /// </summary>
   private static void AddStructure(List<Structure> constructables, bool isCorner, int index, int secondaryCount,
     ref bool canBuildNext, InventoryManager im, bool supportsCornerVariant)
   {
@@ -581,6 +617,9 @@ public static class ZoopUtility
     }
   }
 
+  /// <summary>
+  /// Destroys cached preview structures and resets the preview caches.
+  /// </summary>
   private static void ClearStructureCache()
   {
     foreach (var structure in structuresCacheStraight)
@@ -602,6 +641,9 @@ public static class ZoopUtility
     StructureCacheCornerBuildIndices.Clear();
   }
 
+  /// <summary>
+  /// Returns the current construction cursor position snapped to the zoop grid.
+  /// </summary>
   private static Vector3? GetCurrentMouseGridPosition()
   {
     if (InventoryManager.ConstructionCursor == null)
@@ -618,6 +660,9 @@ public static class ZoopUtility
     return cursorHitPoint;
   }
 
+  /// <summary>
+  /// Reuses or creates a preview structure and adds it to the active zoop list.
+  /// </summary>
   private static void MakeItem(List<Structure> constructables, bool isCorner, int index, int selectedIndex,
     bool supportsCornerVariant)
   {
@@ -681,6 +726,9 @@ public static class ZoopUtility
     }
   }
 
+  /// <summary>
+  /// Applies the current cursor rotation to a preview structure.
+  /// </summary>
   private static void ApplyCursorRotation(Structure structure)
   {
     if (structure == null || InventoryManager.ConstructionCursor == null)
@@ -695,6 +743,9 @@ public static class ZoopUtility
     SetStructureRotation(structure, rotation);
   }
 
+  /// <summary>
+  /// Locks wall zoops to the plane defined by the starting wall face.
+  /// </summary>
   private static Vector3 ClampWallZoopPositionToStartPlane(Vector3 startPos, Vector3 targetPos)
   {
     if (InventoryManager.ConstructionCursor is not Wall || _zoopStartWallNormal == Vector3.zero)
@@ -718,12 +769,18 @@ public static class ZoopUtility
     return targetPos;
   }
 
+  /// <summary>
+  /// Compares two zoop positions using a small tolerance for floating point drift.
+  /// </summary>
   private static bool IsSameZoopPosition(Vector3 first, Vector3 second)
   {
     // Mounted wall previews use world positions, so tiny float drift can appear between cursor, waypoint, and preview values.
     return Vector3.SqrMagnitude(first - second) < PositionToleranceSqr;
   }
 
+  /// <summary>
+  /// Compares two optional zoop positions, treating matching null states as equal.
+  /// </summary>
   private static bool IsSameZoopPosition(Vector3? first, Vector3? second)
   {
     if (!first.HasValue || !second.HasValue)
@@ -734,6 +791,9 @@ public static class ZoopUtility
     return IsSameZoopPosition(first.Value, second.Value);
   }
 
+  /// <summary>
+  /// Finds the waypoint index that matches the supplied position.
+  /// </summary>
   private static int GetWaypointIndex(Vector3 position)
   {
     for (var index = 0; index < Waypoints.Count; index++)
@@ -747,12 +807,18 @@ public static class ZoopUtility
     return -1;
   }
 
+  /// <summary>
+  /// Applies a rotation to both the structure state and Unity transform.
+  /// </summary>
   private static void SetStructureRotation(Structure structure, Quaternion rotation)
   {
     structure.ThingTransformRotation = rotation;
     structure.transform.rotation = rotation;
   }
 
+  /// <summary>
+  /// Updates preview colors to reflect waypoint roles, errors, and network connections.
+  /// </summary>
   private static void SetColor(InventoryManager inventoryManager, Structure structure, bool hasError)
   {
     var canConstruct = !hasError;
@@ -823,6 +889,9 @@ public static class ZoopUtility
 
   #region Conditionnal Methods
 
+  /// <summary>
+  /// Returns the constructable currently selected in the construction panel.
+  /// </summary>
   private static Structure GetSelectedConstructable(InventoryManager inventoryManager)
   {
     var constructables = inventoryManager.ConstructionPanel.Parent.Constructables;
@@ -835,21 +904,33 @@ public static class ZoopUtility
     return InventoryManager.ConstructionCursor;
   }
 
+  /// <summary>
+  /// Determines whether the current cursor type supports zooping.
+  /// </summary>
   private static bool IsAllowed(Structure constructionCursor)
   {
     return constructionCursor is Pipe or Cable or Chute or Frame or Wall;
   }
 
+  /// <summary>
+  /// Returns whether the active zoop cursor uses the small grid rules.
+  /// </summary>
   private static bool IsZoopingSmallGrid()
   {
     return InventoryManager.ConstructionCursor is SmallGrid;
   }
 
+  /// <summary>
+  /// Returns whether the active zoop cursor uses the large grid rules.
+  /// </summary>
   private static bool IsZoopingBigGrid()
   {
     return InventoryManager.ConstructionCursor is LargeStructure;
   }
 
+  /// <summary>
+  /// Checks whether a small-grid preview structure can be built in its current cell.
+  /// </summary>
   private static bool CanConstructSmallCell(InventoryManager inventoryManager, Structure structure)
   {
     var smallCell = structure.GridController.GetSmallCell(structure.ThingTransformLocalPosition);
@@ -918,6 +999,9 @@ public static class ZoopUtility
     return canConstruct;
   }
 
+  /// <summary>
+  /// Checks whether a large-grid preview structure can be built in its current cell.
+  /// </summary>
   private static bool CanConstructBigCell(Structure structure)
   {
     var cell = structure.GridController.GetCell(structure.ThingTransformLocalPosition);
@@ -958,6 +1042,9 @@ public static class ZoopUtility
 
   #region SmallGrid Methods
 
+  /// <summary>
+  /// Calculates the ordered axis segments needed to zoop between two small-grid positions.
+  /// </summary>
   private static void CalculateZoopSegments(Vector3 startPos, Vector3 endPos, ZoopSegment segment)
   {
     segment.Directions.Clear();
@@ -995,6 +1082,9 @@ public static class ZoopUtility
     }
   }
 
+  /// <summary>
+  /// Builds the preview structure list for a small-grid zoop path.
+  /// </summary>
   private static void BuildSmallStructureList(InventoryManager inventoryManager, List<ZoopSegment> zoops,
     bool supportsCornerVariant)
   {
@@ -1049,6 +1139,9 @@ public static class ZoopUtility
     }
   }
 
+  /// <summary>
+  /// Determines whether the selected constructable family has a matching corner variant.
+  /// </summary>
   private static bool SupportsCornerVariant(List<Structure> constructables, int selectedIndex)
   {
     if (constructables == null || selectedIndex < 0 || selectedIndex >= constructables.Count)
@@ -1067,6 +1160,9 @@ public static class ZoopUtility
       && IsMatchingCornerFamily(selectedStructure, structure));
   }
 
+  /// <summary>
+  /// Returns whether a structure represents a corner prefab variant.
+  /// </summary>
   private static bool IsCornerVariant(Structure structure)
   {
     if (structure == null)
@@ -1084,6 +1180,9 @@ public static class ZoopUtility
     return structure.GetType().Name.IndexOf("Corner", StringComparison.OrdinalIgnoreCase) >= 0;
   }
 
+  /// <summary>
+  /// Checks whether a corner structure belongs to the same family as the selected structure.
+  /// </summary>
   private static bool IsMatchingCornerFamily(Structure selectedStructure, Structure cornerStructure)
   {
     return selectedStructure switch
@@ -1096,6 +1195,9 @@ public static class ZoopUtility
     };
   }
 
+  /// <summary>
+  /// Returns the placement count for a given zoop segment direction.
+  /// </summary>
   private static int GetCountForDirection(ZoopDirection direction, ZoopSegment segment)
   {
     return direction switch
@@ -1107,6 +1209,9 @@ public static class ZoopUtility
     };
   }
 
+  /// <summary>
+  /// Returns whether placements along the given zoop segment direction increase positively.
+  /// </summary>
   private static bool GetIncreasingForDirection(ZoopDirection direction, ZoopSegment segment)
   {
     return direction switch
@@ -1122,6 +1227,9 @@ public static class ZoopUtility
 
   #region BigGrid Methods
 
+  /// <summary>
+  /// Calculates the two-axis plane used for a large-grid zoop.
+  /// </summary>
   private static void CalculateZoopPlane(Vector3 startPos, Vector3 endPos, ZoopPlane plane)
   {
     var startX = startPos.x;
@@ -1149,6 +1257,9 @@ public static class ZoopUtility
     plane.Increasing = (direction1: directions[0].increasing, direction2: directions[1].increasing);
   }
 
+  /// <summary>
+  /// Builds the preview structure list for a large-grid zoop plane.
+  /// </summary>
   private static void BuildBigStructureList(InventoryManager inventoryManager, ZoopPlane plane)
   {
     Structures.Clear();
@@ -1168,6 +1279,9 @@ public static class ZoopUtility
     }
   }
 
+  /// <summary>
+  /// Reduces a vector to its dominant cardinal axis.
+  /// </summary>
   private static Vector3 GetCardinalAxis(Vector3 vector)
   {
     var normalized = vector.normalized;
@@ -1188,6 +1302,9 @@ public static class ZoopUtility
     return normalized.z >= 0f ? Vector3.forward : Vector3.back;
   }
 
+  /// <summary>
+  /// Adjusts the number of placements so shared corners are not duplicated.
+  /// </summary>
   private static int GetPlacementCount(int segmentCount, int segmentIndex, int directionCount, int directionIndex,
     int zoopCount)
   {
@@ -1200,6 +1317,9 @@ public static class ZoopUtility
     return zoopCount;
   }
 
+  /// <summary>
+  /// Applies an offset value to the axis that matches the supplied zoop direction.
+  /// </summary>
   private static void SetDirectionalOffset(ref float xOffset, ref float yOffset, ref float zOffset,
     ZoopDirection direction, float value)
   {
@@ -1223,6 +1343,9 @@ public static class ZoopUtility
 
   #region Calculation Methods
 
+  /// <summary>
+  /// Rotates a small-grid straight preview to match its zoop direction.
+  /// </summary>
   private static void SetStraightRotationSmallGrid(Structure structure, ZoopDirection zoopDirection)
   {
     switch (zoopDirection)
@@ -1251,6 +1374,9 @@ public static class ZoopUtility
     }
   }
 
+  /// <summary>
+  /// Rotates a corner preview so it connects the previous and next zoop directions.
+  /// </summary>
   private static void SetCornerRotation(Structure structure, ZoopDirection zoopDirectionFrom, bool increasingFrom,
     ZoopDirection zoopDirectionTo, bool increasingTo)
   {
