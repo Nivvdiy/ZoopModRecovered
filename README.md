@@ -43,6 +43,8 @@ Respect note: this continuation is being prepared cooperatively and with respect
 - [x] Add zooping for frames (Version 2024.30.10)
 - [x] Add possibility to zoop with windowed chute (Version 2024.17.10)
 - [x] Add zooping for wall
+- [ ] Add zooping for LArRE rails
+- [ ] Add option to prefer long pieces, eg for chutes and pipes
 
 ## Known Issues:
 - ~~Does not currently work in Authoring mode.~~ (Fixed in version 2024.17.10.01)
