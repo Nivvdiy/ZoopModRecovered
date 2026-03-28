@@ -51,7 +51,7 @@ public static class ZoopUtility
 
   public static bool IsZoopKeyPressed { get; set; }
 
-  public static bool isZooping { get; private set; }
+  public static bool IsZooping { get; private set; }
   private static int spacing = 1;
 
   public static Color LineColor { get; set; } = Color.green;
@@ -66,61 +66,57 @@ public static class ZoopUtility
   public static void StartZoop(InventoryManager inventoryManager)
   {
     if (!IsAllowed(InventoryManager.ConstructionCursor)) return;
-    isZooping = true;
-    if (_zoopCancellationSource == null)
-    {
-      Waypoints.Clear();
-      _zoopSpawnPrefab = InventoryManager.SpawnPrefab;
-      if (InventoryManager.ConstructionCursor != null)
-      {
-        var selectedConstructable = GetSelectedConstructable(inventoryManager);
-        AllowPlacementUpdate = true;
-        try
-        {
-          if (selectedConstructable != null) InventoryManager.UpdatePlacement(selectedConstructable);
-        }
-        finally
-        {
-          AllowPlacementUpdate = false;
-        }
-
-        _zoopStartRotation = InventoryManager.ConstructionCursor.transform.rotation;
-        _zoopStartWallNormal = InventoryManager.ConstructionCursor is Wall
-          ? GetCardinalAxis(InventoryManager.ConstructionCursor.transform.forward)
-          : Vector3.zero;
-
-        var startPos = GetCurrentMouseGridPosition();
-        if (startPos.HasValue) Waypoints.Add(startPos); // Add start position as the first waypoint
-      }
-
-      if (Waypoints.Count > 0)
-      {
-        var cts = new CancellationTokenSource();
-        _zoopCancellationSource = cts;
-        var ct = cts.Token;
-        UniTask.RunOnThreadPool(async () =>
-        {
-          try
-          {
-            await ZoopAsync(ct, inventoryManager);
-          }
-          finally
-          {
-            cts.Dispose();
-            _zoopCancellationSource = null;
-          }
-        }, cancellationToken: ct);
-      }
-    }
-    else
+    if (IsZooping)
     {
       CancelZoop();
+      return;
+    }
+    IsZooping = true;
+
+    Waypoints.Clear();
+    _zoopSpawnPrefab = InventoryManager.SpawnPrefab;
+    if (InventoryManager.ConstructionCursor != null)
+    {
+      var selectedConstructable = GetSelectedConstructable(inventoryManager);
+      AllowPlacementUpdate = true;
+      try
+      {
+        if (selectedConstructable != null) InventoryManager.UpdatePlacement(selectedConstructable);
+      }
+      finally
+      {
+        AllowPlacementUpdate = false;
+      }
+
+      _zoopStartRotation = InventoryManager.ConstructionCursor.transform.rotation;
+      _zoopStartWallNormal = InventoryManager.ConstructionCursor is Wall
+        ? GetCardinalAxis(InventoryManager.ConstructionCursor.transform.forward)
+        : Vector3.zero;
+
+      var startPos = GetCurrentMouseGridPosition();
+      if (startPos.HasValue) Waypoints.Add(startPos); // Add start position as the first waypoint
+    }
+
+    if (Waypoints.Count <= 0) return;
+
+    var cts = new CancellationTokenSource();
+    _zoopCancellationSource = cts;
+    var ct = cts.Token;
+    try
+    {
+      UniTask.RunOnThreadPool(async () => { await ZoopAsync(ct, inventoryManager); }, cancellationToken: ct);
+    }
+    finally
+    {
+      cts.Dispose();
+      _zoopCancellationSource = null;
+      IsZooping = false;
     }
   }
 
   public static void CancelZoop()
   {
-    isZooping = false;
+    IsZooping = false;
     CancelPendingBuild();
     if (_zoopCancellationSource != null)
     {

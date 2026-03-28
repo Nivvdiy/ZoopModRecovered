@@ -17,7 +17,7 @@ public class InventoryManagerSetMultiConstruct
   [UsedImplicitly]
   public static void Prefix(InventoryManager __instance, MultiConstructor multiConstructorItem)
   {
-    if (ZoopUtility.isZooping)
+    if (ZoopUtility.IsZooping)
     {
       //ConsoleWindow.Print("detected: " + multiConstructorItem.PrefabHash);
       ZoopMod.Log("detected: " + multiConstructorItem.PrefabHash, ZoopMod.Logs.debug);
@@ -32,7 +32,7 @@ public class InventoryManagerSetConstruct
   [UsedImplicitly]
   public static void Prefix(InventoryManager __instance, Constructor constructorItem)
   {
-    if (ZoopUtility.isZooping)
+    if (ZoopUtility.IsZooping)
     {
       //ConsoleWindow.Print("detected: " + constructorItem.PrefabHash);
       ZoopMod.Log("detected: " + constructorItem.PrefabHash, ZoopMod.Logs.debug);
@@ -47,7 +47,7 @@ public class InventoryManagerCancelPlacement
   [UsedImplicitly]
   public static void Prefix(InventoryManager __instance)
   {
-    if (ZoopUtility.isZooping)
+    if (ZoopUtility.IsZooping)
     {
       ZoopMod.Log("zoop canceled at CancelPlacement", ZoopMod.Logs.debug);
       ZoopUtility.CancelZoop();
@@ -62,7 +62,7 @@ public class InventoryManagerUpdatePlacementConstructor
   [UsedImplicitly]
   public static bool Prefix(InventoryManager __instance)
   {
-    return !ZoopUtility.isZooping || ZoopUtility.AllowPlacementUpdate; //false prevents placing down item //NICE CHECK
+    return !ZoopUtility.IsZooping || ZoopUtility.AllowPlacementUpdate; //false prevents placing down item //NICE CHECK
   }
 }
 
@@ -72,7 +72,7 @@ public class InventoryManagerUpdatePlacementStructure
   [UsedImplicitly]
   public static bool Prefix(InventoryManager __instance)
   {
-    return !ZoopUtility.isZooping || ZoopUtility.AllowPlacementUpdate; //false prevents placing down item
+    return !ZoopUtility.IsZooping || ZoopUtility.AllowPlacementUpdate; //false prevents placing down item
   }
 }
 
@@ -84,7 +84,7 @@ public class InventoryManagerWaitUntilDone0
   public static void Prefix(InventoryManager __instance, InventoryManager.DelegateEvent onFinished,
     ref float timeToWait, Structure structure)
   {
-    if (!ZoopUtility.isZooping) return;
+    if (!ZoopUtility.IsZooping) return;
 
     if (!InventoryManager.IsAuthoringMode)
     {
@@ -119,12 +119,12 @@ public class InventoryManagerPlacementMode
       ZoopUtility.StartZoop(__instance);
     }
 
-    if (addWaypoint && ZoopUtility.isZooping) ZoopUtility.AddWaypoint();
+    if (addWaypoint && ZoopUtility.IsZooping) ZoopUtility.AddWaypoint();
 
-    if (removeWaypoint && ZoopUtility.isZooping) ZoopUtility.RemoveLastWaypoint();
+    if (removeWaypoint && ZoopUtility.IsZooping) ZoopUtility.RemoveLastWaypoint();
 
 
-    if (primary && ZoopUtility.isZooping && !ZoopUtility.IsZoopKeyPressed)
+    if (primary && ZoopUtility.IsZooping && !ZoopUtility.IsZoopKeyPressed)
     {
       if (!ZoopUtility.HasError)
       {
@@ -157,7 +157,7 @@ public class InventoryManagerPlacementMode
         }
       }
 
-      return !ZoopUtility.isZooping;
+      return !ZoopUtility.IsZooping;
     }
 
     if (secondary)
@@ -196,7 +196,7 @@ public class CursorManagerSetSelectionColor
   [UsedImplicitly]
   public static void Postfix()
   {
-    if (ZoopUtility.isZooping)
+    if (ZoopUtility.IsZooping)
       CursorManager.CursorSelectionRenderer.material.color =
         ZoopUtility.LineColor.SetAlpha(InventoryManager.Instance.CursorAlphaInteractable);
   }
