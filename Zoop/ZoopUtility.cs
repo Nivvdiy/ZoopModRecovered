@@ -988,10 +988,42 @@ public static class ZoopUtility
   }
 
   /// <summary>
+  /// Returns whether authoring-mode previews should use the game's placement validator.
+  /// </summary>
+  private static bool ShouldUseAuthoringPlacementValidation()
+  {
+    return InventoryManager.IsAuthoringMode && InventoryManager.ActiveHandSlot.Get() is AuthoringTool;
+  }
+
+  /// <summary>
+  /// Uses the game's placement validation when the preview clone has enough state for it.
+  /// </summary>
+  private static bool TryCanConstructAuthoringPlacement(Structure structure, out bool canConstruct)
+  {
+    try
+    {
+      var canConstructInfo = structure.CanConstruct();
+      canConstruct = canConstructInfo.CanConstruct;
+      return true;
+    }
+    catch (NullReferenceException)
+    {
+      canConstruct = false;
+      return false;
+    }
+  }
+
+  /// <summary>
   /// Checks whether a small-grid preview structure can be built in its current cell.
   /// </summary>
   private static bool CanConstructSmallCell(InventoryManager inventoryManager, Structure structure)
   {
+    if (ShouldUseAuthoringPlacementValidation() &&
+        TryCanConstructAuthoringPlacement(structure, out var authoringCanConstruct))
+    {
+      return authoringCanConstruct;
+    }
+
     var smallCell = structure.GridController.GetSmallCell(structure.ThingTransformLocalPosition);
     var hasBlockingOtherStructure = smallCell?.Other != null;
     var hasDeviceOnCell = smallCell?.Device != null;
@@ -1063,6 +1095,12 @@ public static class ZoopUtility
   /// </summary>
   private static bool CanConstructBigCell(Structure structure)
   {
+    if (ShouldUseAuthoringPlacementValidation() &&
+        TryCanConstructAuthoringPlacement(structure, out var authoringCanConstruct))
+    {
+      return authoringCanConstruct;
+    }
+
     var cell = structure.GridController.GetCell(structure.ThingTransformLocalPosition);
     if (cell != null)
     {
