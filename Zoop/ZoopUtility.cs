@@ -1032,31 +1032,6 @@ public static class ZoopUtility
     return InventoryManager.ConstructionCursor is LargeStructure;
   }
 
-  /// <summary>
-  /// Returns whether authoring-mode previews should use the game's placement validator.
-  /// </summary>
-  private static bool ShouldUseAuthoringPlacementValidation()
-  {
-    return InventoryManager.IsAuthoringMode && InventoryManager.ActiveHandSlot.Get() is AuthoringTool;
-  }
-
-  /// <summary>
-  /// Uses the game's placement validation when the preview clone has enough state for it.
-  /// </summary>
-  private static bool TryCanConstructAuthoringPlacement(Structure structure, out bool canConstruct)
-  {
-    try
-    {
-      var canConstructInfo = structure.CanConstruct();
-      canConstruct = canConstructInfo.CanConstruct;
-      return true;
-    }
-    catch (NullReferenceException)
-    {
-      canConstruct = false;
-      return false;
-    }
-  }
 
   /// <summary>
   /// Checks whether a small-grid preview structure can be built in its current cell.
