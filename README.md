@@ -1,15 +1,11 @@
 # ZoopMod
 
-Fork maintained by **MerGatto**. Compatible with **The Gases Update** and confirmed to work as a **client on multiplayer servers**.
-
 **WARNING:**  
 This mod requires the StationeersLaunchPad Plugin Mod and BepInEx to be installed.  
 For installation, see the detailed guide at https://github.com/StationeersLaunchPad/StationeersLaunchPad
 If you have an older loader setup installed, please remove it and use StationeersLaunchPad instead.
 Please ensure you are unsubscribed from old versions of this mod:  
 https://steamcommunity.com/sharedfiles/filedetails/?id=3182410797
-
-Development note: this fork was developed with AI-assisted tooling, with all changes reviewed and integrated by **MerGatto**.
 
 Allows you to build long lines of cables, pipes, or chutes between two points in a single action.  
 Lines cannot exceed the quantity of building materials in hand.  
@@ -35,10 +31,9 @@ All keys can be customized in the Stationeers settings.
 - **jixxed** for the initial update.
 - **Katsuk** for the latest update.
 - **tsholmes** for the last fix.
-- **Nivvdiy** for the previous public releases and maintenance before this fork.
 - **The Stationeers community** for their support and feedback.
 
-Respect note: if any previous maintainer asks for this fork to be taken down, **MerGatto** will take it down.
+Respect note: this continuation is being prepared cooperatively and with respect for the mod's previous maintainers.
 "If I have seen further, it is by standing on the shoulders of giants." - Isaac Newton
 
 ## TODO:

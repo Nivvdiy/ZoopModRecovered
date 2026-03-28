@@ -1,11 +1,5 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
-
-<ModMetadata xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
-  <Name>ZoopMod [StationeersLaunchPad]</Name><Author>MerGatto</Author><Version>2026.28.03</Version>
-  <Description>
+﻿<?xml version="1.0" encoding="utf-8"?><ModMetadata xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"><Name>ZoopMod [StationeersLaunchPad]</Name><Author>Nivvdiy, MerGatto</Author><Version>2026.28.03</Version><Description>
     [h1]ZoopMod[/h1]
-
-    Fork maintained by [b]MerGatto[/b]. Compatible with [b]The Gases Update[/b] and confirmed to work as a [b]client on multiplayer servers[/b].
 
     [b]WARNING:[/b]
     This mod requires the StationeersLaunchPad Plugin Mod and BepInEx to be installed.
@@ -14,9 +8,6 @@
 
     Please ensure you are unsubscribed from old versions of this mod:
     https://steamcommunity.com/sharedfiles/filedetails/?id=3310094883
-
-    [b]AI DISCLAIMER:[/b]
-    This fork was developed with AI-assisted tooling, with all changes reviewed and integrated by [b]MerGatto[/b].
 
     [b]Cables, Pipes, Chutes[/b]
     Allows you to build long lines between two points in a single action.
@@ -53,13 +44,15 @@
     [*]jixxed for the advanced version
     [*]Katsuk for the updated version
     [*]tsholmes for the last fix
-    [*]Nivvdiy for the previous public releases and maintenance before this fork
     [*]The Stationeers community for their support and feedback
     [/list]
 
     [b]Respect note:[/b]
-    If any previous maintainer asks for this fork to be taken down, I will take it down.
+    This continuation is being prepared cooperatively and with respect for the mod's previous maintainers.
     [i]"If I have seen further, it is by standing on the shoulders of giants." - Isaac Newton[/i]
+
+    If you would like to support [b]Nivvdiy[/b], consider buying a coffee:
+    [url=https://www.buymeacoffee.com/nivvdiy][img]https://cdn.buymeacoffee.com/buttons/v2/default-blue.png[/img][/url]
 
     [b]TODO:[/b]
     [list]
@@ -90,14 +83,8 @@
     [*]"Bug Fixing" update (August 13, 2024)
     [*]"Tutorials and Helper Hints" update (August 5, 2024)
     [/list]
-  </Description>
-  <ChangeLog xsi:nil="true" />
-  <Tags>
-    <Tag>StationeersLaunchPad</Tag>
-  </Tags>
-  <Dependencies /><LoadBefore /><LoadAfter />
-  <InGameDescription><![CDATA[<size="30"><color=#ffa500>ZoopMod</color></size>
-<b>Maintained by:</b> MerGatto
+  </Description><ChangeLog xsi:nil="true" /><WorkshopHandle>3310094883</WorkshopHandle><Tags><Tag>StationeersLaunchPad</Tag></Tags><Dependencies /><LoadBefore /><LoadAfter /><InGameDescription><![CDATA[<size="30"><color=#ffa500>ZoopMod</color></size>
+<b>Maintained by:</b> Nivvdiy and MerGatto
 <b>WARNING:</b> <color=#ff0000>This mod requires the StationeersLaunchPad Plugin and BepInEx to function properly.</color>
 Make sure you are unsubscribed from any previous versions. Installation details are available at <b><u><color=#00ccff>https://github.com/StationeersLaunchPad/StationeersLaunchPad</color></u></b>.
 
@@ -112,5 +99,4 @@ Waypoints can be added to extend the length of cables.
 Can build long surface between two points.
 Zooping take biggest surface, can't build a big cube on zoop mode.
 Frames can't be placed if another frame, walls or any other large structure is in the way (it's to avoid error and wrong consumption of item).
-No waypoints for frames.]]></InGameDescription>
-</ModMetadata>
+No waypoints for frames.]]></InGameDescription></ModMetadata>
