@@ -29,6 +29,7 @@ internal sealed class ZoopController(
   }
 
   private const int DefaultSpacing = 1;
+  private const float PendingBuildStartDelaySeconds = 0.050f;
   private static readonly MethodInfo WaitUntilDoneMethod = typeof(InventoryManager).GetMethod("WaitUntilDone",
     BindingFlags.NonPublic | BindingFlags.Instance, null,
     [typeof(InventoryManager.DelegateEvent), typeof(float), typeof(Structure)],
@@ -334,18 +335,7 @@ internal sealed class ZoopController(
 
     try
     {
-      var onBuildFinished = new InventoryManager.DelegateEvent(() => BuildPendingZoop(inventoryManager));
-      var buildTime = InventoryManager.ConstructionCursor.BuildPlacementTime;
-      var structure = InventoryManager.ConstructionCursor;
-      var waitRoutine = WaitUntilDoneMethod.Invoke(
-        inventoryManager,
-        [onBuildFinished, buildTime, structure]) as IEnumerator;
-      if (waitRoutine == null)
-      {
-        return false;
-      }
-
-      var actionCoroutine = inventoryManager.StartCoroutine(WaitForPendingBuildCompletion(waitRoutine));
+      var actionCoroutine = inventoryManager.StartCoroutine(BeginPendingBuildAfterDelay(inventoryManager));
 
       if (actionCoroutine == null)
       {
@@ -364,8 +354,45 @@ internal sealed class ZoopController(
     }
   }
 
-  private IEnumerator WaitForPendingBuildCompletion(IEnumerator waitRoutine)
+  /// <summary>
+  /// Adds a short realtime pause before entering the game's native build wait coroutine.
+  /// This gives the construction cursor time to settle after fast tool/build-option changes,
+  /// which avoids native wait cancellation caused by transitional cursor state.
+  /// </summary>
+  private IEnumerator BeginPendingBuildAfterDelay(InventoryManager inventoryManager)
   {
+    ZoopLog.Debug($"[Build] Waiting {PendingBuildStartDelaySeconds:0.###} seconds before starting native delayed build.");
+    yield return new WaitForSecondsRealtime(PendingBuildStartDelaySeconds);
+
+    if (state != ZoopLifecycleState.PendingBuild || pendingBuildPlan == null)
+    {
+      yield break;
+    }
+
+    if (InventoryManager.ConstructionCursor == null)
+    {
+      ZoopLog.Debug("[Build] Construction cursor vanished before native delayed build could start; resuming preview.");
+      var owner = pendingBuildOwner;
+      ClearPendingBuildState();
+      ResumePreviewing(owner);
+      yield break;
+    }
+
+    var onBuildFinished = new InventoryManager.DelegateEvent(() => BuildPendingZoop(inventoryManager));
+    var buildTime = InventoryManager.ConstructionCursor.BuildPlacementTime;
+    var structure = InventoryManager.ConstructionCursor;
+    var waitRoutine = WaitUntilDoneMethod.Invoke(
+      inventoryManager,
+      [onBuildFinished, buildTime, structure]) as IEnumerator;
+    if (waitRoutine == null)
+    {
+      ZoopLog.Error("[Build] Native delayed build coroutine was unavailable after start delay.");
+      var owner = pendingBuildOwner;
+      ClearPendingBuildState();
+      ResumePreviewing(owner);
+      yield break;
+    }
+
     yield return waitRoutine;
 
     if (state != ZoopLifecycleState.PendingBuild || pendingBuildPlan == null)
@@ -374,9 +401,9 @@ internal sealed class ZoopController(
     }
 
     ZoopLog.Debug("[Build] Delayed zoop build was interrupted before completion; resuming zoop preview.");
-    var inventoryManager = pendingBuildOwner;
+    var inventoryManagerAfterWait = pendingBuildOwner;
     ClearPendingBuildState();
-    ResumePreviewing(inventoryManager);
+    ResumePreviewing(inventoryManagerAfterWait);
   }
 
   private static Assets.Scripts.ICreativeSpawnable ResolveSpawnPrefabForBuild(ZoopDraft draft, InventoryManager inventoryManager,
