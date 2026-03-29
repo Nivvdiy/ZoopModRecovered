@@ -6,13 +6,11 @@ using System.Threading;
 using Assets.Scripts.Inventory;
 using Assets.Scripts.Objects;
 using Assets.Scripts.Objects.Electrical;
-using Assets.Scripts.Objects.Items;
 using Assets.Scripts.Objects.Pipes;
 using Assets.Scripts.Util;
 using Cysharp.Threading.Tasks;
 using Objects.Structures;
 using UnityEngine;
-using UnityObject = UnityEngine.Object;
 
 namespace ZoopMod.Zoop;
 
@@ -21,6 +19,7 @@ public static class ZoopUtility
   #region Fields
 
   private static readonly ZoopSession Session = new();
+  private static readonly ZoopPreviewFactory PreviewFactory = new(Session);
 
   public static int PreviewCount => Session.PreviewCount;
   public static bool HasError { get => Session.HasError; private set => Session.HasError = value; }
@@ -167,7 +166,7 @@ public static class ZoopUtility
     {
       Session.CancellationSource.Cancel();
       Session.CancellationSource = null;
-      ClearStructureCache();
+      PreviewFactory.ClearStructureCache();
       Session.ResetActiveZoopState(); //try to reset a list of structures for single piece placing
     }
 
@@ -218,11 +217,6 @@ public static class ZoopUtility
   private static int GetPreviewBuildIndex(int index)
   {
     return Session.PreviewPieces[index].BuildIndex;
-  }
-
-  private static void AddPreviewPiece(Structure structure, int buildIndex)
-  {
-    Session.PreviewPieces.Add(new PreviewPiece(structure, buildIndex));
   }
 
   /// <summary>
@@ -672,81 +666,6 @@ public static class ZoopUtility
   }
 
   /// <summary>
-  /// Adds the next straight or corner preview structure when enough resources are available.
-  /// </summary>
-  private static void AddStructure(List<Structure> constructables, bool isCorner, int index, int secondaryCount,
-    ref bool canBuildNext, InventoryManager im, bool supportsCornerVariant)
-  {
-    var selectedIndex = im.ConstructionPanel.Parent.LastSelectedIndex;
-    var straightCount = isCorner ? secondaryCount : index;
-    var cornerCount = isCorner ? index : secondaryCount;
-
-    var activeItem = constructables[selectedIndex];
-    if (!isCorner && supportsCornerVariant)
-    {
-      switch (activeItem)
-      {
-        case Pipe or Cable or Frame when selectedIndex != 0:
-        case Chute when selectedIndex != 0 && selectedIndex != 2:
-          selectedIndex = 0;
-          break;
-      }
-    }
-
-    var activeHandItem = InventoryManager.ActiveHandSlot.Get();
-    switch (activeHandItem)
-    {
-      case Stackable constructor:
-        var canMakeItem = activeItem switch
-        {
-          Chute when selectedIndex == 0 => constructor.Quantity > PreviewPieceCount,
-          Chute when selectedIndex == 2 => constructor.Quantity > straightCount * 2 + (isCorner ? 0 : 1) + cornerCount,
-          _ => constructor.Quantity > PreviewPieceCount
-        };
-
-        if (canMakeItem && canBuildNext)
-        {
-          MakeItem(constructables, isCorner, index, !isCorner ? selectedIndex : 1, supportsCornerVariant);
-          canBuildNext = true;
-        }
-        else
-        {
-          canBuildNext = false;
-        }
-
-        break;
-      case AuthoringTool:
-        MakeItem(constructables, isCorner, index, !isCorner ? selectedIndex : 1, supportsCornerVariant);
-        canBuildNext = true;
-        break;
-    }
-  }
-
-  /// <summary>
-  /// Destroys cached preview structures and resets the preview caches.
-  /// </summary>
-  private static void ClearStructureCache()
-  {
-    foreach (var structure in Session.StraightCache)
-    {
-      structure.gameObject.SetActive(false);
-      UnityObject.Destroy(structure);
-    }
-
-    Session.StraightCache.Clear();
-    Session.StraightCacheBuildIndices.Clear();
-
-    foreach (var structure in Session.CornerCache)
-    {
-      structure.gameObject.SetActive(false);
-      UnityObject.Destroy(structure);
-    }
-
-    Session.CornerCache.Clear();
-    Session.CornerCacheBuildIndices.Clear();
-  }
-
-  /// <summary>
   /// Returns the current construction cursor position snapped to the zoop grid.
   /// </summary>
   private static Vector3? GetCurrentMouseGridPosition()
@@ -763,86 +682,6 @@ public static class ZoopUtility
 
     var cursorHitPoint = InventoryManager.ConstructionCursor.GetLocalGrid().ToVector3();
     return cursorHitPoint;
-  }
-
-  /// <summary>
-  /// Reuses or creates a preview structure and adds it to the active zoop list.
-  /// </summary>
-  private static void MakeItem(List<Structure> constructables, bool isCorner, int index, int selectedIndex,
-    bool supportsCornerVariant)
-  {
-    switch (isCorner)
-    {
-      case false when Session.StraightCache.Count > index:
-        {
-          if (!supportsCornerVariant)
-          {
-            ApplyCursorRotation(Session.StraightCache[index]);
-          }
-
-          AddPreviewPiece(Session.StraightCache[index], Session.StraightCacheBuildIndices[index]);
-          break;
-        }
-      case true when Session.CornerCache.Count > index:
-        {
-          if (!supportsCornerVariant)
-          {
-            ApplyCursorRotation(Session.CornerCache[index]);
-          }
-
-          AddPreviewPiece(Session.CornerCache[index], Session.CornerCacheBuildIndices[index]);
-          break;
-        }
-      default:
-        {
-          var structure = constructables[selectedIndex];
-          if (structure == null)
-          {
-            return;
-          }
-
-          var structureNew = UnityObject.Instantiate(InventoryManager.GetStructureCursor(structure.PrefabName));
-          if (structureNew != null)
-          {
-            structureNew.gameObject.SetActive(true);
-            if (!supportsCornerVariant)
-            {
-              ApplyCursorRotation(structureNew);
-            }
-
-            AddPreviewPiece(structureNew, selectedIndex);
-            if (isCorner)
-            {
-              Session.CornerCache.Add(structureNew);
-              Session.CornerCacheBuildIndices.Add(selectedIndex);
-            }
-            else
-            {
-              Session.StraightCache.Add(structureNew);
-              Session.StraightCacheBuildIndices.Add(selectedIndex);
-            }
-          }
-
-          break;
-        }
-    }
-  }
-
-  /// <summary>
-  /// Applies the current cursor rotation to a preview structure.
-  /// </summary>
-  private static void ApplyCursorRotation(Structure structure)
-  {
-    if (structure == null || InventoryManager.ConstructionCursor == null)
-    {
-      return;
-    }
-
-    var rotation = structure is Wall && Session.ZoopStartWallNormal != Vector3.zero
-      ? Session.ZoopStartRotation
-      : InventoryManager.ConstructionCursor.transform.rotation;
-
-    SetStructureRotation(structure, rotation);
   }
 
   /// <summary>
@@ -1323,9 +1162,7 @@ public static class ZoopUtility
   private static void BuildSmallStructureList(InventoryManager inventoryManager, List<ZoopSegment> zoops,
     bool supportsCornerVariant)
   {
-    Session.ClearPreviewPieces();
-    Session.StraightCache.ForEach(structure => structure.GameObject.SetActive(false));
-    Session.CornerCache.ForEach(structure => structure.GameObject.SetActive(false));
+    PreviewFactory.ResetSmallGridPreviewList();
 
     var straight = 0;
     var corners = 0;
@@ -1348,22 +1185,22 @@ public static class ZoopUtility
           {
             if (zoopDirection != lastDirection)
             {
-              AddStructure(inventoryManager.ConstructionPanel.Parent.Constructables, true, corners, straight,
-                ref canBuildNext, inventoryManager,
+              PreviewFactory.AddStructure(inventoryManager.ConstructionPanel.Parent.Constructables, true, corners,
+                straight, ref canBuildNext, inventoryManager,
                 supportsCornerVariant); // start with corner on secondary and tertiary zoop directions
               corners++;
             }
             else
             {
-              AddStructure(inventoryManager.ConstructionPanel.Parent.Constructables, false, straight, corners,
-                ref canBuildNext, inventoryManager, supportsCornerVariant);
+              PreviewFactory.AddStructure(inventoryManager.ConstructionPanel.Parent.Constructables, false, straight,
+                corners, ref canBuildNext, inventoryManager, supportsCornerVariant);
               straight++;
             }
           }
           else
           {
-            AddStructure(inventoryManager.ConstructionPanel.Parent.Constructables, false, straight, corners,
-              ref canBuildNext, inventoryManager, supportsCornerVariant);
+            PreviewFactory.AddStructure(inventoryManager.ConstructionPanel.Parent.Constructables, false, straight,
+              corners, ref canBuildNext, inventoryManager, supportsCornerVariant);
             straight++;
           }
 
@@ -1496,8 +1333,7 @@ public static class ZoopUtility
   /// </summary>
   private static void BuildBigStructureList(InventoryManager inventoryManager, ZoopPlane plane)
   {
-    Session.ClearPreviewPieces();
-    Session.StraightCache.ForEach(structure => structure.GameObject.SetActive(false));
+    PreviewFactory.ResetBigGridPreviewList();
     var count = 0;
     var canBuildNext = true;
 
@@ -1505,8 +1341,8 @@ public static class ZoopUtility
     {
       for (var indexDirection1 = 0; indexDirection1 < plane.Count.direction1; indexDirection1++)
       {
-        AddStructure(inventoryManager.ConstructionPanel.Parent.Constructables, false, count, 0, ref canBuildNext,
-          inventoryManager, false);
+        PreviewFactory.AddStructure(inventoryManager.ConstructionPanel.Parent.Constructables, false, count, 0,
+          ref canBuildNext, inventoryManager, false);
         count++;
       }
     }
