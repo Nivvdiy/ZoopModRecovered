@@ -17,6 +17,13 @@ internal interface ISmallGridPreviewLayoutAdapter
   Vector3Int GetDraftCellKey(Vector3 position);
 }
 
+internal interface IBigGridPreviewLayoutAdapter
+{
+  ZoopDraft Draft { get; }
+  Structure GetDraftPreviewStructure(int index);
+  bool CanConstructBigCell(InventoryManager inventoryManager, Structure structure, int structureIndex);
+}
+
 internal sealed class SmallGridRotationStep
 {
   public int StructureCounter { get; set; }
@@ -141,23 +148,20 @@ internal static class ZoopPreviewLayoutCoordinator
   /// Walls and frames do not need the small-grid turn handling, so this flow is just offset calculation plus
   /// per-cell constructibility checks.
   /// </summary>
-  public static void PositionBigGridStructures(
-    ZoopDraft draft,
+  public static bool PositionBigGridStructures(
+    IBigGridPreviewLayoutAdapter adapter,
     InventoryManager inventoryManager,
     Vector3 startPos,
     ZoopPlane plane,
-    int spacing,
-    System.Func<int, Structure> getPreviewStructure,
-    System.Func<InventoryManager, Structure, int, bool> canConstructBigCell,
-    System.Action<bool> setHasError)
+    int spacing)
   {
+    var draft = adapter.Draft;
     var structureCounter = 0;
     var hasError = false;
 
     if (draft.PreviewCount <= 0)
     {
-      setHasError(false);
-      return;
+      return false;
     }
 
     float xOffset = 0;
@@ -191,15 +195,15 @@ internal static class ZoopPreviewLayoutCoordinator
 
         var offset = new Vector3(xOffset, yOffset, zOffset);
         var previewPosition = startPos + offset;
-        var previewStructure = getPreviewStructure(structureCounter);
+        var previewStructure = adapter.GetDraftPreviewStructure(structureCounter);
         previewStructure.GameObject.SetActive(true);
         previewStructure.ThingTransformPosition = previewPosition;
         previewStructure.Position = previewPosition;
-        hasError = hasError || !canConstructBigCell(inventoryManager, previewStructure, structureCounter);
+        hasError = hasError || !adapter.CanConstructBigCell(inventoryManager, previewStructure, structureCounter);
         structureCounter++;
       }
     }
 
-    setHasError(hasError);
+    return hasError;
   }
 }

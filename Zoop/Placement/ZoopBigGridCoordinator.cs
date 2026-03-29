@@ -15,6 +15,22 @@ internal sealed class ZoopBigGridCoordinator(
   ZoopPreviewFactory previewFactory,
   ZoopPreviewValidator previewValidator)
 {
+  private sealed class BigGridPreviewLayoutAdapter(ZoopDraft draft, ZoopPreviewValidator previewValidator)
+    : IBigGridPreviewLayoutAdapter
+  {
+    public ZoopDraft Draft { get; } = draft;
+
+    public Structure GetDraftPreviewStructure(int index)
+    {
+      return Draft.PreviewPieces[index].Structure;
+    }
+
+    public bool CanConstructBigCell(InventoryManager inventoryManager, Structure structure, int structureIndex)
+    {
+      return previewValidator.CanConstructBigCell(Draft, inventoryManager, structure, structureIndex);
+    }
+  }
+
   /// <summary>
   /// Rebuilds the active large-grid preview for the current snapped cursor position.
   /// </summary>
@@ -35,15 +51,13 @@ internal sealed class ZoopBigGridCoordinator(
       return;
     }
 
-    ZoopPreviewLayoutCoordinator.PositionBigGridStructures(
-      draft,
+    var layoutAdapter = new BigGridPreviewLayoutAdapter(draft, previewValidator);
+    draft.HasError = draft.HasError || ZoopPreviewLayoutCoordinator.PositionBigGridStructures(
+      layoutAdapter,
       inventoryManager,
       startPos,
       plane,
-      spacing,
-      index => GetPreviewStructure(draft, index),
-      (manager, structure, structureIndex) => CanConstructBigCell(draft, manager, structure, structureIndex),
-      hasError => draft.HasError = draft.HasError || hasError);
+      spacing);
   }
 
   /// <summary>
@@ -66,17 +80,6 @@ internal sealed class ZoopBigGridCoordinator(
       }
     }
   }
-
-  private static Structure GetPreviewStructure(ZoopDraft draft, int index)
-  {
-    return draft.PreviewPieces[index].Structure;
-  }
-
-  private bool CanConstructBigCell(ZoopDraft draft, InventoryManager inventoryManager, Structure structure, int structureIndex)
-  {
-    return previewValidator.CanConstructBigCell(draft, inventoryManager, structure, structureIndex);
-  }
-
   private static Vector3 ClampWallZoopPositionToStartPlane(ZoopDraft draft, Vector3 startPos, Vector3 targetPos)
   {
     if (InventoryManager.ConstructionCursor is not Wall || draft.ZoopStartWallNormal == Vector3.zero)
