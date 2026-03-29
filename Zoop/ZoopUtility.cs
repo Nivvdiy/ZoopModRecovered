@@ -250,82 +250,19 @@ public static class ZoopUtility
       return;
     }
 
-    PositionSmallGridStructures(inventoryManager, zoops, supportsCornerVariant, plan.IsSinglePlacement);
-  }
-
-  /// <summary>
-  /// Positions the active small-grid preview structures along the zoop segments.
-  /// </summary>
-  private static void PositionSmallGridStructures(InventoryManager inventoryManager, List<ZoopSegment> zoops,
-    bool supportsCornerVariant, bool singleItem)
-  {
-    var structureCounter = 0;
-    var lastDirection = ZoopDirection.none;
-    var occupiedCells = new HashSet<Vector3Int>();
-
-    for (var segmentIndex = 0; segmentIndex < zoops.Count; segmentIndex++)
-    {
-      var segment = zoops[segmentIndex];
-      float xOffset = 0;
-      float yOffset = 0;
-      float zOffset = 0;
-      var startPos = Session.Waypoints[segmentIndex];
-      for (var directionIndex = 0; directionIndex < segment.Directions.Count; directionIndex++)
-      {
-        if (structureCounter == PreviewPieceCount)
-        {
-          break;
-        }
-
-        var zoopDirection = segment.Directions[directionIndex];
-        var increasing = ZoopPathPlanner.GetIncreasingForDirection(zoopDirection, segment);
-        var zoopCounter = ZoopPathPlanner.GetPlacementCount(zoops.Count, segmentIndex, segment.Directions.Count,
-          directionIndex, ZoopPathPlanner.GetCountForDirection(zoopDirection, segment));
-        var value = ZoopPathPlanner.GetDirectionalPlacementValue(increasing,
-          InventoryManager.ConstructionCursor is SmallGrid, spacing);
-
-        for (var zi = 0; zi < zoopCounter; zi++)
-        {
-          if (structureCounter == PreviewPieceCount)
-          {
-            break;
-          }
-
-          ZoopPathPlanner.SetDirectionalOffset(ref xOffset, ref yOffset, ref zOffset, zoopDirection, zi * value);
-
-          var increasingFrom = ZoopPathPlanner.GetIncreasingFromPreviousDirection(zoops, segment, segmentIndex,
-            directionIndex, zi,
-            lastDirection);
-          ApplySmallGridRotation(structureCounter, supportsCornerVariant, singleItem, segmentIndex, directionIndex, zi,
-            lastDirection, zoopDirection, increasingFrom, increasing);
-
-          lastDirection = zoopDirection;
-
-          var offset = new Vector3(xOffset, yOffset, zOffset);
-          var previewPosition = startPos + offset;
-          var previewStructure = GetPreviewStructure(structureCounter);
-          previewStructure.GameObject.SetActive(true);
-          previewStructure.ThingTransformPosition = previewPosition;
-          previewStructure.Position = previewPosition;
-          if (!ZoopMod.CFree)
-          {
-            // Small-grid zoops cannot safely revisit the same cell: cables can overlap incorrectly and chutes
-            // do not have a valid intersection piece at all.
-            var cellKey = GetSmallGridCellKey(previewPosition);
-            var revisitsExistingZoopCell = occupiedCells.Contains(cellKey);
-            occupiedCells.Add(cellKey);
-            HasError = HasError || revisitsExistingZoopCell;
-            HasError = HasError || !CanConstructSmallCell(inventoryManager, previewStructure, structureCounter);
-          }
-
-          structureCounter++;
-          if (zi == zoopCounter - 1)
-          {
-            ZoopPathPlanner.SetDirectionalOffset(ref xOffset, ref yOffset, ref zOffset, zoopDirection, (zi + 1) * value);
-          }
-        }
-      }
-    }
+    ZoopPreviewLayoutCoordinator.PositionSmallGridStructures(
+      Session,
+      inventoryManager,
+      zoops,
+      supportsCornerVariant,
+      plan.IsSinglePlacement,
+      spacing,
+      GetPreviewStructure,
+      ApplySmallGridRotation,
+      CanConstructSmallCell,
+      GetSmallGridCellKey,
+      ZoopMod.CFree,
+      hasError => HasError = HasError || hasError);
   }
 
   /// <summary>
@@ -376,50 +313,20 @@ public static class ZoopUtility
 
     BuildBigStructureList(inventoryManager, plane);
 
-    var structureCounter = 0;
     if (PreviewPieceCount <= 0)
     {
       return;
     }
 
-    float xOffset = 0;
-    float yOffset = 0;
-    float zOffset = 0;
-
-    spacing = Mathf.Max(spacing, 1);
-
-    for (var indexDirection2 = 0; indexDirection2 < plane.Count.direction2; indexDirection2++)
-    {
-      var zoopDirection2 = plane.Directions.direction2;
-      var increasing2 = plane.Increasing.direction2;
-
-      var value2 = ZoopPathPlanner.GetDirectionalPlacementValue(increasing2, false, spacing);
-      ZoopPathPlanner.SetDirectionalOffset(ref xOffset, ref yOffset, ref zOffset, zoopDirection2, indexDirection2 * value2);
-
-      for (var indexDirection1 = 0; indexDirection1 < plane.Count.direction1; indexDirection1++)
-      {
-        if (structureCounter == PreviewPieceCount)
-        {
-          break;
-        }
-
-        var zoopDirection1 = plane.Directions.direction1;
-        var increasing1 = plane.Increasing.direction1;
-
-        var value1 = ZoopPathPlanner.GetDirectionalPlacementValue(increasing1, false, spacing);
-        ZoopPathPlanner.SetDirectionalOffset(ref xOffset, ref yOffset, ref zOffset, zoopDirection1,
-          indexDirection1 * value1);
-
-        var offset = new Vector3(xOffset, yOffset, zOffset);
-        var previewPosition = startPos + offset;
-        var previewStructure = GetPreviewStructure(structureCounter);
-        previewStructure.GameObject.SetActive(true);
-        previewStructure.ThingTransformPosition = previewPosition;
-        previewStructure.Position = previewPosition;
-        HasError = HasError || !CanConstructBigCell(inventoryManager, previewStructure, structureCounter);
-        structureCounter++;
-      }
-    }
+    ZoopPreviewLayoutCoordinator.PositionBigGridStructures(
+      Session,
+      inventoryManager,
+      startPos,
+      plane,
+      spacing,
+      GetPreviewStructure,
+      CanConstructBigCell,
+      hasError => HasError = HasError || hasError);
   }
 
   /// <summary>
