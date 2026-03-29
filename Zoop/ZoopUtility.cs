@@ -22,6 +22,7 @@ public static class ZoopUtility
   private static readonly ZoopPreviewFactory PreviewFactory = new(Session);
   private static readonly ZoopPreviewValidator PreviewValidator =
     new(ResolveBuildIndex, GetConstructableForBuildIndex, allowPlacementUpdate => AllowPlacementUpdate = allowPlacementUpdate);
+  private static readonly ZoopPreviewColorizer PreviewColorizer = new(Session, () => LineColor);
 
   public static int PreviewCount => Session.PreviewCount;
   public static bool HasError { get => Session.HasError; private set => Session.HasError = value; }
@@ -31,8 +32,6 @@ public static class ZoopUtility
     get => Session.AllowPlacementUpdate;
     private set => Session.AllowPlacementUpdate = value;
   }
-
-  private const float PositionToleranceSqr = 0.0001f;
 
   private static readonly FieldInfo UsePrimaryPositionField =
     typeof(InventoryManager).GetField("_usePrimaryPosition", BindingFlags.Instance | BindingFlags.NonPublic);
@@ -49,11 +48,6 @@ public static class ZoopUtility
   private static int spacing = 1;
 
   public static Color LineColor { get; set; } = Color.green;
-  private static Color ErrorColor { get; } = Color.red;
-  private static readonly Color WaypointColor = Color.blue;
-  private static readonly Color StartColor = Color.magenta;
-  private static readonly int ColorPropertyId = Shader.PropertyToID("_Color");
-  private static readonly int BaseColorPropertyId = Shader.PropertyToID("_BaseColor");
 
   private static int PreviewPieceCount => Session.PreviewCount;
 
@@ -232,7 +226,7 @@ public static class ZoopUtility
 
             foreach (var previewPiece in Session.PreviewPieces)
             {
-              SetColor(inventoryManager, previewPiece.Structure, HasError);
+              PreviewColorizer.ApplyColor(inventoryManager, previewPiece.Structure, HasError);
             }
           }
         }
@@ -694,7 +688,7 @@ public static class ZoopUtility
   private static bool IsSameZoopPosition(Vector3 first, Vector3 second)
   {
     // Mounted wall previews use world positions, so tiny float drift can appear between cursor, waypoint, and preview values.
-    return Vector3.SqrMagnitude(first - second) < PositionToleranceSqr;
+    return Vector3.SqrMagnitude(first - second) < ZoopPreviewColorizer.PositionToleranceSqr;
   }
 
   /// <summary>
@@ -709,133 +703,12 @@ public static class ZoopUtility
   }
 
   /// <summary>
-  /// Finds the waypoint index that matches the supplied position.
-  /// </summary>
-  private static int GetWaypointIndex(Vector3 position)
-  {
-    for (var index = 0; index < Session.Waypoints.Count; index++)
-    {
-      if (IsSameZoopPosition(Session.Waypoints[index], position))
-      {
-        return index;
-      }
-    }
-
-    return -1;
-  }
-
-  /// <summary>
   /// Applies a rotation to both the structure state and Unity transform.
   /// </summary>
   private static void SetStructureRotation(Structure structure, Quaternion rotation)
   {
     structure.ThingTransformRotation = rotation;
     structure.transform.rotation = rotation;
-  }
-
-  /// <summary>
-  /// Updates preview colors to reflect waypoint roles, errors, and network connections.
-  /// </summary>
-  private static void SetColor(InventoryManager inventoryManager, Structure structure, bool hasError)
-  {
-    var canConstruct = !hasError;
-    var waypointIndex = GetWaypointIndex(structure.Position);
-    var isWaypoint = waypointIndex >= 0;
-    var isStart = waypointIndex == 0;
-    Color color;
-    if (!canConstruct)
-    {
-      color = ErrorColor;
-    }
-    else if (isStart)
-    {
-      color = StartColor;
-    }
-    else if (isWaypoint)
-    {
-      color = WaypointColor;
-    }
-    else
-    {
-      color = LineColor;
-    }
-
-    if (structure is SmallGrid smallGrid)
-    {
-      var joiningOpenEnds = smallGrid.WillJoinNetwork() ?? [];
-      var hasBlueprintMaterial = structure.Wireframe?.BlueprintRenderer?.material != null;
-      Color helperColor;
-      if (!canConstruct)
-      {
-        helperColor = Color.red.SetAlpha(inventoryManager.CursorAlphaConstructionHelper);
-      }
-      else if (joiningOpenEnds.Count > 0)
-      {
-        helperColor = Color.yellow.SetAlpha(inventoryManager.CursorAlphaConstructionHelper);
-      }
-      else
-      {
-        helperColor = Color.green.SetAlpha(inventoryManager.CursorAlphaConstructionHelper);
-      }
-
-      var rendererColor = helperColor;
-      // Some modded small-grid previews do not expose a blueprint renderer, so their mesh tint
-      // needs to carry the start/waypoint/error color that vanilla previews show separately.
-      if (!hasBlueprintMaterial && (!canConstruct || isStart || isWaypoint))
-      {
-        rendererColor = color.SetAlpha(inventoryManager.CursorAlphaConstructionHelper);
-      }
-
-      if (smallGrid.Renderers != null)
-      {
-        foreach (var renderer in smallGrid.Renderers.Where(renderer => renderer != null && renderer.HasRenderer()))
-        {
-          SetThingRendererColor(renderer, rendererColor, !hasBlueprintMaterial);
-        }
-      }
-
-      if (smallGrid.OpenEnds != null)
-      {
-        foreach (var end in smallGrid.OpenEnds.Where(end => end?.HelperRenderer?.material != null))
-        {
-          end.HelperRenderer.material.color = helperColor;
-        }
-      }
-
-      color = canConstruct && joiningOpenEnds.Count > 0 ? Color.yellow : color;
-    }
-
-    color.a = inventoryManager.CursorAlphaConstructionMesh;
-    if (structure.Wireframe?.BlueprintRenderer?.material != null)
-    {
-      structure.Wireframe.BlueprintRenderer.material.color = color;
-    }
-    //may it affect end structure lineColor at collided pieces and merge same colored cables?
-  }
-
-  /// <summary>
-  /// Applies preview tinting to a structure renderer. Modded previews can share materials across
-  /// instances, so blueprint-less pieces use per-renderer property blocks for isolated colors.
-  /// </summary>
-  private static void SetThingRendererColor(ThingRenderer thingRenderer, Color color, bool usePropertyBlock)
-  {
-    if (!usePropertyBlock)
-    {
-      thingRenderer.SetColor(color);
-      return;
-    }
-
-    var unityRenderer = thingRenderer.GetRenderer();
-    if (unityRenderer == null)
-    {
-      return;
-    }
-
-    var propertyBlock = new MaterialPropertyBlock();
-    unityRenderer.GetPropertyBlock(propertyBlock);
-    propertyBlock.SetColor(ColorPropertyId, color);
-    propertyBlock.SetColor(BaseColorPropertyId, color);
-    unityRenderer.SetPropertyBlock(propertyBlock);
   }
 
   #endregion
