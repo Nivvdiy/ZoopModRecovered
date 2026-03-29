@@ -1,8 +1,8 @@
 using System;
 using BepInEx;
-using BepInEx.Configuration;
 using HarmonyLib;
 using UnityEngine;
+using ZoopMod.Zoop.EntryPoints.Configuration;
 using ZoopMod.Zoop.EntryPoints.Input;
 
 namespace ZoopMod;
@@ -20,7 +20,6 @@ public class ZoopMod : BaseUnityPlugin
   public static ZoopMod Instance;
 
   public static bool CFree;
-  public static ConfigEntry<int> MaxZoopWaitTimeMultiplier;
 
   private static readonly Logs CurrentLogLevel = Logs.debug;
 
@@ -30,11 +29,7 @@ public class ZoopMod : BaseUnityPlugin
     try
     {
       Instance = this;
-      MaxZoopWaitTimeMultiplier =
-        Config.Bind(
-          new ConfigDefinition("Zoop", nameof(MaxZoopWaitTimeMultiplier)),
-          5,
-          new ConfigDescription("Maximum multiplier applied to placement wait time when building multiple structures in one zoop."));
+      ZoopConfig.Initialize(Config);
 
       var harmony = new Harmony("ZoopMod");
       harmony.PatchAll();

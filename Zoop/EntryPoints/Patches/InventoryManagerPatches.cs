@@ -5,6 +5,7 @@ using Assets.Scripts.Inventory;
 using Assets.Scripts.Objects;
 using HarmonyLib;
 using JetBrains.Annotations;
+using ZoopMod.Zoop.EntryPoints.Configuration;
 using ZoopMod.Zoop.EntryPoints.Input;
 
 namespace ZoopMod.Zoop.EntryPoints.Patches;
@@ -88,7 +89,7 @@ internal static class InventoryManagerWaitUntilDonePatch
     if (!InventoryManager.IsAuthoringMode)
     {
       var structureCount = Math.Max(ZoopRuntime.Controller.PreviewCount, 1);
-      var timeToWaitMultiplier = Math.Max(1, ZoopMod.MaxZoopWaitTimeMultiplier.Value);
+      var timeToWaitMultiplier = Math.Max(1, ZoopConfig.MaxZoopWaitTimeMultiplier.Value);
       timeToWait *= Math.Min(structureCount, timeToWaitMultiplier);
     }
     else
