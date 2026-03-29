@@ -3,6 +3,7 @@ using BepInEx;
 using HarmonyLib;
 using UnityEngine;
 using ZoopMod.Zoop.EntryPoints.Configuration;
+using ZoopMod.Zoop.EntryPoints.Integrations;
 using ZoopMod.Zoop.EntryPoints.Input;
 
 namespace ZoopMod;
@@ -17,10 +18,6 @@ public class ZoopMod : BaseUnityPlugin
     error = 2
   }
 
-  public static ZoopMod Instance;
-
-  public static bool CFree;
-
   private static readonly Logs CurrentLogLevel = Logs.debug;
 
   // ReSharper disable once UnusedMember.Local
@@ -28,17 +25,14 @@ public class ZoopMod : BaseUnityPlugin
   {
     try
     {
-      Instance = this;
       ZoopConfig.Initialize(Config);
 
       var harmony = new Harmony("ZoopMod");
       harmony.PatchAll();
       Log("Patch succeeded", Logs.info);
       Log($"Build commit: {GetBuildCommitHash()}", Logs.info);
+      ZoopIntegrations.Initialize();
       ZoopKeyBindings.Initialize();
-
-      var type = Type.GetType("CreativeFreedom.CreativeFreedom, CreativeFreedom");
-      CFree = type != null;
     }
     catch (Exception e)
     {

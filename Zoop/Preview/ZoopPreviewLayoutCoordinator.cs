@@ -3,6 +3,7 @@ using Assets.Scripts.Inventory;
 using Assets.Scripts.Objects;
 using UnityEngine;
 using ZoopMod.Zoop.Core;
+using ZoopMod.Zoop.EntryPoints.Integrations;
 using ZoopMod.Zoop.Planning;
 
 namespace ZoopMod.Zoop.Preview;
@@ -13,6 +14,8 @@ namespace ZoopMod.Zoop.Preview;
 /// </summary>
 internal static class ZoopPreviewLayoutCoordinator
 {
+  // TODO This method has to many arguments and is due for further refactoring
+
   /// <summary>
   /// Walks the planned small-grid segments in build order and assigns each preview piece a world position.
   /// Corner-capable families also get their turn rotation applied here because that depends on neighboring
@@ -29,13 +32,13 @@ internal static class ZoopPreviewLayoutCoordinator
     System.Action<int, bool, bool, int, int, int, ZoopDirection, ZoopDirection, bool, bool> applySmallGridRotation,
     System.Func<InventoryManager, Structure, int, bool> canConstructSmallCell,
     System.Func<Vector3, Vector3Int> getSmallGridCellKey,
-    bool creativeFreedomEnabled,
     System.Action<bool> setHasError)
   {
     var structureCounter = 0;
     var lastDirection = ZoopDirection.none;
     var occupiedCells = new HashSet<Vector3Int>();
     var hasError = false;
+    var creativeFreedomEnabled = ZoopIntegrations.CreativeFreedomAvailable;
 
     for (var segmentIndex = 0; segmentIndex < segments.Count; segmentIndex++)
     {

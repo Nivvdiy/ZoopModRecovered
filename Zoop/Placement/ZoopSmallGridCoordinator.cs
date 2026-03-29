@@ -53,7 +53,6 @@ internal sealed class ZoopSmallGridCoordinator(
       ApplySmallGridRotation,
       CanConstructSmallCell,
       GetSmallGridCellKey,
-      ZoopMod.CFree,
       hasError => session.HasError = session.HasError || hasError);
   }
 
