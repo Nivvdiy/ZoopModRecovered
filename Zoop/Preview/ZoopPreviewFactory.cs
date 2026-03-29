@@ -10,10 +10,10 @@ using UnityObject = UnityEngine.Object;
 
 namespace ZoopMod.Zoop.Preview;
 
-internal sealed class ZoopPreviewFactory(ZoopSession session)
+internal sealed class ZoopPreviewFactory
 {
-  public void AddStructure(List<Structure> constructables, bool isCorner, int index, int secondaryCount,
-    ref bool canBuildNext, InventoryManager inventoryManager, bool supportsCornerVariant)
+  public void AddStructure(ZoopDraft draft, ZoopPreviewCache previewCache, List<Structure> constructables, bool isCorner, int index,
+    int secondaryCount, ref bool canBuildNext, InventoryManager inventoryManager, bool supportsCornerVariant)
   {
     var selectedIndex = inventoryManager.ConstructionPanel.Parent.LastSelectedIndex;
     var straightCount = isCorner ? secondaryCount : index;
@@ -33,14 +33,14 @@ internal sealed class ZoopPreviewFactory(ZoopSession session)
       case Stackable constructor:
         var canMakeItem = activeItem switch
         {
-          Chute when buildIndex == 0 => constructor.Quantity > session.PreviewCount,
+          Chute when buildIndex == 0 => constructor.Quantity > draft.PreviewCount,
           Chute when buildIndex == 2 => constructor.Quantity > straightCount * 2 + (isCorner ? 0 : 1) + cornerCount,
-          _ => constructor.Quantity > session.PreviewCount
+          _ => constructor.Quantity > draft.PreviewCount
         };
 
         if (canMakeItem && canBuildNext)
         {
-          MakeItem(constructables, index, buildIndex, supportsCornerVariant);
+          MakeItem(draft, previewCache, constructables, index, buildIndex, supportsCornerVariant);
           canBuildNext = true;
         }
         else
@@ -50,65 +50,65 @@ internal sealed class ZoopPreviewFactory(ZoopSession session)
 
         break;
       case AuthoringTool:
-        MakeItem(constructables, index, buildIndex, supportsCornerVariant);
+        MakeItem(draft, previewCache, constructables, index, buildIndex, supportsCornerVariant);
         canBuildNext = true;
         break;
     }
   }
 
-  public void ClearStructureCache()
+  public void ClearStructureCache(ZoopPreviewCache previewCache)
   {
-    foreach (var structure in session.StraightCache)
+    foreach (var structure in previewCache.StraightCache)
     {
       structure.gameObject.SetActive(false);
       UnityObject.Destroy(structure);
     }
 
-    session.StraightCache.Clear();
-    session.StraightCacheBuildIndices.Clear();
+    previewCache.StraightCache.Clear();
+    previewCache.StraightCacheBuildIndices.Clear();
 
-    foreach (var structure in session.CornerCache)
+    foreach (var structure in previewCache.CornerCache)
     {
       structure.gameObject.SetActive(false);
       UnityObject.Destroy(structure);
     }
 
-    session.CornerCache.Clear();
-    session.CornerCacheBuildIndices.Clear();
+    previewCache.CornerCache.Clear();
+    previewCache.CornerCacheBuildIndices.Clear();
   }
 
-  public void ResetSmallGridPreviewList()
+  public void ResetSmallGridPreviewList(ZoopDraft draft, ZoopPreviewCache previewCache)
   {
-    session.ClearPreviewPieces();
-    session.StraightCache.ForEach(structure => structure.GameObject.SetActive(false));
-    session.CornerCache.ForEach(structure => structure.GameObject.SetActive(false));
+    draft.ClearPreviewPieces();
+    previewCache.StraightCache.ForEach(structure => structure.GameObject.SetActive(false));
+    previewCache.CornerCache.ForEach(structure => structure.GameObject.SetActive(false));
   }
 
-  public void ResetBigGridPreviewList()
+  public void ResetBigGridPreviewList(ZoopDraft draft, ZoopPreviewCache previewCache)
   {
-    session.ClearPreviewPieces();
-    session.StraightCache.ForEach(structure => structure.GameObject.SetActive(false));
+    draft.ClearPreviewPieces();
+    previewCache.StraightCache.ForEach(structure => structure.GameObject.SetActive(false));
   }
 
-  private void MakeItem(List<Structure> constructables, int index, int selectedIndex,
+  private void MakeItem(ZoopDraft draft, ZoopPreviewCache previewCache, List<Structure> constructables, int index, int selectedIndex,
     bool supportsCornerVariant)
   {
     var isCorner = selectedIndex == 1 && supportsCornerVariant;
     switch (isCorner)
     {
-      case false when session.StraightCache.Count > index:
+      case false when previewCache.StraightCache.Count > index:
         {
           if (!supportsCornerVariant)
           {
-            ApplyCursorRotation(session.StraightCache[index]);
+            ApplyCursorRotation(draft, previewCache.StraightCache[index]);
           }
 
-          AddPreviewPiece(session.StraightCache[index], session.StraightCacheBuildIndices[index]);
+          AddPreviewPiece(draft, previewCache.StraightCache[index], previewCache.StraightCacheBuildIndices[index]);
           break;
         }
-      case true when session.CornerCache.Count > index:
+      case true when previewCache.CornerCache.Count > index:
         {
-          AddPreviewPiece(session.CornerCache[index], session.CornerCacheBuildIndices[index]);
+          AddPreviewPiece(draft, previewCache.CornerCache[index], previewCache.CornerCacheBuildIndices[index]);
           break;
         }
       default:
@@ -128,19 +128,19 @@ internal sealed class ZoopPreviewFactory(ZoopSession session)
           structureNew.gameObject.SetActive(true);
           if (!supportsCornerVariant)
           {
-            ApplyCursorRotation(structureNew);
+            ApplyCursorRotation(draft, structureNew);
           }
 
-          AddPreviewPiece(structureNew, selectedIndex);
+          AddPreviewPiece(draft, structureNew, selectedIndex);
           if (isCorner)
           {
-            session.CornerCache.Add(structureNew);
-            session.CornerCacheBuildIndices.Add(selectedIndex);
+            previewCache.CornerCache.Add(structureNew);
+            previewCache.CornerCacheBuildIndices.Add(selectedIndex);
           }
           else
           {
-            session.StraightCache.Add(structureNew);
-            session.StraightCacheBuildIndices.Add(selectedIndex);
+            previewCache.StraightCache.Add(structureNew);
+            previewCache.StraightCacheBuildIndices.Add(selectedIndex);
           }
 
           break;
@@ -148,23 +148,23 @@ internal sealed class ZoopPreviewFactory(ZoopSession session)
     }
   }
 
-  private void ApplyCursorRotation(Structure structure)
+  private void ApplyCursorRotation(ZoopDraft draft, Structure structure)
   {
-    if (structure == null || InventoryManager.ConstructionCursor == null)
+    if (structure == null || InventoryManager.ConstructionCursor == null || draft == null)
     {
       return;
     }
 
-    var rotation = structure is Wall && session.ZoopStartWallNormal != Vector3.zero
-      ? session.ZoopStartRotation
+    var rotation = structure is Wall && draft.ZoopStartWallNormal != Vector3.zero
+      ? draft.ZoopStartRotation
       : InventoryManager.ConstructionCursor.transform.rotation;
 
     structure.ThingTransformRotation = rotation;
     structure.transform.rotation = rotation;
   }
 
-  private void AddPreviewPiece(Structure structure, int buildIndex)
+  private static void AddPreviewPiece(ZoopDraft draft, Structure structure, int buildIndex)
   {
-    session.PreviewPieces.Add(new PreviewPiece(structure, buildIndex));
+    draft.PreviewPieces.Add(new PreviewPiece(structure, buildIndex));
   }
 }

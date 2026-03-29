@@ -1,5 +1,4 @@
 using ZoopMod.Zoop.Core;
-using ZoopMod.Zoop.Placement;
 using ZoopMod.Zoop.Preview;
 
 namespace ZoopMod.Zoop.EntryPoints;
@@ -9,10 +8,10 @@ namespace ZoopMod.Zoop.EntryPoints;
 /// </summary>
 internal static class ZoopRuntime
 {
-  private static readonly ZoopSession Session = new();
-  private static readonly ZoopConstructableResolver ConstructableResolver = new(Session);
-  private static readonly ZoopPreviewFactory PreviewFactory = new(Session);
-  private static readonly ZoopPreviewValidator PreviewValidator = new(Session, ConstructableResolver);
+  private static readonly ZoopPlacementUpdateGate PlacementUpdateGate = new();
+  private static readonly ZoopPreviewFactory PreviewFactory = new();
+  private static readonly ZoopPreviewValidator PreviewValidator = new(PlacementUpdateGate);
 
-  public static ZoopController Controller { get; } = new(Session, PreviewFactory, PreviewValidator, ConstructableResolver);
+  public static ZoopController Controller { get; } =
+    new(PreviewFactory, PreviewValidator, PlacementUpdateGate);
 }

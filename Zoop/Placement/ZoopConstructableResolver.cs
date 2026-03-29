@@ -4,13 +4,13 @@ using ZoopMod.Zoop.Core;
 
 namespace ZoopMod.Zoop.Placement;
 
-internal sealed class ZoopConstructableResolver(ZoopSession session)
+internal static class ZoopConstructableResolver
 {
-  public int ResolveBuildIndex(InventoryManager inventoryManager, Structure item, int structureIndex)
+  public static int ResolveBuildIndex(ZoopDraft draft, InventoryManager inventoryManager, Structure item, int structureIndex)
   {
-    if (structureIndex >= 0 && structureIndex < session.PreviewCount)
+    if (draft != null && structureIndex >= 0 && structureIndex < draft.PreviewCount)
     {
-      return session.PreviewPieces[structureIndex].BuildIndex;
+      return draft.PreviewPieces[structureIndex].BuildIndex;
     }
 
     var buildIndex =

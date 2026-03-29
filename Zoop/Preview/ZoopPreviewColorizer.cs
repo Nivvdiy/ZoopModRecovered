@@ -1,14 +1,13 @@
-using System;
+using System.Collections.Generic;
 using System.Linq;
 using Assets.Scripts.Inventory;
 using Assets.Scripts.Objects;
 using Assets.Scripts.Util;
 using UnityEngine;
-using ZoopMod.Zoop.Core;
 
 namespace ZoopMod.Zoop.Preview;
 
-internal sealed class ZoopPreviewColorizer(ZoopSession session, Func<Color> getLineColor)
+internal static class ZoopPreviewColorizer
 {
 
   internal const float PositionToleranceSqr = 0.0001f;
@@ -19,10 +18,11 @@ internal sealed class ZoopPreviewColorizer(ZoopSession session, Func<Color> getL
   private static readonly int ColorPropertyId = Shader.PropertyToID("_Color");
   private static readonly int BaseColorPropertyId = Shader.PropertyToID("_BaseColor");
 
-  public void ApplyColor(InventoryManager inventoryManager, Structure structure, bool hasError)
+  public static void ApplyColor(InventoryManager inventoryManager, Structure structure, IReadOnlyList<Vector3> waypoints,
+    bool hasError, Color lineColor)
   {
     var canConstruct = !hasError;
-    var waypointIndex = GetWaypointIndex(structure.Position);
+    var waypointIndex = GetWaypointIndex(waypoints, structure.Position);
     var isWaypoint = waypointIndex >= 0;
     var isStart = waypointIndex == 0;
     Color color;
@@ -40,7 +40,7 @@ internal sealed class ZoopPreviewColorizer(ZoopSession session, Func<Color> getL
     }
     else
     {
-      color = getLineColor();
+      color = lineColor;
     }
 
     if (structure is SmallGrid smallGrid)
@@ -95,11 +95,11 @@ internal sealed class ZoopPreviewColorizer(ZoopSession session, Func<Color> getL
     }
   }
 
-  private int GetWaypointIndex(Vector3 position)
+  private static int GetWaypointIndex(IReadOnlyList<Vector3> waypoints, Vector3 position)
   {
-    for (var index = 0; index < session.Waypoints.Count; index++)
+    for (var index = 0; index < waypoints.Count; index++)
     {
-      if (IsSameZoopPosition(session.Waypoints[index], position))
+      if (IsSameZoopPosition(waypoints[index], position))
       {
         return index;
       }

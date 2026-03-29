@@ -22,7 +22,7 @@ internal static class ZoopPreviewLayoutCoordinator
   /// segment directions rather than on the path plan alone.
   /// </summary>
   public static void PositionSmallGridStructures(
-    ZoopSession session,
+    ZoopDraft draft,
     InventoryManager inventoryManager,
     List<ZoopSegment> segments,
     bool supportsCornerVariant,
@@ -46,10 +46,10 @@ internal static class ZoopPreviewLayoutCoordinator
       float xOffset = 0;
       float yOffset = 0;
       float zOffset = 0;
-      var startPos = session.Waypoints[segmentIndex];
+      var startPos = draft.Waypoints[segmentIndex];
       for (var directionIndex = 0; directionIndex < segment.Directions.Count; directionIndex++)
       {
-        if (structureCounter == session.PreviewCount)
+        if (structureCounter == draft.PreviewCount)
         {
           break;
         }
@@ -63,7 +63,7 @@ internal static class ZoopPreviewLayoutCoordinator
 
         for (var placementIndex = 0; placementIndex < zoopCounter; placementIndex++)
         {
-          if (structureCounter == session.PreviewCount)
+          if (structureCounter == draft.PreviewCount)
           {
             break;
           }
@@ -114,7 +114,7 @@ internal static class ZoopPreviewLayoutCoordinator
   /// per-cell constructibility checks.
   /// </summary>
   public static void PositionBigGridStructures(
-    ZoopSession session,
+    ZoopDraft draft,
     InventoryManager inventoryManager,
     Vector3 startPos,
     ZoopPlane plane,
@@ -126,7 +126,7 @@ internal static class ZoopPreviewLayoutCoordinator
     var structureCounter = 0;
     var hasError = false;
 
-    if (session.PreviewCount <= 0)
+    if (draft.PreviewCount <= 0)
     {
       setHasError(false);
       return;
@@ -149,7 +149,7 @@ internal static class ZoopPreviewLayoutCoordinator
 
       for (var indexDirection1 = 0; indexDirection1 < plane.Count.direction1; indexDirection1++)
       {
-        if (structureCounter == session.PreviewCount)
+        if (structureCounter == draft.PreviewCount)
         {
           break;
         }
