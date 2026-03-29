@@ -1,10 +1,8 @@
 using System.Collections.Generic;
 using Assets.Scripts.Inventory;
 using Assets.Scripts.Objects;
-using Assets.Scripts.Objects.Electrical;
 using Assets.Scripts.Objects.Items;
 using Assets.Scripts.Objects.Pipes;
-using Objects.Structures;
 using UnityEngine;
 using UnityObject = UnityEngine.Object;
 
@@ -18,17 +16,13 @@ internal sealed class ZoopPreviewFactory(ZoopSession session)
     var selectedIndex = inventoryManager.ConstructionPanel.Parent.LastSelectedIndex;
     var straightCount = isCorner ? secondaryCount : index;
     var cornerCount = isCorner ? index : secondaryCount;
-
-    var activeItem = constructables[selectedIndex];
-    if (!isCorner && supportsCornerVariant)
+    var buildIndex = ZoopConstructableRules.ResolvePreviewBuildIndex(constructables, selectedIndex, isCorner,
+      supportsCornerVariant);
+    var activeItem = buildIndex >= 0 && buildIndex < constructables.Count ? constructables[buildIndex] : null;
+    if (activeItem == null)
     {
-      switch (activeItem)
-      {
-        case Pipe or Cable or Frame when selectedIndex != 0:
-        case Chute when selectedIndex != 0 && selectedIndex != 2:
-          selectedIndex = 0;
-          break;
-      }
+      canBuildNext = false;
+      return;
     }
 
     var activeHandItem = InventoryManager.ActiveHandSlot.Get();
@@ -37,14 +31,14 @@ internal sealed class ZoopPreviewFactory(ZoopSession session)
       case Stackable constructor:
         var canMakeItem = activeItem switch
         {
-          Chute when selectedIndex == 0 => constructor.Quantity > session.PreviewCount,
-          Chute when selectedIndex == 2 => constructor.Quantity > straightCount * 2 + (isCorner ? 0 : 1) + cornerCount,
+          Chute when buildIndex == 0 => constructor.Quantity > session.PreviewCount,
+          Chute when buildIndex == 2 => constructor.Quantity > straightCount * 2 + (isCorner ? 0 : 1) + cornerCount,
           _ => constructor.Quantity > session.PreviewCount
         };
 
         if (canMakeItem && canBuildNext)
         {
-          MakeItem(constructables, isCorner, index, !isCorner ? selectedIndex : 1, supportsCornerVariant);
+          MakeItem(constructables, index, buildIndex, supportsCornerVariant);
           canBuildNext = true;
         }
         else
@@ -54,7 +48,7 @@ internal sealed class ZoopPreviewFactory(ZoopSession session)
 
         break;
       case AuthoringTool:
-        MakeItem(constructables, isCorner, index, !isCorner ? selectedIndex : 1, supportsCornerVariant);
+        MakeItem(constructables, index, buildIndex, supportsCornerVariant);
         canBuildNext = true;
         break;
     }
@@ -94,9 +88,10 @@ internal sealed class ZoopPreviewFactory(ZoopSession session)
     session.StraightCache.ForEach(structure => structure.GameObject.SetActive(false));
   }
 
-  private void MakeItem(List<Structure> constructables, bool isCorner, int index, int selectedIndex,
+  private void MakeItem(List<Structure> constructables, int index, int selectedIndex,
     bool supportsCornerVariant)
   {
+    var isCorner = selectedIndex == 1 && supportsCornerVariant;
     switch (isCorner)
     {
       case false when session.StraightCache.Count > index:
@@ -111,11 +106,6 @@ internal sealed class ZoopPreviewFactory(ZoopSession session)
         }
       case true when session.CornerCache.Count > index:
         {
-          if (!supportsCornerVariant)
-          {
-            ApplyCursorRotation(session.CornerCache[index]);
-          }
-
           AddPreviewPiece(session.CornerCache[index], session.CornerCacheBuildIndices[index]);
           break;
         }

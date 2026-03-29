@@ -1,14 +1,11 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Threading;
 using Assets.Scripts.Inventory;
 using Assets.Scripts.Objects;
-using Assets.Scripts.Objects.Electrical;
 using Assets.Scripts.Objects.Pipes;
 using Assets.Scripts.Util;
 using Cysharp.Threading.Tasks;
-using Objects.Structures;
 using UnityEngine;
 
 namespace ZoopMod.Zoop;
@@ -51,7 +48,7 @@ public static class ZoopUtility
   /// </summary>
   public static void StartZoop(InventoryManager inventoryManager)
   {
-    if (!IsAllowed(InventoryManager.ConstructionCursor))
+    if (!ZoopConstructableRules.IsAllowed(InventoryManager.ConstructionCursor))
     {
       return;
     }
@@ -244,7 +241,7 @@ public static class ZoopUtility
     await UniTask.SwitchToMainThread(); // Switch to main thread for Unity API calls
 
     var supportsCornerVariant =
-      SupportsCornerVariant(inventoryManager.ConstructionPanel.Parent.Constructables,
+      ZoopConstructableRules.SupportsCornerVariant(inventoryManager.ConstructionPanel.Parent.Constructables,
         inventoryManager.ConstructionPanel.Parent.LastSelectedIndex);
     BuildSmallStructureList(inventoryManager, zoops, supportsCornerVariant);
 
@@ -442,7 +439,7 @@ public static class ZoopUtility
   /// </summary>
   public static void AddWaypoint()
   {
-    if (!SupportsWaypoints())
+    if (!ZoopConstructableRules.SupportsWaypoints(InventoryManager.ConstructionCursor))
     {
       return;
     }
@@ -466,7 +463,7 @@ public static class ZoopUtility
   /// </summary>
   public static void RemoveLastWaypoint()
   {
-    if (!SupportsWaypoints())
+    if (!ZoopConstructableRules.SupportsWaypoints(InventoryManager.ConstructionCursor))
     {
       return;
     }
@@ -571,14 +568,6 @@ public static class ZoopUtility
   }
 
   /// <summary>
-  /// Determines whether the current cursor type supports zooping.
-  /// </summary>
-  private static bool IsAllowed(Structure constructionCursor)
-  {
-    return constructionCursor is Pipe or Cable or Chute or Frame or Wall;
-  }
-
-  /// <summary>
   /// Returns whether the active zoop cursor uses the small grid rules.
   /// </summary>
   private static bool IsZoopingSmallGrid()
@@ -593,16 +582,6 @@ public static class ZoopUtility
   {
     return InventoryManager.ConstructionCursor is LargeStructure;
   }
-
-  /// <summary>
-  /// Returns whether the active zoop type supports user-added waypoint corners.
-  /// </summary>
-  private static bool SupportsWaypoints()
-  {
-    return InventoryManager.ConstructionCursor is not Frame
-           && InventoryManager.ConstructionCursor is not Wall;
-  }
-
 
   /// <summary>
   /// Checks whether a small-grid preview structure can be built in its current cell.
@@ -676,62 +655,6 @@ public static class ZoopUtility
         }
       }
     }
-  }
-
-  /// <summary>
-  /// Determines whether the selected constructable family has a matching corner variant.
-  /// </summary>
-  private static bool SupportsCornerVariant(List<Structure> constructables, int selectedIndex)
-  {
-    if (constructables == null || selectedIndex < 0 || selectedIndex >= constructables.Count)
-    {
-      return false;
-    }
-
-    var selectedStructure = constructables[selectedIndex];
-    if (selectedStructure == null)
-    {
-      return false;
-    }
-
-    return constructables.Any(structure =>
-      IsCornerVariant(structure)
-      && IsMatchingCornerFamily(selectedStructure, structure));
-  }
-
-  /// <summary>
-  /// Returns whether a structure represents a corner prefab variant.
-  /// </summary>
-  private static bool IsCornerVariant(Structure structure)
-  {
-    if (structure == null)
-    {
-      return false;
-    }
-
-    var prefabName = structure.GetPrefabName();
-    if (!string.IsNullOrEmpty(prefabName) &&
-        prefabName.IndexOf("Corner", StringComparison.OrdinalIgnoreCase) >= 0)
-    {
-      return true;
-    }
-
-    return structure.GetType().Name.IndexOf("Corner", StringComparison.OrdinalIgnoreCase) >= 0;
-  }
-
-  /// <summary>
-  /// Checks whether a corner structure belongs to the same family as the selected structure.
-  /// </summary>
-  private static bool IsMatchingCornerFamily(Structure selectedStructure, Structure cornerStructure)
-  {
-    return selectedStructure switch
-    {
-      Chute => cornerStructure is Chute,
-      Cable => cornerStructure is Cable,
-      Frame => cornerStructure is Frame,
-      Pipe => cornerStructure is Pipe,
-      _ => false
-    };
   }
 
   #endregion
