@@ -4,14 +4,11 @@ using Assets.Scripts.Objects;
 using Assets.Scripts.Util;
 using UnityEngine;
 using ZoopMod.Zoop.Core;
+using ZoopMod.Zoop.Placement;
 
 namespace ZoopMod.Zoop.Preview;
 
-// TODO this needs further refactoring, maybe let it be a field on the ZoopSession
-internal sealed class ZoopPreviewValidator(
-  Func<ZoopSession, InventoryManager, Structure, int, int> resolveBuildIndex,
-  Func<InventoryManager, int, Structure> getConstructableForBuildIndex,
-  Action<bool> setAllowPlacementUpdate)
+internal sealed class ZoopPreviewValidator(ZoopSession session, ZoopConstructableResolver constructableResolver)
 {
   private readonly struct ValidationCursorState(
     int originalBuildIndex,
@@ -31,18 +28,18 @@ internal sealed class ZoopPreviewValidator(
     public Quaternion OriginalCursorLocalRotation { get; } = originalCursorLocalRotation;
   }
 
-  public bool CanConstructSmallCell(ZoopSession session, InventoryManager inventoryManager, Structure structure, int structureIndex)
+  public bool CanConstructSmallCell(InventoryManager inventoryManager, Structure structure, int structureIndex)
   {
-    return CanConstructWithValidationCursor(session, inventoryManager, structure, structureIndex,
+    return CanConstructWithValidationCursor(inventoryManager, structure, structureIndex,
       validationCursor => ValidateSmallCellCursor(inventoryManager, validationCursor));
   }
 
-  public bool CanConstructBigCell(ZoopSession session, InventoryManager inventoryManager, Structure structure, int structureIndex)
+  public bool CanConstructBigCell(InventoryManager inventoryManager, Structure structure, int structureIndex)
   {
-    return CanConstructWithValidationCursor(session, inventoryManager, structure, structureIndex, ValidateLargeGridCursor);
+    return CanConstructWithValidationCursor(inventoryManager, structure, structureIndex, ValidateLargeGridCursor);
   }
 
-  private bool CanConstructWithValidationCursor(ZoopSession session, InventoryManager inventoryManager, Structure structure, int structureIndex,
+  private bool CanConstructWithValidationCursor(InventoryManager inventoryManager, Structure structure, int structureIndex,
     Func<Structure, bool> validator)
   {
     var originalCursor = InventoryManager.ConstructionCursor;
@@ -51,22 +48,24 @@ internal sealed class ZoopPreviewValidator(
       return false;
     }
 
-    if (!TryGetValidationTarget(session, inventoryManager, structure, structureIndex, originalCursor,
+    if (!TryGetValidationTarget(inventoryManager, structure, structureIndex, originalCursor,
           out var validationConstructable, out var cursorState))
     {
       return false;
     }
 
-    setAllowPlacementUpdate(true);
     try
     {
-      var validationCursor = PrepareValidationCursor(inventoryManager, structure, validationConstructable, cursorState);
-      if (validationCursor == null)
+      using (session.BeginPlacementUpdateScope())
       {
-        return false;
-      }
+        var validationCursor = PrepareValidationCursor(inventoryManager, structure, validationConstructable, cursorState);
+        if (validationCursor == null)
+        {
+          return false;
+        }
 
-      return validator(validationCursor);
+        return validator(validationCursor);
+      }
     }
     catch
     {
@@ -78,12 +77,12 @@ internal sealed class ZoopPreviewValidator(
     }
   }
 
-  private bool TryGetValidationTarget(ZoopSession session, InventoryManager inventoryManager, Structure structure, int structureIndex,
+  private bool TryGetValidationTarget(InventoryManager inventoryManager, Structure structure, int structureIndex,
     Structure originalCursor, out Structure validationConstructable, out ValidationCursorState cursorState)
   {
     var originalBuildIndex = inventoryManager.ConstructionPanel.BuildIndex;
-    var validationBuildIndex = resolveBuildIndex(session, inventoryManager, structure, structureIndex);
-    validationConstructable = getConstructableForBuildIndex(inventoryManager, validationBuildIndex);
+    var validationBuildIndex = constructableResolver.ResolveBuildIndex(inventoryManager, structure, structureIndex);
+    validationConstructable = constructableResolver.GetConstructableForBuildIndex(inventoryManager, validationBuildIndex);
     if (validationConstructable == null)
     {
       cursorState = default;
@@ -154,34 +153,27 @@ internal sealed class ZoopPreviewValidator(
 
   private void RestoreValidationCursor(InventoryManager inventoryManager, ValidationCursorState cursorState)
   {
-    try
+    if (cursorState.NeedsCursorSwap)
     {
-      if (cursorState.NeedsCursorSwap)
+      inventoryManager.ConstructionPanel.BuildIndex = cursorState.OriginalBuildIndex;
+      var originalConstructable = constructableResolver.GetConstructableForBuildIndex(inventoryManager, cursorState.OriginalBuildIndex);
+      if (originalConstructable != null)
       {
-        inventoryManager.ConstructionPanel.BuildIndex = cursorState.OriginalBuildIndex;
-        var originalConstructable = getConstructableForBuildIndex(inventoryManager, cursorState.OriginalBuildIndex);
-        if (originalConstructable != null)
-        {
-          InventoryManager.UpdatePlacement(originalConstructable);
-        }
-      }
-
-      var restoredCursor = InventoryManager.ConstructionCursor;
-      if (!cursorState.NeedsCursorSwap && restoredCursor != null)
-      {
-        ApplyStructurePlacementState(restoredCursor, cursorState.OriginalCursorPosition,
-          cursorState.OriginalCursorLocalPosition, cursorState.OriginalCursorRotation,
-          cursorState.OriginalCursorLocalRotation);
-      }
-
-      if (restoredCursor != null)
-      {
-        restoredCursor.gameObject.SetActive(false);
+        InventoryManager.UpdatePlacement(originalConstructable);
       }
     }
-    finally
+
+    var restoredCursor = InventoryManager.ConstructionCursor;
+    if (!cursorState.NeedsCursorSwap && restoredCursor != null)
     {
-      setAllowPlacementUpdate(false);
+      ApplyStructurePlacementState(restoredCursor, cursorState.OriginalCursorPosition,
+        cursorState.OriginalCursorLocalPosition, cursorState.OriginalCursorRotation,
+        cursorState.OriginalCursorLocalRotation);
+    }
+
+    if (restoredCursor != null)
+    {
+      restoredCursor.gameObject.SetActive(false);
     }
   }
 

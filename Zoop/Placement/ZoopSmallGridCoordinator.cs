@@ -238,6 +238,6 @@ internal sealed class ZoopSmallGridCoordinator(
 
   private bool CanConstructSmallCell(InventoryManager inventoryManager, Structure structure, int structureIndex)
   {
-    return previewValidator.CanConstructSmallCell(session, inventoryManager, structure, structureIndex);
+    return previewValidator.CanConstructSmallCell(inventoryManager, structure, structureIndex);
   }
 }

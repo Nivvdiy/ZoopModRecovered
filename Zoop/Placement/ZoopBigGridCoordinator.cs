@@ -73,7 +73,7 @@ internal sealed class ZoopBigGridCoordinator(
 
   private bool CanConstructBigCell(InventoryManager inventoryManager, Structure structure, int structureIndex)
   {
-    return previewValidator.CanConstructBigCell(session, inventoryManager, structure, structureIndex);
+    return previewValidator.CanConstructBigCell(inventoryManager, structure, structureIndex);
   }
 
   private Vector3 ClampWallZoopPositionToStartPlane(Vector3 startPos, Vector3 targetPos)

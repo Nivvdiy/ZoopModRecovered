@@ -1,6 +1,4 @@
 using System;
-using System.Collections;
-using System.Reflection;
 using Assets.Scripts.Inventory;
 using Assets.Scripts.Objects;
 using HarmonyLib;
@@ -20,7 +18,7 @@ internal static class InventoryManagerSetMultiConstructPatch
     if (ZoopRuntime.Controller.IsZooping)
     {
       ZoopLog.Debug($"[Placement] Detected multi-constructor {multiConstructorItem.PrefabHash}.");
-      ZoopRuntime.Controller.StartZoop(__instance);
+      ZoopRuntime.Controller.RestartZoop(__instance);
     }
   }
 }
@@ -34,7 +32,7 @@ internal static class InventoryManagerSetConstructPatch
     if (ZoopRuntime.Controller.IsZooping)
     {
       ZoopLog.Debug($"[Placement] Detected constructor {constructorItem.PrefabHash}.");
-      ZoopRuntime.Controller.StartZoop(__instance);
+      ZoopRuntime.Controller.RestartZoop(__instance);
     }
   }
 }
@@ -116,49 +114,22 @@ internal static class InventoryManagerPlacementModePatch
     if ((ZoopRuntime.Controller.IsZoopKeyPressed && primary) || spec)
     {
       ZoopLog.Debug("[Placement] Starting zoop placement.");
-      ZoopRuntime.Controller.StartZoop(__instance);
+      ZoopRuntime.Controller.ToggleZoop(__instance);
     }
 
-    if (addWaypoint && ZoopRuntime.Controller.IsZooping)
+    if (addWaypoint && ZoopRuntime.Controller.IsPreviewing)
     {
       ZoopRuntime.Controller.AddWaypoint();
     }
 
-    if (removeWaypoint && ZoopRuntime.Controller.IsZooping)
+    if (removeWaypoint && ZoopRuntime.Controller.IsPreviewing)
     {
       ZoopRuntime.Controller.RemoveLastWaypoint();
     }
 
     if (primary && ZoopRuntime.Controller.IsZooping && !ZoopRuntime.Controller.IsZoopKeyPressed)
     {
-      if (!ZoopRuntime.Controller.HasError)
-      {
-        if (!InventoryManager.IsAuthoringMode && InventoryManager.ConstructionCursor.BuildPlacementTime > 0.0)
-        {
-          var num1 = 1f;
-
-          var inventoryManagerType = typeof(InventoryManager);
-          var method = inventoryManagerType.GetMethod("WaitUntilDone",
-            BindingFlags.NonPublic | BindingFlags.Instance, null,
-            [typeof(InventoryManager.DelegateEvent), typeof(float), typeof(Structure)],
-            null);
-          if (method != null)
-          {
-            var actionCoroutine = __instance.StartCoroutine((IEnumerator)method.Invoke(
-              __instance,
-              [
-                new InventoryManager.DelegateEvent(() => ZoopRuntime.Controller.BuildZoop(__instance)),
-                InventoryManager.ConstructionCursor.BuildPlacementTime / num1,
-                InventoryManager.ConstructionCursor
-              ]));
-            ZoopRuntime.Controller.SetPendingBuild(__instance, actionCoroutine);
-          }
-        }
-        else
-        {
-          ZoopRuntime.Controller.BuildZoop(__instance);
-        }
-      }
+      ZoopRuntime.Controller.ConfirmZoop(__instance);
 
       return !ZoopRuntime.Controller.IsZooping;
     }

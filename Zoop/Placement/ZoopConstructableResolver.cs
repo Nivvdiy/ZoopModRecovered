@@ -4,9 +4,9 @@ using ZoopMod.Zoop.Core;
 
 namespace ZoopMod.Zoop.Placement;
 
-internal static class ZoopConstructableResolver
+internal sealed class ZoopConstructableResolver(ZoopSession session)
 {
-  public static int ResolveBuildIndex(ZoopSession session, InventoryManager inventoryManager, Structure item, int structureIndex)
+  public int ResolveBuildIndex(InventoryManager inventoryManager, Structure item, int structureIndex)
   {
     if (structureIndex >= 0 && structureIndex < session.PreviewCount)
     {

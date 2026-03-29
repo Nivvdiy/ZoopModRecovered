@@ -10,10 +10,9 @@ namespace ZoopMod.Zoop.EntryPoints;
 internal static class ZoopRuntime
 {
   private static readonly ZoopSession Session = new();
+  private static readonly ZoopConstructableResolver ConstructableResolver = new(Session);
   private static readonly ZoopPreviewFactory PreviewFactory = new(Session);
-  private static readonly ZoopPreviewValidator PreviewValidator =
-    new(ZoopConstructableResolver.ResolveBuildIndex, ZoopConstructableResolver.GetConstructableForBuildIndex,
-      allowPlacementUpdate => Session.AllowPlacementUpdate = allowPlacementUpdate);
+  private static readonly ZoopPreviewValidator PreviewValidator = new(Session, ConstructableResolver);
 
-  public static ZoopController Controller { get; } = new(Session, PreviewFactory, PreviewValidator);
+  public static ZoopController Controller { get; } = new(Session, PreviewFactory, PreviewValidator, ConstructableResolver);
 }

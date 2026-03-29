@@ -19,24 +19,16 @@ internal static class ZoopBuildExecutor
 
   public static void BuildAll(
     InventoryManager inventoryManager,
-    ZoopSession session)
+    ZoopBuildPlan buildPlan)
   {
-    for (var structureIndex = 0; structureIndex < session.PreviewCount; structureIndex++)
+    for (var structureIndex = 0; structureIndex < buildPlan.Count; structureIndex++)
     {
-      var item = session.PreviewPieces[structureIndex].Structure;
-      var buildIndex = ZoopConstructableResolver.ResolveBuildIndex(session, inventoryManager, item, structureIndex);
-      if (buildIndex < 0)
-      {
-        ZoopLog.Error($"[Build] Unable to resolve build index for {item.PrefabName}; skipping zoop placement.");
-        continue;
-      }
-
+      var piece = buildPlan.Pieces[structureIndex];
+      var buildIndex = piece.BuildIndex;
       inventoryManager.ConstructionPanel.BuildIndex = buildIndex;
-      InventoryManager.SpawnPrefab = InventoryManager.IsAuthoringMode && session.ZoopSpawnPrefab != null
-        ? session.ZoopSpawnPrefab
-        : item;
-      UsePrimaryPositionField?.SetValue(inventoryManager, item.transform.position);
-      UsePrimaryRotationField?.SetValue(inventoryManager, item.transform.rotation);
+      InventoryManager.SpawnPrefab = piece.SpawnPrefab;
+      UsePrimaryPositionField?.SetValue(inventoryManager, piece.Position);
+      UsePrimaryRotationField?.SetValue(inventoryManager, piece.Rotation);
       if (UsePrimaryCompleteMethod == null)
       {
         ZoopLog.Error("[Build] Unable to find InventoryManager.UsePrimaryComplete; skipping zoop placement.");
