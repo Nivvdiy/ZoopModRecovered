@@ -6,8 +6,9 @@ using UnityEngine;
 
 namespace ZoopMod.Zoop;
 
+// TODO this needs further refactoring, maybe let it be a field on the ZoopSession
 internal sealed class ZoopPreviewValidator(
-  Func<InventoryManager, Structure, int, int> resolveBuildIndex,
+  Func<ZoopSession, InventoryManager, Structure, int, int> resolveBuildIndex,
   Func<InventoryManager, int, Structure> getConstructableForBuildIndex,
   Action<bool> setAllowPlacementUpdate)
 {
@@ -29,18 +30,18 @@ internal sealed class ZoopPreviewValidator(
     public Quaternion OriginalCursorLocalRotation { get; } = originalCursorLocalRotation;
   }
 
-  public bool CanConstructSmallCell(InventoryManager inventoryManager, Structure structure, int structureIndex)
+  public bool CanConstructSmallCell(ZoopSession session, InventoryManager inventoryManager, Structure structure, int structureIndex)
   {
-    return CanConstructWithValidationCursor(inventoryManager, structure, structureIndex,
+    return CanConstructWithValidationCursor(session, inventoryManager, structure, structureIndex,
       validationCursor => ValidateSmallCellCursor(inventoryManager, validationCursor));
   }
 
-  public bool CanConstructBigCell(InventoryManager inventoryManager, Structure structure, int structureIndex)
+  public bool CanConstructBigCell(ZoopSession session, InventoryManager inventoryManager, Structure structure, int structureIndex)
   {
-    return CanConstructWithValidationCursor(inventoryManager, structure, structureIndex, ValidateLargeGridCursor);
+    return CanConstructWithValidationCursor(session, inventoryManager, structure, structureIndex, ValidateLargeGridCursor);
   }
 
-  private bool CanConstructWithValidationCursor(InventoryManager inventoryManager, Structure structure, int structureIndex,
+  private bool CanConstructWithValidationCursor(ZoopSession session, InventoryManager inventoryManager, Structure structure, int structureIndex,
     Func<Structure, bool> validator)
   {
     var originalCursor = InventoryManager.ConstructionCursor;
@@ -49,7 +50,7 @@ internal sealed class ZoopPreviewValidator(
       return false;
     }
 
-    if (!TryGetValidationTarget(inventoryManager, structure, structureIndex, originalCursor,
+    if (!TryGetValidationTarget(session, inventoryManager, structure, structureIndex, originalCursor,
           out var validationConstructable, out var cursorState))
     {
       return false;
@@ -76,11 +77,11 @@ internal sealed class ZoopPreviewValidator(
     }
   }
 
-  private bool TryGetValidationTarget(InventoryManager inventoryManager, Structure structure, int structureIndex,
+  private bool TryGetValidationTarget(ZoopSession session, InventoryManager inventoryManager, Structure structure, int structureIndex,
     Structure originalCursor, out Structure validationConstructable, out ValidationCursorState cursorState)
   {
     var originalBuildIndex = inventoryManager.ConstructionPanel.BuildIndex;
-    var validationBuildIndex = resolveBuildIndex(inventoryManager, structure, structureIndex);
+    var validationBuildIndex = resolveBuildIndex(session, inventoryManager, structure, structureIndex);
     validationConstructable = getConstructableForBuildIndex(inventoryManager, validationBuildIndex);
     if (validationConstructable == null)
     {

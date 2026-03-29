@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Reflection;
 using System.Threading;
 using Assets.Scripts.Inventory;
 using Assets.Scripts.Objects;
@@ -21,7 +20,8 @@ public static class ZoopUtility
   private static readonly ZoopSession Session = new();
   private static readonly ZoopPreviewFactory PreviewFactory = new(Session);
   private static readonly ZoopPreviewValidator PreviewValidator =
-    new(ResolveBuildIndex, GetConstructableForBuildIndex, allowPlacementUpdate => AllowPlacementUpdate = allowPlacementUpdate);
+    new(ZoopConstructableResolver.ResolveBuildIndex, ZoopConstructableResolver.GetConstructableForBuildIndex,
+      allowPlacementUpdate => AllowPlacementUpdate = allowPlacementUpdate);
   private static readonly ZoopPreviewColorizer PreviewColorizer = new(Session, () => LineColor);
 
   public static int PreviewCount => Session.PreviewCount;
@@ -32,15 +32,6 @@ public static class ZoopUtility
     get => Session.AllowPlacementUpdate;
     private set => Session.AllowPlacementUpdate = value;
   }
-
-  private static readonly FieldInfo UsePrimaryPositionField =
-    typeof(InventoryManager).GetField("_usePrimaryPosition", BindingFlags.Instance | BindingFlags.NonPublic);
-
-  private static readonly FieldInfo UsePrimaryRotationField =
-    typeof(InventoryManager).GetField("_usePrimaryRotation", BindingFlags.Instance | BindingFlags.NonPublic);
-
-  private static readonly MethodInfo UsePrimaryCompleteMethod = typeof(InventoryManager).GetMethod("UsePrimaryComplete",
-    BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
 
   public static bool IsZoopKeyPressed { get; set; }
 
@@ -184,11 +175,6 @@ public static class ZoopUtility
   private static Structure GetPreviewStructure(int index)
   {
     return Session.PreviewPieces[index].Structure;
-  }
-
-  private static int GetPreviewBuildIndex(int index)
-  {
-    return Session.PreviewPieces[index].BuildIndex;
   }
 
   /// <summary>
@@ -445,12 +431,7 @@ public static class ZoopUtility
   public static void BuildZoop(InventoryManager inventoryManager)
   {
     ClearPendingBuild();
-
-    for (var structureIndex = 0; structureIndex < PreviewPieceCount; structureIndex++)
-    {
-      var item = GetPreviewStructure(structureIndex);
-      PlaceStructure(inventoryManager, item, structureIndex);
-    }
+    ZoopBuildExecutor.BuildAll(inventoryManager, Session);
 
     inventoryManager.CancelPlacement();
     CancelZoop();
@@ -494,83 +475,6 @@ public static class ZoopUtility
     {
       Session.Waypoints.RemoveAt(Session.Waypoints.Count - 1);
     }
-  }
-
-  /// <summary>
-  /// Places a single preview structure using the correct build index and spawn source.
-  /// </summary>
-  private static void PlaceStructure(InventoryManager inventoryManager, Structure item, int structureIndex)
-  {
-    var buildIndex = ResolveBuildIndex(inventoryManager, item, structureIndex);
-    if (buildIndex < 0)
-    {
-      ZoopMod.Log($"Unable to resolve build index for {item.PrefabName}; skipping zoop placement.", ZoopMod.Logs.error);
-      return;
-    }
-
-    inventoryManager.ConstructionPanel.BuildIndex = buildIndex;
-    // Keep the authoring tool's original spawn source so UsePrimaryComplete can resolve the selected prefab family.
-    InventoryManager.SpawnPrefab = InventoryManager.IsAuthoringMode && Session.ZoopSpawnPrefab != null
-      ? Session.ZoopSpawnPrefab
-      : item;
-    UsePrimaryPositionField?.SetValue(inventoryManager, item.transform.position);
-    UsePrimaryRotationField?.SetValue(inventoryManager, item.transform.rotation);
-    if (UsePrimaryCompleteMethod == null)
-    {
-      ZoopMod.Log("Unable to find InventoryManager.UsePrimaryComplete; skipping zoop placement.", ZoopMod.Logs.error);
-      return;
-    }
-
-    UsePrimaryCompleteMethod.Invoke(inventoryManager, null);
-
-    if (!InventoryManager.IsAuthoringMode)
-    {
-      return;
-    }
-
-    var placedStructure = Structure.LastCreatedStructure;
-    if (placedStructure?.NextBuildState == null)
-    {
-      return;
-    }
-
-    var lastBuildStateIndex = placedStructure.BuildStates.Count - 1;
-    if (lastBuildStateIndex >= 0)
-    {
-      placedStructure.UpdateBuildStateAndVisualizer(lastBuildStateIndex);
-    }
-  }
-
-  /// <summary>
-  /// Resolves the build index that matches a preview structure.
-  /// </summary>
-  private static int ResolveBuildIndex(InventoryManager inventoryManager, Structure item, int structureIndex)
-  {
-    if (structureIndex >= 0 && structureIndex < PreviewPieceCount)
-    {
-      return GetPreviewBuildIndex(structureIndex);
-    }
-
-    var buildIndex =
-      inventoryManager.ConstructionPanel.Parent.Constructables.FindIndex(structure =>
-        structure.PrefabName == item.PrefabName);
-    if (buildIndex >= 0)
-    {
-      return buildIndex;
-    }
-
-    return inventoryManager.ConstructionPanel.BuildIndex;
-  }
-
-  /// <summary>
-  /// Returns the constructable at the given build index, or null when the index is invalid.
-  /// </summary>
-  private static Structure GetConstructableForBuildIndex(InventoryManager inventoryManager, int buildIndex)
-  {
-    var constructables = inventoryManager.ConstructionPanel.Parent.Constructables;
-    return buildIndex >= 0 && buildIndex < constructables.Count
-      ? constructables[buildIndex]
-      : null;
   }
 
   /// <summary>
@@ -705,7 +609,7 @@ public static class ZoopUtility
   /// </summary>
   private static bool CanConstructSmallCell(InventoryManager inventoryManager, Structure structure, int structureIndex)
   {
-    return PreviewValidator.CanConstructSmallCell(inventoryManager, structure, structureIndex);
+    return PreviewValidator.CanConstructSmallCell(Session, inventoryManager, structure, structureIndex);
   }
 
   /// <summary>
@@ -713,7 +617,7 @@ public static class ZoopUtility
   /// </summary>
   private static bool CanConstructBigCell(InventoryManager inventoryManager, Structure structure, int structureIndex)
   {
-    return PreviewValidator.CanConstructBigCell(inventoryManager, structure, structureIndex);
+    return PreviewValidator.CanConstructBigCell(Session, inventoryManager, structure, structureIndex);
   }
 
   #endregion
