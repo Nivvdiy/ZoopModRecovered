@@ -40,6 +40,7 @@ Run this after any small zoop-related change.
 - [ ] Zoop respects material limits in normal mode.
 - [ ] Consumed materials match placed pieces.
 - [ ] Authoring placement remains instant.
+- [ ] Interrupting the build during the wait window restores a valid preview/manual placement state.
 
 ### Authoring mode
 - [ ] Authoring-mode overlap behavior matches manual authoring placement.

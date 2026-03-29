@@ -2,7 +2,6 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Reflection;
-using System.Threading;
 using Assets.Scripts.Inventory;
 using Assets.Scripts.Objects;
 using Cysharp.Threading.Tasks;
@@ -39,13 +38,12 @@ internal sealed class ZoopController(
   private readonly ZoopBigGridCoordinator bigGridCoordinator = new(previewValidator);
   private ZoopDraft activeDraft;
   private ZoopPreviewCache activePreviewCache;
-  private CancellationTokenSource previewCancellationSource;
+  private Coroutine previewLoopCoroutine;
+  private InventoryManager previewLoopOwner;
   private ZoopLifecycleState state;
   private Coroutine pendingBuildCoroutine;
   private InventoryManager pendingBuildOwner;
   private ZoopBuildPlan pendingBuildPlan;
-  private int currentPreviewLoopId;
-  private int nextPreviewLoopId;
 
   public int PreviewCount => activeDraft?.PreviewCount ?? 0;
   public bool AllowPlacementUpdate => placementUpdateGate.AllowPlacementUpdate;
@@ -204,26 +202,7 @@ internal sealed class ZoopController(
     }
 
     state = ZoopLifecycleState.Previewing;
-    var cts = new CancellationTokenSource();
-    previewCancellationSource = cts;
-    var previewLoopId = Interlocked.Increment(ref nextPreviewLoopId);
-    currentPreviewLoopId = previewLoopId;
-    var ct = cts.Token;
-    UniTask.RunOnThreadPool(async () =>
-    {
-      try
-      {
-        await ZoopAsync(ct, inventoryManager);
-      }
-      finally
-      {
-        cts.Dispose();
-        if (previewLoopId == currentPreviewLoopId && ReferenceEquals(previewCancellationSource, cts))
-        {
-          previewCancellationSource = null;
-        }
-      }
-    }, cancellationToken: ct);
+    StartPreviewLoop(inventoryManager);
   }
 
   private void BuildPendingZoop(InventoryManager inventoryManager)
@@ -270,63 +249,36 @@ internal sealed class ZoopController(
     return new ZoopBuildPlan(pieces);
   }
 
-  private async UniTask ZoopAsync(CancellationToken cancellationToken, InventoryManager inventoryManager)
+  private async UniTask UpdatePreviewStep(ZoopDraft draft, ZoopPreviewCache previewCache, InventoryManager inventoryManager,
+    List<ZoopSegment> segments)
   {
-    var draft = activeDraft;
-    var previewCache = activePreviewCache;
-    if (draft == null || previewCache == null)
+    if (draft.Waypoints.Count <= 0)
     {
       return;
     }
 
-    await UniTask.SwitchToMainThread();
-
-    List<ZoopSegment> segments = [];
-    if (InventoryManager.ConstructionCursor != null)
+    var currentPos = GetCurrentMouseGridPosition();
+    if (!currentPos.HasValue)
     {
-      InventoryManager.ConstructionCursor.gameObject.SetActive(false);
+      return;
     }
 
-    while (cancellationToken is { IsCancellationRequested: false })
+    draft.HasError = false;
+
+    if (IsZoopingSmallGrid())
     {
-      try
-      {
-        if (draft.Waypoints.Count > 0)
-        {
-          var currentPos = GetCurrentMouseGridPosition();
-          if (currentPos.HasValue)
-          {
-            draft.HasError = false;
+      await smallGridCoordinator.UpdatePreview(draft, previewCache, inventoryManager, currentPos.Value, segments,
+        DefaultSpacing);
+    }
+    else if (IsZoopingBigGrid())
+    {
+      await bigGridCoordinator.UpdatePreview(draft, previewCache, inventoryManager, currentPos.Value, DefaultSpacing);
+    }
 
-            if (IsZoopingSmallGrid())
-            {
-              await smallGridCoordinator.UpdatePreview(draft, previewCache, inventoryManager, currentPos.Value, segments,
-                DefaultSpacing);
-            }
-            else if (IsZoopingBigGrid())
-            {
-              await bigGridCoordinator.UpdatePreview(draft, previewCache, inventoryManager, currentPos.Value,
-                DefaultSpacing);
-            }
-
-            foreach (var previewPiece in draft.PreviewPieces)
-            {
-              ZoopPreviewColorizer.ApplyColor(inventoryManager, previewPiece.Structure, draft.Waypoints, draft.HasError,
-                LineColor);
-            }
-          }
-        }
-
-        await UniTask.Delay(100, DelayType.Realtime, cancellationToken: cancellationToken);
-      }
-      catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
-      {
-        break;
-      }
-      catch (Exception e)
-      {
-        ZoopLog.Error(e, "Preview update loop failed.");
-      }
+    foreach (var previewPiece in draft.PreviewPieces)
+    {
+      ZoopPreviewColorizer.ApplyColor(inventoryManager, previewPiece.Structure, draft.Waypoints, draft.HasError,
+        LineColor);
     }
   }
 
@@ -369,13 +321,18 @@ internal sealed class ZoopController(
 
     try
     {
-      var actionCoroutine = inventoryManager.StartCoroutine((IEnumerator)WaitUntilDoneMethod.Invoke(
+      var onBuildFinished = new InventoryManager.DelegateEvent(() => BuildPendingZoop(inventoryManager));
+      var buildTime = InventoryManager.ConstructionCursor.BuildPlacementTime;
+      var structure = InventoryManager.ConstructionCursor;
+      var waitRoutine = WaitUntilDoneMethod.Invoke(
         inventoryManager,
-        [
-          new InventoryManager.DelegateEvent(() => BuildPendingZoop(inventoryManager)),
-          InventoryManager.ConstructionCursor.BuildPlacementTime,
-          InventoryManager.ConstructionCursor
-        ]));
+        [onBuildFinished, buildTime, structure]) as IEnumerator;
+      if (waitRoutine == null)
+      {
+        return false;
+      }
+
+      var actionCoroutine = inventoryManager.StartCoroutine(WaitForPendingBuildCompletion(waitRoutine));
 
       if (actionCoroutine == null)
       {
@@ -393,6 +350,21 @@ internal sealed class ZoopController(
     }
   }
 
+  private IEnumerator WaitForPendingBuildCompletion(IEnumerator waitRoutine)
+  {
+    yield return waitRoutine;
+
+    if (state != ZoopLifecycleState.PendingBuild || pendingBuildPlan == null)
+    {
+      yield break;
+    }
+
+    ZoopLog.Debug("[Build] Delayed zoop build was interrupted before completion; resuming zoop preview.");
+    var inventoryManager = pendingBuildOwner;
+    ClearPendingBuildState();
+    ResumePreviewing(inventoryManager);
+  }
+
   private static Assets.Scripts.ICreativeSpawnable ResolveSpawnPrefabForBuild(ZoopDraft draft, InventoryManager inventoryManager,
     int buildIndex, Structure previewStructure)
   {
@@ -404,13 +376,73 @@ internal sealed class ZoopController(
     return ZoopConstructableResolver.GetConstructableForBuildIndex(inventoryManager, buildIndex) ?? previewStructure;
   }
 
+  private void ResumePreviewing(InventoryManager inventoryManager)
+  {
+    if (inventoryManager == null ||
+        activeDraft == null ||
+        activePreviewCache == null ||
+        activeDraft.Waypoints.Count <= 0 ||
+        InventoryManager.ConstructionCursor == null ||
+        !ZoopConstructableRules.IsAllowed(InventoryManager.ConstructionCursor))
+    {
+      ResetSession(restoreCursorVisibility: true, cancelPendingBuild: false);
+      return;
+    }
+
+    state = ZoopLifecycleState.Previewing;
+    StartPreviewLoop(inventoryManager);
+  }
+
+  private void StartPreviewLoop(InventoryManager inventoryManager)
+  {
+    var draft = activeDraft;
+    var previewCache = activePreviewCache;
+    if (draft == null || previewCache == null)
+    {
+      return;
+    }
+
+    previewLoopOwner = inventoryManager;
+    previewLoopCoroutine = inventoryManager.StartCoroutine(PreviewLoop(draft, previewCache, inventoryManager));
+  }
+
+  private IEnumerator PreviewLoop(ZoopDraft draft, ZoopPreviewCache previewCache, InventoryManager inventoryManager)
+  {
+    var segments = new List<ZoopSegment>();
+    if (InventoryManager.ConstructionCursor != null)
+    {
+      InventoryManager.ConstructionCursor.gameObject.SetActive(false);
+    }
+
+    while (state == ZoopLifecycleState.Previewing &&
+           ReferenceEquals(activeDraft, draft) &&
+           ReferenceEquals(activePreviewCache, previewCache))
+    {
+      Exception previewException = null;
+      yield return UpdatePreviewStep(draft, previewCache, inventoryManager, segments).ToCoroutine(exception =>
+      {
+        previewException = exception;
+      });
+
+      if (previewException != null)
+      {
+        ZoopLog.Error(previewException, "Preview update loop failed.");
+      }
+
+      yield return new WaitForSecondsRealtime(0.1f);
+    }
+  }
+
   private void StopPreviewLoop(ZoopLifecycleState nextState)
   {
-    currentPreviewLoopId = 0;
-    var cancellationSource = previewCancellationSource;
-    previewCancellationSource = null;
+    if (previewLoopOwner != null && previewLoopCoroutine != null)
+    {
+      previewLoopOwner.StopCoroutine(previewLoopCoroutine);
+    }
+
+    previewLoopCoroutine = null;
+    previewLoopOwner = null;
     state = nextState;
-    cancellationSource?.Cancel();
   }
 
   private void ResetSession(bool restoreCursorVisibility, bool cancelPendingBuild)
