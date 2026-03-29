@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using System.Threading;
-using Assets.Scripts;
 using Assets.Scripts.Inventory;
 using Assets.Scripts.Objects;
 using Assets.Scripts.Objects.Electrical;
@@ -21,23 +20,17 @@ public static class ZoopUtility
 {
   #region Fields
 
-  public static readonly List<Structure> Structures = [];
-  private static readonly List<int> StructureBuildIndices = [];
-  private static readonly List<Structure> structuresCacheStraight = [];
-  private static readonly List<int> StructureCacheStraightBuildIndices = [];
-  private static readonly List<Structure> structuresCacheCorner = [];
-  private static readonly List<int> StructureCacheCornerBuildIndices = [];
+  private static readonly ZoopSession Session = new();
 
-  private static readonly List<Vector3?> Waypoints = [];
+  public static IReadOnlyList<Structure> Structures => [.. Session.PreviewPieces.Select(piece => piece.Structure)];
+  public static bool HasError { get => Session.HasError; private set => Session.HasError = value; }
+  public static Coroutine ActionCoroutine { get => Session.ActionCoroutine; private set => Session.ActionCoroutine = value; }
+  public static bool AllowPlacementUpdate
+  {
+    get => Session.AllowPlacementUpdate;
+    private set => Session.AllowPlacementUpdate = value;
+  }
 
-  public static bool HasError { get; private set; }
-  public static Coroutine ActionCoroutine { get; private set; }
-  public static bool AllowPlacementUpdate { get; private set; }
-  private static CancellationTokenSource _zoopCancellationSource;
-  private static InventoryManager _actionCoroutineOwner;
-  private static ICreativeSpawnable _zoopSpawnPrefab;
-  private static Quaternion _zoopStartRotation = Quaternion.identity;
-  private static Vector3 _zoopStartWallNormal = Vector3.zero;
   private const float PositionToleranceSqr = 0.0001f;
 
   private readonly struct ValidationCursorState
@@ -85,6 +78,8 @@ public static class ZoopUtility
   private static readonly int ColorPropertyId = Shader.PropertyToID("_Color");
   private static readonly int BaseColorPropertyId = Shader.PropertyToID("_BaseColor");
 
+  private static int PreviewPieceCount => Session.PreviewPieces.Count;
+
   #endregion
 
   #region Common Methods
@@ -107,8 +102,8 @@ public static class ZoopUtility
 
     IsZooping = true;
 
-    Waypoints.Clear();
-    _zoopSpawnPrefab = InventoryManager.SpawnPrefab;
+    Session.Waypoints.Clear();
+    Session.ZoopSpawnPrefab = InventoryManager.SpawnPrefab;
     if (InventoryManager.ConstructionCursor != null)
     {
       var selectedConstructable = GetSelectedConstructable(inventoryManager);
@@ -125,26 +120,26 @@ public static class ZoopUtility
         AllowPlacementUpdate = false;
       }
 
-      _zoopStartRotation = InventoryManager.ConstructionCursor.transform.rotation;
-      _zoopStartWallNormal = InventoryManager.ConstructionCursor is Wall
+      Session.ZoopStartRotation = InventoryManager.ConstructionCursor.transform.rotation;
+      Session.ZoopStartWallNormal = InventoryManager.ConstructionCursor is Wall
         ? GetCardinalAxis(InventoryManager.ConstructionCursor.transform.forward)
         : Vector3.zero;
 
       var startPos = GetCurrentMouseGridPosition();
       if (startPos.HasValue)
       {
-        Waypoints.Add(startPos); // Add start position as the first waypoint
+        Session.Waypoints.Add(startPos); // Add start position as the first waypoint
       }
     }
 
-    if (Waypoints.Count <= 0)
+    if (Session.Waypoints.Count <= 0)
     {
       IsZooping = false;
       return;
     }
 
     var cts = new CancellationTokenSource();
-    _zoopCancellationSource = cts;
+    Session.CancellationSource = cts;
     var ct = cts.Token;
     UniTask.RunOnThreadPool(async () =>
     {
@@ -155,7 +150,7 @@ public static class ZoopUtility
       finally
       {
         cts.Dispose();
-        _zoopCancellationSource = null;
+        Session.CancellationSource = null;
         IsZooping = false;
       }
     }, cancellationToken: ct);
@@ -168,19 +163,18 @@ public static class ZoopUtility
   {
     IsZooping = false;
     CancelPendingBuild();
-    if (_zoopCancellationSource != null)
+    if (Session.CancellationSource != null)
     {
-      _zoopCancellationSource.Cancel();
-      _zoopCancellationSource = null;
+      Session.CancellationSource.Cancel();
+      Session.CancellationSource = null;
       ClearStructureCache();
-      Structures.Clear(); //try to reset a list of structures for single piece placing
-      StructureBuildIndices.Clear();
-      Waypoints.Clear();
-      _zoopStartRotation = Quaternion.identity;
-      _zoopStartWallNormal = Vector3.zero;
+      Session.PreviewPieces.Clear(); //try to reset a list of structures for single piece placing
+      Session.Waypoints.Clear();
+      Session.ZoopStartRotation = Quaternion.identity;
+      Session.ZoopStartWallNormal = Vector3.zero;
     }
 
-    _zoopSpawnPrefab = null;
+    Session.ZoopSpawnPrefab = null;
 
     if (InventoryManager.ConstructionCursor != null)
     {
@@ -195,7 +189,7 @@ public static class ZoopUtility
   {
     CancelPendingBuild();
     ActionCoroutine = coroutine;
-    _actionCoroutineOwner = inventoryManager;
+    Session.ActionCoroutineOwner = inventoryManager;
   }
 
   /// <summary>
@@ -203,9 +197,9 @@ public static class ZoopUtility
   /// </summary>
   private static void CancelPendingBuild()
   {
-    if (_actionCoroutineOwner != null && ActionCoroutine != null)
+    if (Session.ActionCoroutineOwner != null && ActionCoroutine != null)
     {
-      _actionCoroutineOwner.StopCoroutine(ActionCoroutine);
+      Session.ActionCoroutineOwner.StopCoroutine(ActionCoroutine);
     }
 
     ClearPendingBuild();
@@ -217,7 +211,22 @@ public static class ZoopUtility
   private static void ClearPendingBuild()
   {
     ActionCoroutine = null;
-    _actionCoroutineOwner = null;
+    Session.ActionCoroutineOwner = null;
+  }
+
+  private static Structure GetPreviewStructure(int index)
+  {
+    return Session.PreviewPieces[index].Structure;
+  }
+
+  private static int GetPreviewBuildIndex(int index)
+  {
+    return Session.PreviewPieces[index].BuildIndex;
+  }
+
+  private static void AddPreviewPiece(Structure structure, int buildIndex)
+  {
+    Session.PreviewPieces.Add(new PreviewPiece(structure, buildIndex));
   }
 
   /// <summary>
@@ -237,7 +246,7 @@ public static class ZoopUtility
     {
       try
       {
-        if (Waypoints.Count > 0)
+        if (Session.Waypoints.Count > 0)
         {
           var currentPos = GetCurrentMouseGridPosition();
           if (currentPos.HasValue)
@@ -253,9 +262,9 @@ public static class ZoopUtility
               await ZoopBigGrid(inventoryManager, currentPos.Value);
             }
 
-            foreach (var structure in Structures)
+            foreach (var previewPiece in Session.PreviewPieces)
             {
-              SetColor(inventoryManager, structure, HasError);
+              SetColor(inventoryManager, previewPiece.Structure, HasError);
             }
           }
         }
@@ -289,7 +298,7 @@ public static class ZoopUtility
         inventoryManager.ConstructionPanel.Parent.LastSelectedIndex);
     BuildSmallStructureList(inventoryManager, zoops, supportsCornerVariant);
 
-    if (Structures.Count <= 0)
+    if (PreviewPieceCount <= 0)
     {
       return;
     }
@@ -305,10 +314,10 @@ public static class ZoopUtility
     zoops.Clear();
 
     var singleItem = true;
-    for (var wpIndex = 0; wpIndex < Waypoints.Count; wpIndex++)
+    for (var wpIndex = 0; wpIndex < Session.Waypoints.Count; wpIndex++)
     {
-      var startPos = Waypoints[wpIndex].Value;
-      var endPos = wpIndex < Waypoints.Count - 1 ? Waypoints[wpIndex + 1].Value : currentPos;
+      var startPos = Session.Waypoints[wpIndex].Value;
+      var endPos = wpIndex < Session.Waypoints.Count - 1 ? Session.Waypoints[wpIndex + 1].Value : currentPos;
 
       var segment = new ZoopSegment();
       CalculateZoopSegments(startPos, endPos, segment);
@@ -343,10 +352,10 @@ public static class ZoopUtility
       float xOffset = 0;
       float yOffset = 0;
       float zOffset = 0;
-      var startPos = Waypoints[segmentIndex].Value;
+      var startPos = Session.Waypoints[segmentIndex].Value;
       for (var directionIndex = 0; directionIndex < segment.Directions.Count; directionIndex++)
       {
-        if (structureCounter == Structures.Count)
+        if (structureCounter == PreviewPieceCount)
         {
           break;
         }
@@ -359,7 +368,7 @@ public static class ZoopUtility
 
         for (var zi = 0; zi < zoopCounter; zi++)
         {
-          if (structureCounter == Structures.Count)
+          if (structureCounter == PreviewPieceCount)
           {
             break;
           }
@@ -375,9 +384,10 @@ public static class ZoopUtility
 
           var offset = new Vector3(xOffset, yOffset, zOffset);
           var previewPosition = startPos + offset;
-          Structures[structureCounter].GameObject.SetActive(true);
-          Structures[structureCounter].ThingTransformPosition = previewPosition;
-          Structures[structureCounter].Position = previewPosition;
+          var previewStructure = GetPreviewStructure(structureCounter);
+          previewStructure.GameObject.SetActive(true);
+          previewStructure.ThingTransformPosition = previewPosition;
+          previewStructure.Position = previewPosition;
           if (!ZoopMod.CFree)
           {
             // Small-grid zoops cannot safely revisit the same cell: cables can overlap incorrectly and chutes
@@ -386,7 +396,7 @@ public static class ZoopUtility
             var revisitsExistingZoopCell = occupiedCells.Contains(cellKey);
             occupiedCells.Add(cellKey);
             HasError = HasError || revisitsExistingZoopCell;
-            HasError = HasError || !CanConstructSmallCell(inventoryManager, Structures[structureCounter], structureCounter);
+            HasError = HasError || !CanConstructSmallCell(inventoryManager, previewStructure, structureCounter);
           }
 
           structureCounter++;
@@ -443,11 +453,12 @@ public static class ZoopUtility
     {
       if (lastDirection == zoopDirection)
       {
-        SetStraightRotationSmallGrid(Structures[structureCounter], zoopDirection);
+        SetStraightRotationSmallGrid(GetPreviewStructure(structureCounter), zoopDirection);
       }
       else
       {
-        SetCornerRotation(Structures[structureCounter], lastDirection, increasingFrom, zoopDirection, increasingTo);
+        SetCornerRotation(GetPreviewStructure(structureCounter), lastDirection, increasingFrom, zoopDirection,
+          increasingTo);
       }
 
       return;
@@ -455,7 +466,7 @@ public static class ZoopUtility
 
     if (!singleItem)
     {
-      SetStraightRotationSmallGrid(Structures[structureCounter], zoopDirection);
+      SetStraightRotationSmallGrid(GetPreviewStructure(structureCounter), zoopDirection);
     }
   }
 
@@ -464,7 +475,7 @@ public static class ZoopUtility
   /// </summary>
   private static async UniTask ZoopBigGrid(InventoryManager inventoryManager, Vector3 currentPos)
   {
-    var startPos = Waypoints[0].Value;
+    var startPos = Session.Waypoints[0].Value;
     var endPos = ClampWallZoopPositionToStartPlane(startPos, currentPos);
 
     var plane = new ZoopPlane();
@@ -484,7 +495,7 @@ public static class ZoopUtility
     BuildBigStructureList(inventoryManager, plane);
 
     var structureCounter = 0;
-    if (Structures.Count <= 0)
+    if (PreviewPieceCount <= 0)
     {
       return;
     }
@@ -505,7 +516,7 @@ public static class ZoopUtility
 
       for (var indexDirection1 = 0; indexDirection1 < plane.Count.direction1; indexDirection1++)
       {
-        if (structureCounter == Structures.Count)
+        if (structureCounter == PreviewPieceCount)
         {
           break;
         }
@@ -518,10 +529,11 @@ public static class ZoopUtility
 
         var offset = new Vector3(xOffset, yOffset, zOffset);
         var previewPosition = startPos + offset;
-        Structures[structureCounter].GameObject.SetActive(true);
-        Structures[structureCounter].ThingTransformPosition = previewPosition;
-        Structures[structureCounter].Position = previewPosition;
-        HasError = HasError || !CanConstructBigCell(inventoryManager, Structures[structureCounter], structureCounter);
+        var previewStructure = GetPreviewStructure(structureCounter);
+        previewStructure.GameObject.SetActive(true);
+        previewStructure.ThingTransformPosition = previewPosition;
+        previewStructure.Position = previewPosition;
+        HasError = HasError || !CanConstructBigCell(inventoryManager, previewStructure, structureCounter);
         structureCounter++;
       }
     }
@@ -534,9 +546,9 @@ public static class ZoopUtility
   {
     ClearPendingBuild();
 
-    for (var structureIndex = 0; structureIndex < Structures.Count; structureIndex++)
+    for (var structureIndex = 0; structureIndex < PreviewPieceCount; structureIndex++)
     {
-      var item = Structures[structureIndex];
+      var item = GetPreviewStructure(structureIndex);
       PlaceStructure(inventoryManager, item, structureIndex);
     }
 
@@ -555,14 +567,14 @@ public static class ZoopUtility
     }
 
     var currentPos = GetCurrentMouseGridPosition();
-    if (currentPos.HasValue && !IsSameZoopPosition(Waypoints.Last(), currentPos))
+    if (currentPos.HasValue && !IsSameZoopPosition(Session.Waypoints.Last(), currentPos))
     {
-      if (Structures.Count > 0 && IsSameZoopPosition(Structures.Last().Position, currentPos.Value))
+      if (PreviewPieceCount > 0 && IsSameZoopPosition(GetPreviewStructure(PreviewPieceCount - 1).Position, currentPos.Value))
       {
-        Waypoints.Add(currentPos);
+        Session.Waypoints.Add(currentPos);
       }
     }
-    else if (IsSameZoopPosition(Waypoints.Last(), currentPos))
+    else if (IsSameZoopPosition(Session.Waypoints.Last(), currentPos))
     {
       //TODO show message to user that waypoint is already added
     }
@@ -578,9 +590,9 @@ public static class ZoopUtility
       return;
     }
 
-    if (Waypoints.Count > 1)
+    if (Session.Waypoints.Count > 1)
     {
-      Waypoints.RemoveAt(Waypoints.Count - 1);
+      Session.Waypoints.RemoveAt(Session.Waypoints.Count - 1);
     }
   }
 
@@ -598,8 +610,8 @@ public static class ZoopUtility
 
     inventoryManager.ConstructionPanel.BuildIndex = buildIndex;
     // Keep the authoring tool's original spawn source so UsePrimaryComplete can resolve the selected prefab family.
-    InventoryManager.SpawnPrefab = InventoryManager.IsAuthoringMode && _zoopSpawnPrefab != null
-      ? _zoopSpawnPrefab
+    InventoryManager.SpawnPrefab = InventoryManager.IsAuthoringMode && Session.ZoopSpawnPrefab != null
+      ? Session.ZoopSpawnPrefab
       : item;
     UsePrimaryPositionField?.SetValue(inventoryManager, item.transform.position);
     UsePrimaryRotationField?.SetValue(inventoryManager, item.transform.rotation);
@@ -634,9 +646,9 @@ public static class ZoopUtility
   /// </summary>
   private static int ResolveBuildIndex(InventoryManager inventoryManager, Structure item, int structureIndex)
   {
-    if (structureIndex >= 0 && structureIndex < StructureBuildIndices.Count)
+    if (structureIndex >= 0 && structureIndex < PreviewPieceCount)
     {
-      return StructureBuildIndices[structureIndex];
+      return GetPreviewBuildIndex(structureIndex);
     }
 
     var buildIndex =
@@ -689,9 +701,9 @@ public static class ZoopUtility
       case Stackable constructor:
         var canMakeItem = activeItem switch
         {
-          Chute when selectedIndex == 0 => constructor.Quantity > Structures.Count,
+          Chute when selectedIndex == 0 => constructor.Quantity > PreviewPieceCount,
           Chute when selectedIndex == 2 => constructor.Quantity > straightCount * 2 + (isCorner ? 0 : 1) + cornerCount,
-          _ => constructor.Quantity > Structures.Count
+          _ => constructor.Quantity > PreviewPieceCount
         };
 
         if (canMakeItem && canBuildNext)
@@ -717,23 +729,23 @@ public static class ZoopUtility
   /// </summary>
   private static void ClearStructureCache()
   {
-    foreach (var structure in structuresCacheStraight)
+    foreach (var structure in Session.StraightCache)
     {
       structure.gameObject.SetActive(false);
       UnityObject.Destroy(structure);
     }
 
-    structuresCacheStraight.Clear();
-    StructureCacheStraightBuildIndices.Clear();
+    Session.StraightCache.Clear();
+    Session.StraightCacheBuildIndices.Clear();
 
-    foreach (var structure in structuresCacheCorner)
+    foreach (var structure in Session.CornerCache)
     {
       structure.gameObject.SetActive(false);
       UnityObject.Destroy(structure);
     }
 
-    structuresCacheCorner.Clear();
-    StructureCacheCornerBuildIndices.Clear();
+    Session.CornerCache.Clear();
+    Session.CornerCacheBuildIndices.Clear();
   }
 
   /// <summary>
@@ -763,26 +775,24 @@ public static class ZoopUtility
   {
     switch (isCorner)
     {
-      case false when structuresCacheStraight.Count > index:
+      case false when Session.StraightCache.Count > index:
         {
           if (!supportsCornerVariant)
           {
-            ApplyCursorRotation(structuresCacheStraight[index]);
+            ApplyCursorRotation(Session.StraightCache[index]);
           }
 
-          Structures.Add(structuresCacheStraight[index]);
-          StructureBuildIndices.Add(StructureCacheStraightBuildIndices[index]);
+          AddPreviewPiece(Session.StraightCache[index], Session.StraightCacheBuildIndices[index]);
           break;
         }
-      case true when structuresCacheCorner.Count > index:
+      case true when Session.CornerCache.Count > index:
         {
           if (!supportsCornerVariant)
           {
-            ApplyCursorRotation(structuresCacheCorner[index]);
+            ApplyCursorRotation(Session.CornerCache[index]);
           }
 
-          Structures.Add(structuresCacheCorner[index]);
-          StructureBuildIndices.Add(StructureCacheCornerBuildIndices[index]);
+          AddPreviewPiece(Session.CornerCache[index], Session.CornerCacheBuildIndices[index]);
           break;
         }
       default:
@@ -802,17 +812,16 @@ public static class ZoopUtility
               ApplyCursorRotation(structureNew);
             }
 
-            Structures.Add(structureNew);
-            StructureBuildIndices.Add(selectedIndex);
+            AddPreviewPiece(structureNew, selectedIndex);
             if (isCorner)
             {
-              structuresCacheCorner.Add(structureNew);
-              StructureCacheCornerBuildIndices.Add(selectedIndex);
+              Session.CornerCache.Add(structureNew);
+              Session.CornerCacheBuildIndices.Add(selectedIndex);
             }
             else
             {
-              structuresCacheStraight.Add(structureNew);
-              StructureCacheStraightBuildIndices.Add(selectedIndex);
+              Session.StraightCache.Add(structureNew);
+              Session.StraightCacheBuildIndices.Add(selectedIndex);
             }
           }
 
@@ -831,8 +840,8 @@ public static class ZoopUtility
       return;
     }
 
-    var rotation = structure is Wall && _zoopStartWallNormal != Vector3.zero
-      ? _zoopStartRotation
+    var rotation = structure is Wall && Session.ZoopStartWallNormal != Vector3.zero
+      ? Session.ZoopStartRotation
       : InventoryManager.ConstructionCursor.transform.rotation;
 
     SetStructureRotation(structure, rotation);
@@ -843,16 +852,16 @@ public static class ZoopUtility
   /// </summary>
   private static Vector3 ClampWallZoopPositionToStartPlane(Vector3 startPos, Vector3 targetPos)
   {
-    if (InventoryManager.ConstructionCursor is not Wall || _zoopStartWallNormal == Vector3.zero)
+    if (InventoryManager.ConstructionCursor is not Wall || Session.ZoopStartWallNormal == Vector3.zero)
     {
       return targetPos;
     }
 
-    if (Mathf.Abs(_zoopStartWallNormal.x) > 0.99f)
+    if (Mathf.Abs(Session.ZoopStartWallNormal.x) > 0.99f)
     {
       targetPos.x = startPos.x;
     }
-    else if (Mathf.Abs(_zoopStartWallNormal.y) > 0.99f)
+    else if (Mathf.Abs(Session.ZoopStartWallNormal.y) > 0.99f)
     {
       targetPos.y = startPos.y;
     }
@@ -902,9 +911,9 @@ public static class ZoopUtility
   /// </summary>
   private static int GetWaypointIndex(Vector3 position)
   {
-    for (var index = 0; index < Waypoints.Count; index++)
+    for (var index = 0; index < Session.Waypoints.Count; index++)
     {
-      if (Waypoints[index].HasValue && IsSameZoopPosition(Waypoints[index].Value, position))
+      if (Session.Waypoints[index].HasValue && IsSameZoopPosition(Session.Waypoints[index].Value, position))
       {
         return index;
       }
@@ -1329,10 +1338,9 @@ public static class ZoopUtility
   private static void BuildSmallStructureList(InventoryManager inventoryManager, List<ZoopSegment> zoops,
     bool supportsCornerVariant)
   {
-    Structures.Clear();
-    StructureBuildIndices.Clear();
-    structuresCacheStraight.ForEach(structure => structure.GameObject.SetActive(false));
-    structuresCacheCorner.ForEach(structure => structure.GameObject.SetActive(false));
+    Session.PreviewPieces.Clear();
+    Session.StraightCache.ForEach(structure => structure.GameObject.SetActive(false));
+    Session.CornerCache.ForEach(structure => structure.GameObject.SetActive(false));
 
     var straight = 0;
     var corners = 0;
@@ -1351,7 +1359,7 @@ public static class ZoopUtility
 
         for (var j = 0; j < zoopCounter; j++)
         {
-          if (Structures.Count > 0 && (j == 0 || segmentIndex > 0) && supportsCornerVariant)
+          if (PreviewPieceCount > 0 && (j == 0 || segmentIndex > 0) && supportsCornerVariant)
           {
             if (zoopDirection != lastDirection)
             {
@@ -1503,9 +1511,8 @@ public static class ZoopUtility
   /// </summary>
   private static void BuildBigStructureList(InventoryManager inventoryManager, ZoopPlane plane)
   {
-    Structures.Clear();
-    StructureBuildIndices.Clear();
-    structuresCacheStraight.ForEach(structure => structure.GameObject.SetActive(false));
+    Session.PreviewPieces.Clear();
+    Session.StraightCache.ForEach(structure => structure.GameObject.SetActive(false));
     var count = 0;
     var canBuildNext = true;
 
