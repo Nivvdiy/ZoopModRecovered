@@ -128,7 +128,7 @@ public static class ZoopUtility
       var startPos = GetCurrentMouseGridPosition();
       if (startPos.HasValue)
       {
-        Session.Waypoints.Add(startPos); // Add start position as the first waypoint
+        Session.Waypoints.Add(startPos.Value); // Add start position as the first waypoint
       }
     }
 
@@ -312,8 +312,10 @@ public static class ZoopUtility
     var singleItem = true;
     for (var wpIndex = 0; wpIndex < Session.Waypoints.Count; wpIndex++)
     {
-      var startPos = Session.Waypoints[wpIndex].Value;
-      var endPos = wpIndex < Session.Waypoints.Count - 1 ? Session.Waypoints[wpIndex + 1].Value : currentPos;
+      var startPos = Session.Waypoints[wpIndex];
+      var endPos = wpIndex < Session.Waypoints.Count - 1
+        ? Session.Waypoints[wpIndex + 1]
+        : currentPos;
 
       var segment = new ZoopSegment();
       CalculateZoopSegments(startPos, endPos, segment);
@@ -348,7 +350,7 @@ public static class ZoopUtility
       float xOffset = 0;
       float yOffset = 0;
       float zOffset = 0;
-      var startPos = Session.Waypoints[segmentIndex].Value;
+      var startPos = Session.Waypoints[segmentIndex];
       for (var directionIndex = 0; directionIndex < segment.Directions.Count; directionIndex++)
       {
         if (structureCounter == PreviewPieceCount)
@@ -471,7 +473,7 @@ public static class ZoopUtility
   /// </summary>
   private static async UniTask ZoopBigGrid(InventoryManager inventoryManager, Vector3 currentPos)
   {
-    var startPos = Session.Waypoints[0].Value;
+    var startPos = Session.Waypoints[0];
     var endPos = ClampWallZoopPositionToStartPlane(startPos, currentPos);
 
     var plane = new ZoopPlane();
@@ -563,14 +565,14 @@ public static class ZoopUtility
     }
 
     var currentPos = GetCurrentMouseGridPosition();
-    if (currentPos.HasValue && !IsSameZoopPosition(Session.Waypoints.Last(), currentPos))
+    if (currentPos.HasValue && !IsSameZoopPosition(Session.Waypoints.Last(), currentPos.Value))
     {
       if (PreviewPieceCount > 0 && IsSameZoopPosition(GetPreviewStructure(PreviewPieceCount - 1).Position, currentPos.Value))
       {
-        Session.Waypoints.Add(currentPos);
+        Session.Waypoints.Add(currentPos.Value);
       }
     }
-    else if (IsSameZoopPosition(Session.Waypoints.Last(), currentPos))
+    else if (currentPos.HasValue && IsSameZoopPosition(Session.Waypoints.Last(), currentPos.Value))
     {
       //TODO show message to user that waypoint is already added
     }
@@ -879,19 +881,6 @@ public static class ZoopUtility
   }
 
   /// <summary>
-  /// Compares two optional zoop positions, treating matching null states as equal.
-  /// </summary>
-  private static bool IsSameZoopPosition(Vector3? first, Vector3? second)
-  {
-    if (!first.HasValue || !second.HasValue)
-    {
-      return first.HasValue == second.HasValue;
-    }
-
-    return IsSameZoopPosition(first.Value, second.Value);
-  }
-
-  /// <summary>
   /// Converts a small-grid position into a stable half-grid cell key.
   /// </summary>
   private static Vector3Int GetSmallGridCellKey(Vector3 position)
@@ -909,7 +898,7 @@ public static class ZoopUtility
   {
     for (var index = 0; index < Session.Waypoints.Count; index++)
     {
-      if (Session.Waypoints[index].HasValue && IsSameZoopPosition(Session.Waypoints[index].Value, position))
+      if (IsSameZoopPosition(Session.Waypoints[index], position))
       {
         return index;
       }

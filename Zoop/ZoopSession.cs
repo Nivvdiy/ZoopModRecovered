@@ -14,7 +14,7 @@ internal sealed class ZoopSession
   public readonly List<int> StraightCacheBuildIndices = [];
   public readonly List<Structure> CornerCache = [];
   public readonly List<int> CornerCacheBuildIndices = [];
-  public readonly List<Vector3?> Waypoints = [];
+  public readonly List<Vector3> Waypoints = [];
 
   public bool HasError { get; set; }
   public Coroutine ActionCoroutine { get; set; }
