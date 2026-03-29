@@ -8,32 +8,49 @@ using ZoopMod.Zoop.Planning;
 
 namespace ZoopMod.Zoop.Preview;
 
+internal interface ISmallGridPreviewLayoutAdapter
+{
+  ZoopDraft Draft { get; }
+  Structure GetDraftPreviewStructure(int index);
+  void ApplyRotation(SmallGridRotationStep step);
+  bool CanConstructSmallCell(InventoryManager inventoryManager, Structure structure, int structureIndex);
+  Vector3Int GetDraftCellKey(Vector3 position);
+}
+
+internal sealed class SmallGridRotationStep
+{
+  public int StructureCounter { get; set; }
+  public bool SupportsCornerVariant { get; set; }
+  public bool IsSinglePlacement { get; set; }
+  public int SegmentIndex { get; set; }
+  public int DirectionIndex { get; set; }
+  public int PlacementIndex { get; set; }
+  public ZoopDirection LastDirection { get; set; }
+  public ZoopDirection ZoopDirection { get; set; }
+  public bool IncreasingFrom { get; set; }
+  public bool IncreasingTo { get; set; }
+}
+
 /// <summary>
 /// Positions already-created preview structures onto the planned zoop path.
 /// This keeps preview layout concerns separate from path planning and preview instantiation.
 /// </summary>
 internal static class ZoopPreviewLayoutCoordinator
 {
-  // TODO This method has to many arguments and is due for further refactoring
-
   /// <summary>
   /// Walks the planned small-grid segments in build order and assigns each preview piece a world position.
   /// Corner-capable families also get their turn rotation applied here because that depends on neighboring
   /// segment directions rather than on the path plan alone.
   /// </summary>
-  public static void PositionSmallGridStructures(
-    ZoopDraft draft,
+  public static bool PositionSmallGridStructures(
+    ISmallGridPreviewLayoutAdapter adapter,
     InventoryManager inventoryManager,
     List<ZoopSegment> segments,
     bool supportsCornerVariant,
-    bool isSinglePlacement,
     int spacing,
-    System.Func<int, Structure> getPreviewStructure,
-    System.Action<int, bool, bool, int, int, int, ZoopDirection, ZoopDirection, bool, bool> applySmallGridRotation,
-    System.Func<InventoryManager, Structure, int, bool> canConstructSmallCell,
-    System.Func<Vector3, Vector3Int> getSmallGridCellKey,
-    System.Action<bool> setHasError)
+    bool isSinglePlacement)
   {
+    var draft = adapter.Draft;
     var structureCounter = 0;
     var lastDirection = ZoopDirection.none;
     var occupiedCells = new HashSet<Vector3Int>();
@@ -73,14 +90,25 @@ internal static class ZoopPreviewLayoutCoordinator
 
           var increasingFrom = ZoopPathPlanner.GetIncreasingFromPreviousDirection(segments, segment, segmentIndex,
             directionIndex, placementIndex, lastDirection);
-          applySmallGridRotation(structureCounter, supportsCornerVariant, isSinglePlacement, segmentIndex,
-            directionIndex, placementIndex, lastDirection, zoopDirection, increasingFrom, increasing);
+          adapter.ApplyRotation(new SmallGridRotationStep
+          {
+            StructureCounter = structureCounter,
+            SupportsCornerVariant = supportsCornerVariant,
+            IsSinglePlacement = isSinglePlacement,
+            SegmentIndex = segmentIndex,
+            DirectionIndex = directionIndex,
+            PlacementIndex = placementIndex,
+            LastDirection = lastDirection,
+            ZoopDirection = zoopDirection,
+            IncreasingFrom = increasingFrom,
+            IncreasingTo = increasing
+          });
 
           lastDirection = zoopDirection;
 
           var offset = new Vector3(xOffset, yOffset, zOffset);
           var previewPosition = startPos + offset;
-          var previewStructure = getPreviewStructure(structureCounter);
+          var previewStructure = adapter.GetDraftPreviewStructure(structureCounter);
           previewStructure.GameObject.SetActive(true);
           previewStructure.ThingTransformPosition = previewPosition;
           previewStructure.Position = previewPosition;
@@ -88,11 +116,11 @@ internal static class ZoopPreviewLayoutCoordinator
           {
             // Small-grid previews cannot safely overlap the same snapped cell because there is no dedicated
             // intersection preview for most families, so revisiting a cell is treated as invalid.
-            var cellKey = getSmallGridCellKey(previewPosition);
+            var cellKey = adapter.GetDraftCellKey(previewPosition);
             var revisitsExistingZoopCell = occupiedCells.Contains(cellKey);
             occupiedCells.Add(cellKey);
             hasError = hasError || revisitsExistingZoopCell;
-            hasError = hasError || !canConstructSmallCell(inventoryManager, previewStructure, structureCounter);
+            hasError = hasError || !adapter.CanConstructSmallCell(inventoryManager, previewStructure, structureCounter);
           }
 
           structureCounter++;
@@ -105,7 +133,7 @@ internal static class ZoopPreviewLayoutCoordinator
       }
     }
 
-    setHasError(hasError);
+    return hasError;
   }
 
   /// <summary>

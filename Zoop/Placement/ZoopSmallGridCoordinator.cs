@@ -19,6 +19,32 @@ internal sealed class ZoopSmallGridCoordinator(
   ZoopPreviewFactory previewFactory,
   ZoopPreviewValidator previewValidator)
 {
+  private sealed class SmallGridPreviewLayoutAdapter(ZoopDraft draft, ZoopPreviewValidator previewValidator)
+    : ISmallGridPreviewLayoutAdapter
+  {
+    public ZoopDraft Draft { get; } = draft;
+
+    public Structure GetDraftPreviewStructure(int index)
+    {
+      return Draft.PreviewPieces[index].Structure;
+    }
+
+    public void ApplyRotation(SmallGridRotationStep step)
+    {
+      ApplySmallGridRotation(Draft, step);
+    }
+
+    public bool CanConstructSmallCell(InventoryManager inventoryManager, Structure structure, int structureIndex)
+    {
+      return previewValidator.CanConstructSmallCell(Draft, inventoryManager, structure, structureIndex);
+    }
+
+    public Vector3Int GetDraftCellKey(Vector3 position)
+    {
+      return ZoopSmallGridCoordinator.GetSmallGridCellKey(position);
+    }
+  }
+
   /// <summary>
   /// Rebuilds the active small-grid preview for the current snapped cursor position.
   /// </summary>
@@ -41,22 +67,14 @@ internal sealed class ZoopSmallGridCoordinator(
       return;
     }
 
-    // TODO this call should probably be refactored
-    ZoopPreviewLayoutCoordinator.PositionSmallGridStructures(
-      draft,
+    var layoutAdapter = new SmallGridPreviewLayoutAdapter(draft, previewValidator);
+    draft.HasError = draft.HasError || ZoopPreviewLayoutCoordinator.PositionSmallGridStructures(
+      layoutAdapter,
       inventoryManager,
       segments,
       supportsCornerVariant,
-      plan.IsSinglePlacement,
       spacing,
-      index => GetPreviewStructure(draft, index),
-      (structureCounter, cornerVariant, singleItem, segmentIndex, directionIndex, placementIndex, lastDirection,
-          zoopDirection, increasingFrom, increasingTo) =>
-        ApplySmallGridRotation(draft, structureCounter, cornerVariant, singleItem, segmentIndex, directionIndex,
-          placementIndex, lastDirection, zoopDirection, increasingFrom, increasingTo),
-      (manager, structure, structureIndex) => CanConstructSmallCell(draft, manager, structure, structureIndex),
-      GetSmallGridCellKey,
-      hasError => draft.HasError = draft.HasError || hasError);
+      plan.IsSinglePlacement);
   }
 
   /// <summary>
@@ -117,34 +135,33 @@ internal sealed class ZoopSmallGridCoordinator(
   /// <summary>
   /// Applies the correct rotation to a small-grid preview structure based on whether it is straight or a turn.
   /// </summary>
-  private static void ApplySmallGridRotation(ZoopDraft draft, int structureCounter, bool supportsCornerVariant, bool singleItem,
-    int segmentIndex, int directionIndex, int placementIndex, ZoopDirection lastDirection, ZoopDirection zoopDirection,
-    bool increasingFrom, bool increasingTo)
+  private static void ApplySmallGridRotation(ZoopDraft draft, SmallGridRotationStep step)
   {
-    if (!supportsCornerVariant)
+    if (!step.SupportsCornerVariant)
     {
       return;
     }
 
-    var isSegmentTurnStart = (directionIndex > 0 || (segmentIndex > 0 && directionIndex == 0)) && placementIndex == 0;
+    var isSegmentTurnStart =
+      (step.DirectionIndex > 0 || (step.SegmentIndex > 0 && step.DirectionIndex == 0)) && step.PlacementIndex == 0;
     if (isSegmentTurnStart)
     {
-      if (lastDirection == zoopDirection)
+      if (step.LastDirection == step.ZoopDirection)
       {
-        SetStraightRotationSmallGrid(GetPreviewStructure(draft, structureCounter), zoopDirection);
+        SetStraightRotationSmallGrid(GetPreviewStructure(draft, step.StructureCounter), step.ZoopDirection);
       }
       else
       {
-        SetCornerRotation(GetPreviewStructure(draft, structureCounter), lastDirection, increasingFrom, zoopDirection,
-          increasingTo);
+        SetCornerRotation(GetPreviewStructure(draft, step.StructureCounter), step.LastDirection, step.IncreasingFrom,
+          step.ZoopDirection, step.IncreasingTo);
       }
 
       return;
     }
 
-    if (!singleItem)
+    if (!step.IsSinglePlacement)
     {
-      SetStraightRotationSmallGrid(GetPreviewStructure(draft, structureCounter), zoopDirection);
+      SetStraightRotationSmallGrid(GetPreviewStructure(draft, step.StructureCounter), step.ZoopDirection);
     }
   }
 
@@ -238,10 +255,5 @@ internal sealed class ZoopSmallGridCoordinator(
   private static Structure GetPreviewStructure(ZoopDraft draft, int index)
   {
     return draft.PreviewPieces[index].Structure;
-  }
-
-  private bool CanConstructSmallCell(ZoopDraft draft, InventoryManager inventoryManager, Structure structure, int structureIndex)
-  {
-    return previewValidator.CanConstructSmallCell(draft, inventoryManager, structure, structureIndex);
   }
 }
