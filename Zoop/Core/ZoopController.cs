@@ -118,24 +118,29 @@ internal sealed class ZoopController(
   public void AddWaypoint()
   {
     var draft = activeDraft;
-    if (!IsPreviewing || draft == null || !ZoopConstructableRules.SupportsWaypoints(InventoryManager.ConstructionCursor))
+    var supportsWaypoints = ZoopConstructableRules.SupportsWaypoints(InventoryManager.ConstructionCursor);
+    if (!IsPreviewing || draft == null || !supportsWaypoints)
     {
+      ZoopLog.Debug($"[Waypoint] Add ignored. IsPreviewing={IsPreviewing}, DraftPresent={draft != null}, SupportsWaypoints={supportsWaypoints}.");
       return;
     }
 
     var currentPos = GetCurrentMouseGridPosition();
     var lastWaypoint = draft.Waypoints[draft.Waypoints.Count - 1];
+    ZoopLog.Debug($"[Waypoint] Add requested. CurrentPos={(currentPos.HasValue ? currentPos.Value.ToString() : "<none>")}, LastWaypoint={lastWaypoint}, PreviewCount={draft.PreviewCount}, WaypointCount={draft.Waypoints.Count}.");
     if (currentPos.HasValue && !IsSameZoopPosition(lastWaypoint, currentPos.Value))
     {
-      if (draft.PreviewCount > 0 &&
-          IsSameZoopPosition(draft.PreviewPieces[draft.PreviewCount - 1].Structure.Position, currentPos.Value))
-      {
-        draft.Waypoints.Add(currentPos.Value);
-      }
+      draft.Waypoints.Add(currentPos.Value);
+      ZoopLog.Debug($"[Waypoint] Added waypoint at {currentPos.Value} directly from the snapped cursor position. NewWaypointCount={draft.Waypoints.Count}.");
     }
     else if (currentPos.HasValue && IsSameZoopPosition(lastWaypoint, currentPos.Value))
     {
+      ZoopLog.Debug("[Waypoint] Add ignored because the current cursor position already matches the last waypoint.");
       // TODO show message to user that waypoint is already added
+    }
+    else
+    {
+      ZoopLog.Debug("[Waypoint] Add ignored because no current grid position was available.");
     }
   }
 

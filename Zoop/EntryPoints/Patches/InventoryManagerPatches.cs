@@ -117,6 +117,11 @@ internal static class InventoryManagerPlacementModePatch
       ZoopRuntime.Controller.ToggleZoop(__instance);
     }
 
+    if (addWaypoint)
+    {
+      ZoopLog.Debug($"[Input] Add waypoint pressed. IsZooping={ZoopRuntime.Controller.IsZooping}, IsPreviewing={ZoopRuntime.Controller.IsPreviewing}, PreviewCount={ZoopRuntime.Controller.PreviewCount}.");
+    }
+
     if (addWaypoint && ZoopRuntime.Controller.IsPreviewing)
     {
       ZoopRuntime.Controller.AddWaypoint();
