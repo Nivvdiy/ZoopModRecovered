@@ -22,7 +22,7 @@ public static class ZoopUtility
 
   private static readonly ZoopSession Session = new();
 
-  public static IReadOnlyList<Structure> Structures => [.. Session.PreviewPieces.Select(piece => piece.Structure)];
+  public static int PreviewCount => Session.PreviewCount;
   public static bool HasError { get => Session.HasError; private set => Session.HasError = value; }
   public static Coroutine ActionCoroutine { get => Session.ActionCoroutine; private set => Session.ActionCoroutine = value; }
   public static bool AllowPlacementUpdate
@@ -78,7 +78,7 @@ public static class ZoopUtility
   private static readonly int ColorPropertyId = Shader.PropertyToID("_Color");
   private static readonly int BaseColorPropertyId = Shader.PropertyToID("_BaseColor");
 
-  private static int PreviewPieceCount => Session.PreviewPieces.Count;
+  private static int PreviewPieceCount => Session.PreviewCount;
 
   #endregion
 
@@ -168,10 +168,7 @@ public static class ZoopUtility
       Session.CancellationSource.Cancel();
       Session.CancellationSource = null;
       ClearStructureCache();
-      Session.PreviewPieces.Clear(); //try to reset a list of structures for single piece placing
-      Session.Waypoints.Clear();
-      Session.ZoopStartRotation = Quaternion.identity;
-      Session.ZoopStartWallNormal = Vector3.zero;
+      Session.ResetActiveZoopState(); //try to reset a list of structures for single piece placing
     }
 
     Session.ZoopSpawnPrefab = null;
@@ -210,8 +207,7 @@ public static class ZoopUtility
   /// </summary>
   private static void ClearPendingBuild()
   {
-    ActionCoroutine = null;
-    Session.ActionCoroutineOwner = null;
+    Session.ClearPendingBuildState();
   }
 
   private static Structure GetPreviewStructure(int index)
@@ -1338,7 +1334,7 @@ public static class ZoopUtility
   private static void BuildSmallStructureList(InventoryManager inventoryManager, List<ZoopSegment> zoops,
     bool supportsCornerVariant)
   {
-    Session.PreviewPieces.Clear();
+    Session.ClearPreviewPieces();
     Session.StraightCache.ForEach(structure => structure.GameObject.SetActive(false));
     Session.CornerCache.ForEach(structure => structure.GameObject.SetActive(false));
 
@@ -1511,7 +1507,7 @@ public static class ZoopUtility
   /// </summary>
   private static void BuildBigStructureList(InventoryManager inventoryManager, ZoopPlane plane)
   {
-    Session.PreviewPieces.Clear();
+    Session.ClearPreviewPieces();
     Session.StraightCache.ForEach(structure => structure.GameObject.SetActive(false));
     var count = 0;
     var canBuildNext = true;

@@ -24,4 +24,27 @@ internal sealed class ZoopSession
   public ICreativeSpawnable ZoopSpawnPrefab { get; set; }
   public Quaternion ZoopStartRotation { get; set; } = Quaternion.identity;
   public Vector3 ZoopStartWallNormal { get; set; } = Vector3.zero;
+
+  public int PreviewCount => PreviewPieces.Count;
+
+  public void ClearPreviewPieces()
+  {
+    PreviewPieces.Clear();
+  }
+
+  public void ClearPendingBuildState()
+  {
+    ActionCoroutine = null;
+    ActionCoroutineOwner = null;
+  }
+
+  public void ResetActiveZoopState()
+  {
+    ClearPreviewPieces();
+    Waypoints.Clear();
+    HasError = false;
+    ZoopSpawnPrefab = null;
+    ZoopStartRotation = Quaternion.identity;
+    ZoopStartWallNormal = Vector3.zero;
+  }
 }
