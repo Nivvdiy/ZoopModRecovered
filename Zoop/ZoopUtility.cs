@@ -251,7 +251,9 @@ public static class ZoopUtility
   private static async UniTask ZoopSmallGrid(InventoryManager inventoryManager, Vector3 currentPos,
     List<ZoopSegment> zoops)
   {
-    var singleItem = BuildSmallGridSegments(currentPos, zoops);
+    var plan = ZoopPathPlanner.BuildSmallGridPlan(Session.Waypoints, currentPos);
+    zoops.Clear();
+    zoops.AddRange(plan.Segments);
 
     await UniTask.SwitchToMainThread(); // Switch to main thread for Unity API calls
 
@@ -265,39 +267,7 @@ public static class ZoopUtility
       return;
     }
 
-    PositionSmallGridStructures(inventoryManager, zoops, supportsCornerVariant, singleItem);
-  }
-
-  /// <summary>
-  /// Builds the small-grid zoop segments for the current waypoint path.
-  /// </summary>
-  private static bool BuildSmallGridSegments(Vector3 currentPos, List<ZoopSegment> zoops)
-  {
-    zoops.Clear();
-
-    var singleItem = true;
-    for (var wpIndex = 0; wpIndex < Session.Waypoints.Count; wpIndex++)
-    {
-      var startPos = Session.Waypoints[wpIndex];
-      var endPos = wpIndex < Session.Waypoints.Count - 1
-        ? Session.Waypoints[wpIndex + 1]
-        : currentPos;
-
-      var segment = new ZoopSegment();
-      CalculateZoopSegments(startPos, endPos, segment);
-
-      singleItem = IsSameZoopPosition(startPos, endPos);
-      if (singleItem)
-      {
-        segment.CountX = 1 + (int)(Math.Abs(startPos.x - endPos.x) * 2);
-        segment.IncreasingX = startPos.x < endPos.x;
-        segment.Directions.Add(ZoopDirection.x); // unused for single item
-      }
-
-      zoops.Add(segment);
-    }
-
-    return singleItem;
+    PositionSmallGridStructures(inventoryManager, zoops, supportsCornerVariant, plan.IsSinglePlacement);
   }
 
   /// <summary>
@@ -325,10 +295,11 @@ public static class ZoopUtility
         }
 
         var zoopDirection = segment.Directions[directionIndex];
-        var increasing = GetIncreasingForDirection(zoopDirection, segment);
-        var zoopCounter = GetPlacementCount(zoops.Count, segmentIndex, segment.Directions.Count, directionIndex,
-          GetCountForDirection(zoopDirection, segment));
-        var value = GetDirectionalPlacementValue(increasing);
+        var increasing = ZoopPathPlanner.GetIncreasingForDirection(zoopDirection, segment);
+        var zoopCounter = ZoopPathPlanner.GetPlacementCount(zoops.Count, segmentIndex, segment.Directions.Count,
+          directionIndex, ZoopPathPlanner.GetCountForDirection(zoopDirection, segment));
+        var value = ZoopPathPlanner.GetDirectionalPlacementValue(increasing,
+          InventoryManager.ConstructionCursor is SmallGrid, spacing);
 
         for (var zi = 0; zi < zoopCounter; zi++)
         {
@@ -337,9 +308,10 @@ public static class ZoopUtility
             break;
           }
 
-          SetDirectionalOffset(ref xOffset, ref yOffset, ref zOffset, zoopDirection, zi * value);
+          ZoopPathPlanner.SetDirectionalOffset(ref xOffset, ref yOffset, ref zOffset, zoopDirection, zi * value);
 
-          var increasingFrom = GetIncreasingFromPreviousDirection(zoops, segment, segmentIndex, directionIndex, zi,
+          var increasingFrom = ZoopPathPlanner.GetIncreasingFromPreviousDirection(zoops, segment, segmentIndex,
+            directionIndex, zi,
             lastDirection);
           ApplySmallGridRotation(structureCounter, supportsCornerVariant, singleItem, segmentIndex, directionIndex, zi,
             lastDirection, zoopDirection, increasingFrom, increasing);
@@ -366,38 +338,11 @@ public static class ZoopUtility
           structureCounter++;
           if (zi == zoopCounter - 1)
           {
-            SetDirectionalOffset(ref xOffset, ref yOffset, ref zOffset, zoopDirection, (zi + 1) * value);
+            ZoopPathPlanner.SetDirectionalOffset(ref xOffset, ref yOffset, ref zOffset, zoopDirection, (zi + 1) * value);
           }
         }
       }
     }
-  }
-
-  /// <summary>
-  /// Returns the placement spacing value for the current small-grid direction.
-  /// </summary>
-  private static float GetDirectionalPlacementValue(bool increasing)
-  {
-    spacing = Mathf.Max(spacing, 1);
-    var minValue = InventoryManager.ConstructionCursor is SmallGrid ? 0.5f : 2f;
-    return increasing ? minValue * spacing : -(minValue * spacing);
-  }
-
-  /// <summary>
-  /// Resolves the incoming direction polarity used when orienting a small-grid preview.
-  /// </summary>
-  private static bool GetIncreasingFromPreviousDirection(List<ZoopSegment> zoops, ZoopSegment segment, int segmentIndex,
-    int directionIndex, int placementIndex, ZoopDirection lastDirection)
-  {
-    var increasingFrom = lastDirection != ZoopDirection.none &&
-                         GetIncreasingForDirection(lastDirection, segment);
-    if (segmentIndex <= 0 || directionIndex != 0 || placementIndex != 0)
-    {
-      return increasingFrom;
-    }
-
-    var lastSegment = zoops[segmentIndex - 1];
-    return GetIncreasingForDirection(lastSegment.Directions.Last(), lastSegment);
   }
 
   /// <summary>
@@ -442,17 +387,7 @@ public static class ZoopUtility
     var startPos = Session.Waypoints[0];
     var endPos = ClampWallZoopPositionToStartPlane(startPos, currentPos);
 
-    var plane = new ZoopPlane();
-    CalculateZoopPlane(startPos, endPos, plane);
-
-    var singleItem = IsSameZoopPosition(startPos, endPos);
-    if (singleItem)
-    {
-      plane.Count = (direction1: 1 + (int)(Math.Abs(startPos.x - endPos.x) / 2),
-        direction2: 1 + (int)(Math.Abs(startPos.x - endPos.x) / 2));
-      plane.Increasing = (direction1: startPos.x < endPos.x, direction2: startPos.y < endPos.y);
-      plane.Directions = (direction1: ZoopDirection.x, direction2: ZoopDirection.y);
-    }
+    var plane = ZoopPathPlanner.BuildBigGridPlane(startPos, endPos);
 
     await UniTask.SwitchToMainThread(); // Switch to main thread for Unity API calls
 
@@ -475,8 +410,8 @@ public static class ZoopUtility
       var zoopDirection2 = plane.Directions.direction2;
       var increasing2 = plane.Increasing.direction2;
 
-      var value2 = increasing2 ? 2f * spacing : -(2f * spacing);
-      SetDirectionalOffset(ref xOffset, ref yOffset, ref zOffset, zoopDirection2, indexDirection2 * value2);
+      var value2 = ZoopPathPlanner.GetDirectionalPlacementValue(increasing2, false, spacing);
+      ZoopPathPlanner.SetDirectionalOffset(ref xOffset, ref yOffset, ref zOffset, zoopDirection2, indexDirection2 * value2);
 
       for (var indexDirection1 = 0; indexDirection1 < plane.Count.direction1; indexDirection1++)
       {
@@ -488,8 +423,9 @@ public static class ZoopUtility
         var zoopDirection1 = plane.Directions.direction1;
         var increasing1 = plane.Increasing.direction1;
 
-        var value1 = increasing1 ? 2f * spacing : -(2f * spacing);
-        SetDirectionalOffset(ref xOffset, ref yOffset, ref zOffset, zoopDirection1, indexDirection1 * value1);
+        var value1 = ZoopPathPlanner.GetDirectionalPlacementValue(increasing1, false, spacing);
+        ZoopPathPlanner.SetDirectionalOffset(ref xOffset, ref yOffset, ref zOffset, zoopDirection1,
+          indexDirection1 * value1);
 
         var offset = new Vector3(xOffset, yOffset, zOffset);
         var previewPosition = startPos + offset;
@@ -785,46 +721,6 @@ public static class ZoopUtility
   #region SmallGrid Methods
 
   /// <summary>
-  /// Calculates the ordered axis segments needed to zoop between two small-grid positions.
-  /// </summary>
-  private static void CalculateZoopSegments(Vector3 startPos, Vector3 endPos, ZoopSegment segment)
-  {
-    segment.Directions.Clear();
-
-    var startX = startPos.x;
-    var startY = startPos.y;
-    var startZ = startPos.z;
-    var endX = endPos.x;
-    var endY = endPos.y;
-    var endZ = endPos.z;
-
-    var absX = Math.Abs(endX - startX);
-    var absY = Math.Abs(endY - startY);
-    var absZ = Math.Abs(endZ - startZ);
-
-    if (absX > float.Epsilon)
-    {
-      segment.CountX = 1 + (int)(Math.Abs(startX - endX) * 2);
-      segment.IncreasingX = startX < endX;
-      segment.Directions.Add(ZoopDirection.x);
-    }
-
-    if (absY > float.Epsilon)
-    {
-      segment.CountY = 1 + (int)(Math.Abs(startY - endY) * 2);
-      segment.IncreasingY = startY < endY;
-      segment.Directions.Add(ZoopDirection.y);
-    }
-
-    if (absZ > float.Epsilon)
-    {
-      segment.CountZ = 1 + (int)(Math.Abs(startZ - endZ) * 2);
-      segment.IncreasingZ = startZ < endZ;
-      segment.Directions.Add(ZoopDirection.z);
-    }
-  }
-
-  /// <summary>
   /// Builds the preview structure list for a small-grid zoop path.
   /// </summary>
   private static void BuildSmallStructureList(InventoryManager inventoryManager, List<ZoopSegment> zoops,
@@ -842,9 +738,9 @@ public static class ZoopUtility
       for (var directionIndex = 0; directionIndex < segment.Directions.Count; directionIndex++)
       {
         var zoopDirection = segment.Directions[directionIndex];
-        var zoopCounter = GetCountForDirection(zoopDirection, segment);
+        var zoopCounter = ZoopPathPlanner.GetCountForDirection(zoopDirection, segment);
 
-        zoopCounter = GetPlacementCount(zoops.Count, segmentIndex, segment.Directions.Count, directionIndex,
+        zoopCounter = ZoopPathPlanner.GetPlacementCount(zoops.Count, segmentIndex, segment.Directions.Count, directionIndex,
           zoopCounter);
 
         for (var j = 0; j < zoopCounter; j++)
@@ -934,67 +830,9 @@ public static class ZoopUtility
     };
   }
 
-  /// <summary>
-  /// Returns the placement count for a given zoop segment direction.
-  /// </summary>
-  private static int GetCountForDirection(ZoopDirection direction, ZoopSegment segment)
-  {
-    return direction switch
-    {
-      ZoopDirection.x => segment.CountX,
-      ZoopDirection.y => segment.CountY,
-      ZoopDirection.z => segment.CountZ,
-      _ => throw new ArgumentOutOfRangeException(nameof(direction), direction, null)
-    };
-  }
-
-  /// <summary>
-  /// Returns whether placements along the given zoop segment direction increase positively.
-  /// </summary>
-  private static bool GetIncreasingForDirection(ZoopDirection direction, ZoopSegment segment)
-  {
-    return direction switch
-    {
-      ZoopDirection.x => segment.IncreasingX,
-      ZoopDirection.y => segment.IncreasingY,
-      ZoopDirection.z => segment.IncreasingZ,
-      _ => throw new ArgumentOutOfRangeException(nameof(direction), direction, null)
-    };
-  }
-
   #endregion
 
   #region BigGrid Methods
-
-  /// <summary>
-  /// Calculates the two-axis plane used for a large-grid zoop.
-  /// </summary>
-  private static void CalculateZoopPlane(Vector3 startPos, Vector3 endPos, ZoopPlane plane)
-  {
-    var startX = startPos.x;
-    var startY = startPos.y;
-    var startZ = startPos.z;
-    var endX = endPos.x;
-    var endY = endPos.y;
-    var endZ = endPos.z;
-
-    var absX = Math.Abs(endX - startX) / 2;
-    var absY = Math.Abs(endY - startY) / 2;
-    var absZ = Math.Abs(endZ - startZ) / 2;
-
-    var directions = new List<(float value, ZoopDirection direction, int count, bool increasing)>
-    {
-      (absX, ZoopDirection.x, 1 + (int)(Math.Abs(startX - endX) / 2), startX < endX),
-      (absY, ZoopDirection.y, 1 + (int)(Math.Abs(startY - endY) / 2), startY < endY),
-      (absZ, ZoopDirection.z, 1 + (int)(Math.Abs(startZ - endZ) / 2), startZ < endZ)
-    };
-
-    directions.Sort((a, b) => b.value.CompareTo(a.value));
-
-    plane.Directions = (direction1: directions[0].direction, direction2: directions[1].direction);
-    plane.Count = (direction1: directions[0].count, direction2: directions[1].count);
-    plane.Increasing = (direction1: directions[0].increasing, direction2: directions[1].increasing);
-  }
 
   /// <summary>
   /// Builds the preview structure list for a large-grid zoop plane.
@@ -1037,43 +875,6 @@ public static class ZoopUtility
     }
 
     return normalized.z >= 0f ? Vector3.forward : Vector3.back;
-  }
-
-  /// <summary>
-  /// Adjusts the number of placements so shared corners are not duplicated.
-  /// </summary>
-  private static int GetPlacementCount(int segmentCount, int segmentIndex, int directionCount, int directionIndex,
-    int zoopCount)
-  {
-    if ((segmentIndex < segmentCount - 1 && directionIndex == directionCount - 1) ||
-        directionIndex < directionCount - 1)
-    {
-      return zoopCount - 1;
-    }
-
-    return zoopCount;
-  }
-
-  /// <summary>
-  /// Applies an offset value to the axis that matches the supplied zoop direction.
-  /// </summary>
-  private static void SetDirectionalOffset(ref float xOffset, ref float yOffset, ref float zOffset,
-    ZoopDirection direction, float value)
-  {
-    switch (direction)
-    {
-      case ZoopDirection.x:
-        xOffset = value;
-        return;
-      case ZoopDirection.y:
-        yOffset = value;
-        return;
-      case ZoopDirection.z:
-        zOffset = value;
-        return;
-      default:
-        throw new ArgumentOutOfRangeException(nameof(direction), direction, null);
-    }
   }
 
   #endregion
