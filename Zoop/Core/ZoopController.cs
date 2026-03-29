@@ -75,6 +75,7 @@ internal sealed class ZoopController(
 
   public void CancelZoop()
   {
+    ZoopLog.Debug($"[Lifecycle] Canceling zoop from state {state}.");
     ResetSession(restoreCursorVisibility: true, cancelPendingBuild: true);
   }
 
@@ -83,16 +84,19 @@ internal sealed class ZoopController(
     var draft = activeDraft;
     if (!IsPreviewing || draft == null || draft.HasError)
     {
+      ZoopLog.Debug($"[Build] Confirm ignored. IsPreviewing={IsPreviewing}, DraftPresent={draft != null}, HasError={draft?.HasError ?? false}.");
       return;
     }
 
     var buildPlan = CaptureBuildPlan(draft, inventoryManager);
     if (buildPlan.Count <= 0)
     {
+      ZoopLog.Debug("[Build] Confirm produced an empty build plan; canceling zoop.");
       CancelZoop();
       return;
     }
 
+    ZoopLog.Debug($"[Build] Confirmed zoop with {buildPlan.Count} planned piece(s).");
     EnterPendingBuild(buildPlan);
 
     if (!InventoryManager.IsAuthoringMode &&
@@ -152,6 +156,7 @@ internal sealed class ZoopController(
   {
     if (!ZoopConstructableRules.IsAllowed(InventoryManager.ConstructionCursor))
     {
+      ZoopLog.Debug("[Lifecycle] Ignored zoop start because the current constructable is not supported.");
       if (restartExisting)
       {
         CancelZoop();
@@ -162,6 +167,7 @@ internal sealed class ZoopController(
 
     if (restartExisting || IsZooping)
     {
+      ZoopLog.Debug($"[Lifecycle] Resetting existing zoop before {(restartExisting ? "restart" : "start")}.");
       ResetSession(restoreCursorVisibility: false, cancelPendingBuild: true);
     }
 
@@ -197,11 +203,13 @@ internal sealed class ZoopController(
 
     if (draft.Waypoints.Count <= 0)
     {
+      ZoopLog.Debug("[Lifecycle] Zoop start failed because no valid starting waypoint was captured.");
       ResetSession(restoreCursorVisibility: true, cancelPendingBuild: true);
       return;
     }
 
     state = ZoopLifecycleState.Previewing;
+    ZoopLog.Debug($"[Lifecycle] Zoop preview started with {draft.Waypoints.Count} waypoint(s).");
     StartPreviewLoop(inventoryManager);
   }
 
@@ -210,11 +218,14 @@ internal sealed class ZoopController(
     var buildPlan = ConsumePendingBuildPlan();
     if (buildPlan == null)
     {
+      ZoopLog.Debug("[Build] Build callback ignored because no pending build plan remained.");
       return;
     }
 
+    ZoopLog.Debug($"[Build] Executing zoop build with {buildPlan.Count} piece(s).");
     ResetSession(restoreCursorVisibility: false, cancelPendingBuild: false);
     ZoopBuildExecutor.BuildAll(inventoryManager, buildPlan);
+    ZoopLog.Debug($"[Build] Zoop build completed for {buildPlan.Count} piece(s); canceling placement cursor.");
     inventoryManager.CancelPlacement();
   }
 
@@ -286,6 +297,7 @@ internal sealed class ZoopController(
   {
     if (pendingBuildOwner != null && pendingBuildCoroutine != null)
     {
+      ZoopLog.Debug("[Build] Stopping pending delayed build coroutine.");
       pendingBuildOwner.StopCoroutine(pendingBuildCoroutine);
     }
 
@@ -310,6 +322,7 @@ internal sealed class ZoopController(
   {
     StopPreviewLoop(ZoopLifecycleState.PendingBuild);
     pendingBuildPlan = buildPlan;
+    ZoopLog.Debug($"[Lifecycle] Entered pending build with {buildPlan.Count} piece(s).");
   }
 
   private bool TrySchedulePendingBuild(InventoryManager inventoryManager)
@@ -341,6 +354,7 @@ internal sealed class ZoopController(
 
       pendingBuildCoroutine = actionCoroutine;
       pendingBuildOwner = inventoryManager;
+      ZoopLog.Debug($"[Build] Scheduled native delayed build for {PreviewCount} preview piece(s).");
       return true;
     }
     catch (Exception exception)
@@ -385,11 +399,13 @@ internal sealed class ZoopController(
         InventoryManager.ConstructionCursor == null ||
         !ZoopConstructableRules.IsAllowed(InventoryManager.ConstructionCursor))
     {
+      ZoopLog.Debug("[Lifecycle] Unable to resume zoop preview after interrupted build; resetting session.");
       ResetSession(restoreCursorVisibility: true, cancelPendingBuild: false);
       return;
     }
 
     state = ZoopLifecycleState.Previewing;
+    ZoopLog.Debug($"[Lifecycle] Resumed zoop preview with {activeDraft.Waypoints.Count} waypoint(s).");
     StartPreviewLoop(inventoryManager);
   }
 
@@ -447,6 +463,7 @@ internal sealed class ZoopController(
 
   private void ResetSession(bool restoreCursorVisibility, bool cancelPendingBuild)
   {
+    ZoopLog.Debug($"[Lifecycle] Resetting zoop session from state {state}. RestoreCursor={restoreCursorVisibility}, CancelPendingBuild={cancelPendingBuild}.");
     if (cancelPendingBuild)
     {
       CancelPendingBuild();
