@@ -5,6 +5,7 @@ using Assets.Scripts.Inventory;
 using Assets.Scripts.Objects;
 using HarmonyLib;
 using JetBrains.Annotations;
+using ZoopMod.Zoop.EntryPoints.Input;
 
 namespace ZoopMod.Zoop.EntryPoints.Patches;
 
@@ -103,12 +104,12 @@ internal static class InventoryManagerPlacementModePatch
   [UsedImplicitly]
   public static bool Prefix(InventoryManager __instance)
   {
-    ZoopRuntime.Controller.IsZoopKeyPressed = KeyManager.GetButton(ZoopMod.ZoopHold);
+    ZoopRuntime.Controller.IsZoopKeyPressed = KeyManager.GetButton(ZoopKeyBindings.Hold);
     var secondary = KeyManager.GetMouseDown("Secondary");
     var primary = KeyManager.GetMouseDown("Primary");
-    var spec = KeyManager.GetButtonDown(ZoopMod.ZoopSwitch);
-    var addWaypoint = KeyManager.GetButtonDown(ZoopMod.ZoopAddWaypoint);
-    var removeWaypoint = KeyManager.GetButtonDown(ZoopMod.ZoopRemoveWaypoint);
+    var spec = KeyManager.GetButtonDown(ZoopKeyBindings.Switch);
+    var addWaypoint = KeyManager.GetButtonDown(ZoopKeyBindings.AddWaypoint);
+    var removeWaypoint = KeyManager.GetButtonDown(ZoopKeyBindings.RemoveWaypoint);
 
     if ((ZoopRuntime.Controller.IsZoopKeyPressed && primary) || spec)
     {

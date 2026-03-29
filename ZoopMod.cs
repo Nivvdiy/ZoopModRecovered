@@ -3,6 +3,7 @@ using BepInEx;
 using BepInEx.Configuration;
 using HarmonyLib;
 using UnityEngine;
+using ZoopMod.Zoop.EntryPoints.Input;
 
 namespace ZoopMod;
 
@@ -16,11 +17,6 @@ public class ZoopMod : BaseUnityPlugin
     error = 2
   }
 
-  public static KeyCode ZoopHold;
-  public static KeyCode ZoopSwitch;
-  public static KeyCode ZoopAddWaypoint;
-  public static KeyCode ZoopRemoveWaypoint;
-
   public static ZoopMod Instance;
 
   public static bool CFree;
@@ -28,6 +24,7 @@ public class ZoopMod : BaseUnityPlugin
 
   private static readonly Logs CurrentLogLevel = Logs.debug;
 
+  // ReSharper disable once UnusedMember.Local
   private void Awake()
   {
     try
@@ -43,7 +40,7 @@ public class ZoopMod : BaseUnityPlugin
       harmony.PatchAll();
       Log("Patch succeeded", Logs.info);
       Log($"Build commit: {GetBuildCommitHash()}", Logs.info);
-      KeyManager.OnControlsChanged += ControlsChangedEvent;
+      ZoopKeyBindings.Initialize();
 
       var type = Type.GetType("CreativeFreedom.CreativeFreedom, CreativeFreedom");
       CFree = type != null;
@@ -68,17 +65,6 @@ public class ZoopMod : BaseUnityPlugin
     {
       Debug.Log($"[{level} : Zoop Mod] {line}");
     }
-  }
-
-  /* Track current player keybinding selection, event trigger after any
-   * keybinding change.
-   */
-  private static void ControlsChangedEvent()
-  {
-    ZoopHold = KeyManager.GetKey("Zoop Hold");
-    ZoopSwitch = KeyManager.GetKey("Zoop Switch");
-    ZoopAddWaypoint = KeyManager.GetKey("Zoop Add Waypoint");
-    ZoopRemoveWaypoint = KeyManager.GetKey("Zoop Remove Last Waypoint");
   }
 
   private static string GetBuildCommitHash()
