@@ -33,7 +33,6 @@ internal sealed class ZoopController
 
   public int PreviewCount => session.PreviewCount;
   public bool HasError => session.HasError;
-  public Coroutine ActionCoroutine => session.ActionCoroutine;
   public bool AllowPlacementUpdate => session.AllowPlacementUpdate;
   public bool IsZoopKeyPressed { get; set; }
   public bool IsZooping { get; private set; }
