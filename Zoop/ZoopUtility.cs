@@ -547,7 +547,7 @@ public static class ZoopUtility
   /// </summary>
   public static void AddWaypoint()
   {
-    if (InventoryManager.ConstructionCursor is Frame)
+    if (!SupportsWaypoints())
     {
       return;
     }
@@ -571,7 +571,7 @@ public static class ZoopUtility
   /// </summary>
   public static void RemoveLastWaypoint()
   {
-    if (InventoryManager.ConstructionCursor is Frame)
+    if (!SupportsWaypoints())
     {
       return;
     }
@@ -1030,6 +1030,15 @@ public static class ZoopUtility
   private static bool IsZoopingBigGrid()
   {
     return InventoryManager.ConstructionCursor is LargeStructure;
+  }
+
+  /// <summary>
+  /// Returns whether the active zoop type supports user-added waypoint corners.
+  /// </summary>
+  private static bool SupportsWaypoints()
+  {
+    return InventoryManager.ConstructionCursor is not Frame
+           && InventoryManager.ConstructionCursor is not Wall;
   }
 
 
