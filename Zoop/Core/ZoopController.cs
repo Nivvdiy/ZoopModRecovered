@@ -5,8 +5,11 @@ using Assets.Scripts.Inventory;
 using Assets.Scripts.Objects;
 using Cysharp.Threading.Tasks;
 using UnityEngine;
+using ZoopMod.Zoop.Placement;
+using ZoopMod.Zoop.Planning;
+using ZoopMod.Zoop.Preview;
 
-namespace ZoopMod.Zoop;
+namespace ZoopMod.Zoop.Core;
 
 /// <summary>
 /// Owns the live zoop session lifecycle, including start/cancel handling, waypoint management,

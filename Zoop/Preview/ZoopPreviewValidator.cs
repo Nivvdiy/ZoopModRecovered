@@ -3,8 +3,9 @@ using Assets.Scripts.Inventory;
 using Assets.Scripts.Objects;
 using Assets.Scripts.Util;
 using UnityEngine;
+using ZoopMod.Zoop.Core;
 
-namespace ZoopMod.Zoop;
+namespace ZoopMod.Zoop.Preview;
 
 // TODO this needs further refactoring, maybe let it be a field on the ZoopSession
 internal sealed class ZoopPreviewValidator(

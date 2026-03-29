@@ -4,9 +4,11 @@ using Assets.Scripts.Objects;
 using Assets.Scripts.Objects.Items;
 using Assets.Scripts.Objects.Pipes;
 using UnityEngine;
+using ZoopMod.Zoop.Core;
+using ZoopMod.Zoop.Placement;
 using UnityObject = UnityEngine.Object;
 
-namespace ZoopMod.Zoop;
+namespace ZoopMod.Zoop.Preview;
 
 internal sealed class ZoopPreviewFactory(ZoopSession session)
 {

@@ -1,10 +1,12 @@
-using System;
 using Assets.Scripts.Inventory;
 using Assets.Scripts.Objects;
 using Cysharp.Threading.Tasks;
 using UnityEngine;
+using ZoopMod.Zoop.Core;
+using ZoopMod.Zoop.Planning;
+using ZoopMod.Zoop.Preview;
 
-namespace ZoopMod.Zoop;
+namespace ZoopMod.Zoop.Placement;
 
 /// <summary>
 /// Owns the large-grid zoop preview flow from wall-plane planning through preview placement.

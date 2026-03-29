@@ -1,4 +1,8 @@
-namespace ZoopMod.Zoop;
+using ZoopMod.Zoop.Core;
+using ZoopMod.Zoop.Placement;
+using ZoopMod.Zoop.Preview;
+
+namespace ZoopMod.Zoop.EntryPoints;
 
 /// <summary>
 /// Composes the single live zoop controller instance used by the Harmony patch layer.

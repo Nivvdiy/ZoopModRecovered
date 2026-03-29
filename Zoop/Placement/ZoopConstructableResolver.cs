@@ -1,7 +1,8 @@
 using Assets.Scripts.Inventory;
 using Assets.Scripts.Objects;
+using ZoopMod.Zoop.Core;
 
-namespace ZoopMod.Zoop;
+namespace ZoopMod.Zoop.Placement;
 
 internal static class ZoopConstructableResolver
 {

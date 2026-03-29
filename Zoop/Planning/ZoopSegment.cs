@@ -1,6 +1,6 @@
 using System.Collections.Generic;
 
-namespace ZoopMod.Zoop;
+namespace ZoopMod.Zoop.Planning;
 
 public class ZoopSegment
 {

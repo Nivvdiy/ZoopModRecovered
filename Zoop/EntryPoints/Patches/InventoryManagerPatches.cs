@@ -1,18 +1,15 @@
 using System;
 using System.Collections;
 using System.Reflection;
-using Assets.Scripts;
 using Assets.Scripts.Inventory;
 using Assets.Scripts.Objects;
-using Assets.Scripts.UI;
-using Assets.Scripts.Util;
 using HarmonyLib;
 using JetBrains.Annotations;
 
-namespace ZoopMod.Zoop;
+namespace ZoopMod.Zoop.EntryPoints.Patches;
 
 [HarmonyPatch(typeof(InventoryManager), "SetMultiConstructorItemPlacement")]
-public class InventoryManagerSetMultiConstruct
+internal static class InventoryManagerSetMultiConstructPatch
 {
   [UsedImplicitly]
   public static void Prefix(InventoryManager __instance, MultiConstructor multiConstructorItem)
@@ -26,7 +23,7 @@ public class InventoryManagerSetMultiConstruct
 }
 
 [HarmonyPatch(typeof(InventoryManager), "SetConstructorItemPlacement")]
-public class InventoryManagerSetConstruct
+internal static class InventoryManagerSetConstructPatch
 {
   [UsedImplicitly]
   public static void Prefix(InventoryManager __instance, Constructor constructorItem)
@@ -40,7 +37,7 @@ public class InventoryManagerSetConstruct
 }
 
 [HarmonyPatch(typeof(InventoryManager), "CancelPlacement")]
-public class InventoryManagerCancelPlacement
+internal static class InventoryManagerCancelPlacementPatch
 {
   [UsedImplicitly]
   public static void Prefix(InventoryManager __instance)
@@ -55,7 +52,7 @@ public class InventoryManagerCancelPlacement
 }
 
 [HarmonyPatch(typeof(InventoryManager), "UpdatePlacement", typeof(Constructor))]
-public class InventoryManagerUpdatePlacementConstructor
+internal static class InventoryManagerUpdatePlacementConstructorPatch
 {
   [UsedImplicitly]
   public static bool Prefix(InventoryManager __instance)
@@ -65,7 +62,7 @@ public class InventoryManagerUpdatePlacementConstructor
 }
 
 [HarmonyPatch(typeof(InventoryManager), "UpdatePlacement", typeof(Structure))]
-public class InventoryManagerUpdatePlacementStructure
+internal static class InventoryManagerUpdatePlacementStructurePatch
 {
   [UsedImplicitly]
   public static bool Prefix(InventoryManager __instance)
@@ -76,7 +73,7 @@ public class InventoryManagerUpdatePlacementStructure
 
 [HarmonyPatch(typeof(InventoryManager), "WaitUntilDone", typeof(InventoryManager.DelegateEvent), typeof(float),
   typeof(Structure))]
-public class InventoryManagerWaitUntilDone0
+internal static class InventoryManagerWaitUntilDonePatch
 {
   [UsedImplicitly]
   public static void Prefix(InventoryManager __instance, InventoryManager.DelegateEvent onFinished,
@@ -101,7 +98,7 @@ public class InventoryManagerWaitUntilDone0
 }
 
 [HarmonyPatch(typeof(InventoryManager), "PlacementMode")]
-public class InventoryManagerPlacementMode
+internal static class InventoryManagerPlacementModePatch
 {
   [UsedImplicitly]
   public static bool Prefix(InventoryManager __instance)
@@ -170,39 +167,5 @@ public class InventoryManagerPlacementMode
     }
 
     return !ZoopRuntime.Controller.IsZoopKeyPressed;
-  }
-}
-
-[HarmonyPatch(typeof(ConstructionPanel), "SelectUp")]
-public class ConstructionPanelSelectUp
-{
-  [UsedImplicitly]
-  public static bool Prefix()
-  {
-    return !ZoopRuntime.Controller.IsZoopKeyPressed;
-  }
-}
-
-[HarmonyPatch(typeof(ConstructionPanel), "SelectDown")]
-public class ConstructionPanelSelectDown
-{
-  [UsedImplicitly]
-  public static bool Prefix()
-  {
-    return !ZoopRuntime.Controller.IsZoopKeyPressed;
-  }
-}
-
-[HarmonyPatch(typeof(CursorManager), "SetSelectionColor")]
-public class CursorManagerSetSelectionColor
-{
-  [UsedImplicitly]
-  public static void Postfix()
-  {
-    if (ZoopRuntime.Controller.IsZooping)
-    {
-      CursorManager.CursorSelectionRenderer.material.color =
-        ZoopRuntime.Controller.LineColor.SetAlpha(InventoryManager.Instance.CursorAlphaInteractable);
-    }
   }
 }

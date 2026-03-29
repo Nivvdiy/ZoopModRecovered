@@ -6,7 +6,7 @@ using Assets.Scripts.Objects.Electrical;
 using Assets.Scripts.Objects.Pipes;
 using Objects.Structures;
 
-namespace ZoopMod.Zoop;
+namespace ZoopMod.Zoop.Placement;
 
 internal static class ZoopConstructableRules
 {

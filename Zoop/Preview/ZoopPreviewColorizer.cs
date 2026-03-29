@@ -4,8 +4,9 @@ using Assets.Scripts.Inventory;
 using Assets.Scripts.Objects;
 using Assets.Scripts.Util;
 using UnityEngine;
+using ZoopMod.Zoop.Core;
 
-namespace ZoopMod.Zoop;
+namespace ZoopMod.Zoop.Preview;
 
 internal sealed class ZoopPreviewColorizer(ZoopSession session, Func<Color> getLineColor)
 {

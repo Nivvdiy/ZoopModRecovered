@@ -1,8 +1,9 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
+using ZoopMod.Zoop.Preview;
 
-namespace ZoopMod.Zoop;
+namespace ZoopMod.Zoop.Planning;
 
 internal static class ZoopPathPlanner
 {

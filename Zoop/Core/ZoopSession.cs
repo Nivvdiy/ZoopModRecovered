@@ -4,8 +4,9 @@ using Assets.Scripts;
 using Assets.Scripts.Inventory;
 using Assets.Scripts.Objects;
 using UnityEngine;
+using ZoopMod.Zoop.Preview;
 
-namespace ZoopMod.Zoop;
+namespace ZoopMod.Zoop.Core;
 
 internal sealed class ZoopSession
 {

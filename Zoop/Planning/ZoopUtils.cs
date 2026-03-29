@@ -1,7 +1,7 @@
 using System;
 using UnityEngine;
 
-namespace ZoopMod.Zoop;
+namespace ZoopMod.Zoop.Planning;
 
 // Helper lookups for corner pieces. The rest of the zoop code works in terms of
 // axis directions; this class translates those directions into a transition id

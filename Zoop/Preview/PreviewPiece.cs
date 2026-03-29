@@ -1,6 +1,6 @@
 using Assets.Scripts.Objects;
 
-namespace ZoopMod.Zoop;
+namespace ZoopMod.Zoop.Preview;
 
 internal sealed class PreviewPiece(Structure structure, int buildIndex)
 {

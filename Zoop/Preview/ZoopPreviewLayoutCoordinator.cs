@@ -2,8 +2,10 @@ using System.Collections.Generic;
 using Assets.Scripts.Inventory;
 using Assets.Scripts.Objects;
 using UnityEngine;
+using ZoopMod.Zoop.Core;
+using ZoopMod.Zoop.Planning;
 
-namespace ZoopMod.Zoop;
+namespace ZoopMod.Zoop.Preview;
 
 /// <summary>
 /// Positions already-created preview structures onto the planned zoop path.
