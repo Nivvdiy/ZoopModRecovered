@@ -7,6 +7,7 @@ using HarmonyLib;
 using JetBrains.Annotations;
 using ZoopMod.Zoop.EntryPoints.Configuration;
 using ZoopMod.Zoop.EntryPoints.Input;
+using ZoopMod.Zoop.Logging;
 
 namespace ZoopMod.Zoop.EntryPoints.Patches;
 
@@ -18,7 +19,7 @@ internal static class InventoryManagerSetMultiConstructPatch
   {
     if (ZoopRuntime.Controller.IsZooping)
     {
-      ZoopMod.Log("detected: " + multiConstructorItem.PrefabHash, ZoopMod.Logs.debug);
+      ZoopLog.Debug($"[Placement] Detected multi-constructor {multiConstructorItem.PrefabHash}.");
       ZoopRuntime.Controller.StartZoop(__instance);
     }
   }
@@ -32,7 +33,7 @@ internal static class InventoryManagerSetConstructPatch
   {
     if (ZoopRuntime.Controller.IsZooping)
     {
-      ZoopMod.Log("detected: " + constructorItem.PrefabHash, ZoopMod.Logs.debug);
+      ZoopLog.Debug($"[Placement] Detected constructor {constructorItem.PrefabHash}.");
       ZoopRuntime.Controller.StartZoop(__instance);
     }
   }
@@ -46,7 +47,7 @@ internal static class InventoryManagerCancelPlacementPatch
   {
     if (ZoopRuntime.Controller.IsZooping)
     {
-      ZoopMod.Log("zoop canceled at CancelPlacement", ZoopMod.Logs.debug);
+      ZoopLog.Debug("[Placement] Zoop canceled during CancelPlacement.");
       ZoopRuntime.Controller.CancelZoop();
       ZoopRuntime.Controller.IsZoopKeyPressed = false;
     }
@@ -114,7 +115,7 @@ internal static class InventoryManagerPlacementModePatch
 
     if ((ZoopRuntime.Controller.IsZoopKeyPressed && primary) || spec)
     {
-      ZoopMod.Log("zoop must start now", ZoopMod.Logs.debug);
+      ZoopLog.Debug("[Placement] Starting zoop placement.");
       ZoopRuntime.Controller.StartZoop(__instance);
     }
 
@@ -164,7 +165,7 @@ internal static class InventoryManagerPlacementModePatch
 
     if (secondary)
     {
-      ZoopMod.Log("zoop canceled by rmb", ZoopMod.Logs.debug);
+      ZoopLog.Debug("[Placement] Zoop canceled by right mouse button.");
       ZoopRuntime.Controller.CancelZoop();
     }
 

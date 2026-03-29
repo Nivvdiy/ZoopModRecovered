@@ -5,6 +5,7 @@ using Assets.Scripts.Inventory;
 using Assets.Scripts.Objects;
 using Cysharp.Threading.Tasks;
 using UnityEngine;
+using ZoopMod.Zoop.Logging;
 using ZoopMod.Zoop.Placement;
 using ZoopMod.Zoop.Planning;
 using ZoopMod.Zoop.Preview;
@@ -227,7 +228,7 @@ internal sealed class ZoopController
       }
       catch (Exception e)
       {
-        ZoopMod.Log(e.ToString(), ZoopMod.Logs.error);
+        ZoopLog.Error(e, "Preview update loop failed.");
       }
     }
   }

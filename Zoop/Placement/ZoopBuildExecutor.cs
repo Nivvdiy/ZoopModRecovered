@@ -2,6 +2,7 @@ using System.Reflection;
 using Assets.Scripts.Inventory;
 using Assets.Scripts.Objects;
 using ZoopMod.Zoop.Core;
+using ZoopMod.Zoop.Logging;
 
 namespace ZoopMod.Zoop.Placement;
 
@@ -26,8 +27,7 @@ internal static class ZoopBuildExecutor
       var buildIndex = ZoopConstructableResolver.ResolveBuildIndex(session, inventoryManager, item, structureIndex);
       if (buildIndex < 0)
       {
-        ZoopMod.Log($"Unable to resolve build index for {item.PrefabName}; skipping zoop placement.",
-          ZoopMod.Logs.error);
+        ZoopLog.Error($"[Build] Unable to resolve build index for {item.PrefabName}; skipping zoop placement.");
         continue;
       }
 
@@ -39,7 +39,7 @@ internal static class ZoopBuildExecutor
       UsePrimaryRotationField?.SetValue(inventoryManager, item.transform.rotation);
       if (UsePrimaryCompleteMethod == null)
       {
-        ZoopMod.Log("Unable to find InventoryManager.UsePrimaryComplete; skipping zoop placement.", ZoopMod.Logs.error);
+        ZoopLog.Error("[Build] Unable to find InventoryManager.UsePrimaryComplete; skipping zoop placement.");
         continue;
       }
 

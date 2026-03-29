@@ -1,4 +1,5 @@
 using System;
+using ZoopMod.Zoop.Logging;
 
 namespace ZoopMod.Zoop.EntryPoints.Integrations;
 
@@ -12,5 +13,9 @@ internal static class ZoopIntegrations
   public static void Initialize()
   {
     CreativeFreedomAvailable = Type.GetType("CreativeFreedom.CreativeFreedom, CreativeFreedom") != null;
+    if (CreativeFreedomAvailable)
+    {
+      ZoopLog.Info("Enabled CreativeFreedom integration");
+    }
   }
 }

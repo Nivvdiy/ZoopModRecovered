@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using Assets.Scripts.UI;
 using HarmonyLib;
 using UnityEngine;
+using ZoopMod.Zoop.Logging;
 
 namespace ZoopMod.Zoop.EntryPoints.Input;
 
@@ -16,7 +17,7 @@ internal static class KeyManagerSetupKeyBindingsPatch
   {
     // We need to add a custom control group for the keys to be attached to, and create
     // the lookup reference.
-    ZoopMod.Log("Adding custom Shortcuts group", ZoopMod.Logs.debug);
+    ZoopLog.Debug("[Input] Adding custom Shortcuts group.");
     var controlsGroup1 = new ControlsGroup("Zoop");
     KeyManager.AddGroupLookup(controlsGroup1);
 
