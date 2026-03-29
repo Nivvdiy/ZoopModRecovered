@@ -1,10 +1,9 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using Assets.Scripts.Inventory;
 using Assets.Scripts.Objects;
-using Assets.Scripts.Objects.Pipes;
-using Assets.Scripts.Util;
 using Cysharp.Threading.Tasks;
 using UnityEngine;
 
@@ -20,6 +19,10 @@ public static class ZoopUtility
     new(ZoopConstructableResolver.ResolveBuildIndex, ZoopConstructableResolver.GetConstructableForBuildIndex,
       allowPlacementUpdate => AllowPlacementUpdate = allowPlacementUpdate);
   private static readonly ZoopPreviewColorizer PreviewColorizer = new(Session, () => LineColor);
+  private static readonly ZoopSmallGridCoordinator SmallGridCoordinator =
+    new(Session, PreviewFactory, CanConstructSmallCell, hasError => HasError = HasError || hasError);
+  private static readonly ZoopBigGridCoordinator BigGridCoordinator =
+    new(Session, PreviewFactory, CanConstructBigCell, hasError => HasError = HasError || hasError);
 
   public static int PreviewCount => Session.PreviewCount;
   public static bool HasError { get => Session.HasError; private set => Session.HasError = value; }
@@ -228,105 +231,14 @@ public static class ZoopUtility
     }
   }
 
-  /// <summary>
-  /// Updates small-grid zoop previews for the current cursor position.
-  /// </summary>
-  private static async UniTask ZoopSmallGrid(InventoryManager inventoryManager, Vector3 currentPos,
-    List<ZoopSegment> zoops)
+  private static UniTask ZoopSmallGrid(InventoryManager inventoryManager, Vector3 currentPos, List<ZoopSegment> zoops)
   {
-    var plan = ZoopPathPlanner.BuildSmallGridPlan(Session.Waypoints, currentPos);
-    zoops.Clear();
-    zoops.AddRange(plan.Segments);
-
-    await UniTask.SwitchToMainThread(); // Switch to main thread for Unity API calls
-
-    var supportsCornerVariant =
-      ZoopConstructableRules.SupportsCornerVariant(inventoryManager.ConstructionPanel.Parent.Constructables,
-        inventoryManager.ConstructionPanel.Parent.LastSelectedIndex);
-    BuildSmallStructureList(inventoryManager, zoops, supportsCornerVariant);
-
-    if (PreviewPieceCount <= 0)
-    {
-      return;
-    }
-
-    ZoopPreviewLayoutCoordinator.PositionSmallGridStructures(
-      Session,
-      inventoryManager,
-      zoops,
-      supportsCornerVariant,
-      plan.IsSinglePlacement,
-      spacing,
-      GetPreviewStructure,
-      ApplySmallGridRotation,
-      CanConstructSmallCell,
-      GetSmallGridCellKey,
-      ZoopMod.CFree,
-      hasError => HasError = HasError || hasError);
+    return SmallGridCoordinator.UpdatePreview(inventoryManager, currentPos, zoops, spacing);
   }
 
-  /// <summary>
-  /// Applies the correct rotation to a small-grid preview structure.
-  /// </summary>
-  private static void ApplySmallGridRotation(int structureCounter, bool supportsCornerVariant, bool singleItem,
-    int segmentIndex, int directionIndex, int placementIndex, ZoopDirection lastDirection, ZoopDirection zoopDirection,
-    bool increasingFrom, bool increasingTo)
+  private static UniTask ZoopBigGrid(InventoryManager inventoryManager, Vector3 currentPos)
   {
-    if (!supportsCornerVariant)
-    {
-      return;
-    }
-
-    var isSegmentTurnStart = (directionIndex > 0 || (segmentIndex > 0 && directionIndex == 0)) && placementIndex == 0;
-    if (isSegmentTurnStart)
-    {
-      if (lastDirection == zoopDirection)
-      {
-        SetStraightRotationSmallGrid(GetPreviewStructure(structureCounter), zoopDirection);
-      }
-      else
-      {
-        SetCornerRotation(GetPreviewStructure(structureCounter), lastDirection, increasingFrom, zoopDirection,
-          increasingTo);
-      }
-
-      return;
-    }
-
-    if (!singleItem)
-    {
-      SetStraightRotationSmallGrid(GetPreviewStructure(structureCounter), zoopDirection);
-    }
-  }
-
-  /// <summary>
-  /// Updates large-grid zoop previews for the current cursor position.
-  /// </summary>
-  private static async UniTask ZoopBigGrid(InventoryManager inventoryManager, Vector3 currentPos)
-  {
-    var startPos = Session.Waypoints[0];
-    var endPos = ClampWallZoopPositionToStartPlane(startPos, currentPos);
-
-    var plane = ZoopPathPlanner.BuildBigGridPlane(startPos, endPos);
-
-    await UniTask.SwitchToMainThread(); // Switch to main thread for Unity API calls
-
-    BuildBigStructureList(inventoryManager, plane);
-
-    if (PreviewPieceCount <= 0)
-    {
-      return;
-    }
-
-    ZoopPreviewLayoutCoordinator.PositionBigGridStructures(
-      Session,
-      inventoryManager,
-      startPos,
-      plane,
-      spacing,
-      GetPreviewStructure,
-      CanConstructBigCell,
-      hasError => HasError = HasError || hasError);
+    return BigGridCoordinator.UpdatePreview(inventoryManager, currentPos, spacing, ClampWallZoopPositionToStartPlane);
   }
 
   /// <summary>
@@ -435,26 +347,6 @@ public static class ZoopUtility
     return Vector3.SqrMagnitude(first - second) < ZoopPreviewColorizer.PositionToleranceSqr;
   }
 
-  /// <summary>
-  /// Converts a small-grid position into a stable half-grid cell key.
-  /// </summary>
-  private static Vector3Int GetSmallGridCellKey(Vector3 position)
-  {
-    return new Vector3Int(
-      Mathf.RoundToInt(position.x * 2f),
-      Mathf.RoundToInt(position.y * 2f),
-      Mathf.RoundToInt(position.z * 2f));
-  }
-
-  /// <summary>
-  /// Applies a rotation to both the structure state and Unity transform.
-  /// </summary>
-  private static void SetStructureRotation(Structure structure, Quaternion rotation)
-  {
-    structure.ThingTransformRotation = rotation;
-    structure.transform.rotation = rotation;
-  }
-
   #endregion
 
   #region Conditional Methods
@@ -508,85 +400,7 @@ public static class ZoopUtility
 
   #endregion
 
-  #region SmallGrid Methods
-
-  /// <summary>
-  /// Builds the preview structure list for a small-grid zoop path.
-  /// </summary>
-  private static void BuildSmallStructureList(InventoryManager inventoryManager, List<ZoopSegment> zoops,
-    bool supportsCornerVariant)
-  {
-    PreviewFactory.ResetSmallGridPreviewList();
-
-    var straight = 0;
-    var corners = 0;
-    var lastDirection = ZoopDirection.none;
-    var canBuildNext = true;
-    for (var segmentIndex = 0; segmentIndex < zoops.Count; segmentIndex++)
-    {
-      var segment = zoops[segmentIndex];
-      for (var directionIndex = 0; directionIndex < segment.Directions.Count; directionIndex++)
-      {
-        var zoopDirection = segment.Directions[directionIndex];
-        var zoopCounter = ZoopPathPlanner.GetCountForDirection(zoopDirection, segment);
-
-        zoopCounter = ZoopPathPlanner.GetPlacementCount(zoops.Count, segmentIndex, segment.Directions.Count, directionIndex,
-          zoopCounter);
-
-        for (var j = 0; j < zoopCounter; j++)
-        {
-          if (PreviewPieceCount > 0 && (j == 0 || segmentIndex > 0) && supportsCornerVariant)
-          {
-            if (zoopDirection != lastDirection)
-            {
-              PreviewFactory.AddStructure(inventoryManager.ConstructionPanel.Parent.Constructables, true, corners,
-                straight, ref canBuildNext, inventoryManager,
-                supportsCornerVariant); // start with corner on secondary and tertiary zoop directions
-              corners++;
-            }
-            else
-            {
-              PreviewFactory.AddStructure(inventoryManager.ConstructionPanel.Parent.Constructables, false, straight,
-                corners, ref canBuildNext, inventoryManager, supportsCornerVariant);
-              straight++;
-            }
-          }
-          else
-          {
-            PreviewFactory.AddStructure(inventoryManager.ConstructionPanel.Parent.Constructables, false, straight,
-              corners, ref canBuildNext, inventoryManager, supportsCornerVariant);
-            straight++;
-          }
-
-          lastDirection = zoopDirection;
-        }
-      }
-    }
-  }
-
-  #endregion
-
-  #region BigGrid Methods
-
-  /// <summary>
-  /// Builds the preview structure list for a large-grid zoop plane.
-  /// </summary>
-  private static void BuildBigStructureList(InventoryManager inventoryManager, ZoopPlane plane)
-  {
-    PreviewFactory.ResetBigGridPreviewList();
-    var count = 0;
-    var canBuildNext = true;
-
-    for (var indexDirection2 = 0; indexDirection2 < plane.Count.direction2; indexDirection2++)
-    {
-      for (var indexDirection1 = 0; indexDirection1 < plane.Count.direction1; indexDirection1++)
-      {
-        PreviewFactory.AddStructure(inventoryManager.ConstructionPanel.Parent.Constructables, false, count, 0,
-          ref canBuildNext, inventoryManager, false);
-        count++;
-      }
-    }
-  }
+  #region Helper Methods
 
   /// <summary>
   /// Reduces a vector to its dominant cardinal axis.
@@ -609,78 +423,6 @@ public static class ZoopUtility
     }
 
     return normalized.z >= 0f ? Vector3.forward : Vector3.back;
-  }
-
-  #endregion
-
-  #region Calculation Methods
-
-  /// <summary>
-  /// Rotates a small-grid straight preview to match its zoop direction.
-  /// </summary>
-  private static void SetStraightRotationSmallGrid(Structure structure, ZoopDirection zoopDirection)
-  {
-    switch (zoopDirection)
-    {
-      case ZoopDirection.x:
-        SetStructureRotation(structure, structure is Chute
-          ? SmartRotate.RotX.Rotation
-          : SmartRotate.RotY.Rotation);
-
-        break;
-      case ZoopDirection.y:
-        SetStructureRotation(structure, structure is Chute
-          ? SmartRotate.RotZ.Rotation
-          : SmartRotate.RotX.Rotation);
-
-        break;
-      case ZoopDirection.z:
-        SetStructureRotation(structure, structure is Chute
-          ? SmartRotate.RotY.Rotation
-          : SmartRotate.RotZ.Rotation);
-
-        break;
-      case ZoopDirection.none:
-      default:
-        throw new ArgumentOutOfRangeException(nameof(zoopDirection), zoopDirection, null);
-    }
-  }
-
-  /// <summary>
-  /// Rotates a corner preview so it connects the previous and next zoop directions.
-  /// </summary>
-  private static void SetCornerRotation(Structure structure, ZoopDirection zoopDirectionFrom, bool increasingFrom,
-    ZoopDirection zoopDirectionTo, bool increasingTo)
-  {
-    var xOffset = 0.0f;
-    var yOffset = 0.0f;
-    var zOffset = 0.0f;
-    if (structure.GetPrefabName().Equals("StructureCableCorner"))
-    {
-      xOffset = 180.0f;
-    }
-
-    if (structure.GetPrefabName().Equals("StructureChuteCorner"))
-    {
-      xOffset = -90.0f;
-      switch (zoopDirectionTo)
-      {
-        case ZoopDirection.z when zoopDirectionFrom == ZoopDirection.x:
-          yOffset = increasingTo ? -90.0f : 90f;
-          break;
-        //good
-        case ZoopDirection.x when zoopDirectionFrom == ZoopDirection.z:
-          yOffset = increasingFrom ? 90.0f : -90f;
-          break;
-        default:
-          yOffset = 180.0f;
-          break;
-      }
-    }
-
-    SetStructureRotation(structure,
-      ZoopUtils.GetCornerRotation(zoopDirectionFrom, increasingFrom, zoopDirectionTo, increasingTo, xOffset, yOffset,
-        zOffset));
   }
 
   #endregion
