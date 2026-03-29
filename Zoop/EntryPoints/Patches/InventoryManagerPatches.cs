@@ -134,7 +134,7 @@ internal static class InventoryManagerPlacementModePatch
       return !ZoopRuntime.Controller.IsZooping;
     }
 
-    if (secondary)
+    if (secondary && ZoopRuntime.Controller.IsZooping)
     {
       ZoopLog.Debug("[Placement] Zoop canceled by right mouse button.");
       ZoopRuntime.Controller.CancelZoop();
