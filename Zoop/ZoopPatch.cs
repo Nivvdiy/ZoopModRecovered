@@ -17,11 +17,10 @@ public class InventoryManagerSetMultiConstruct
   [UsedImplicitly]
   public static void Prefix(InventoryManager __instance, MultiConstructor multiConstructorItem)
   {
-    if (ZoopUtility.IsZooping)
+    if (ZoopRuntime.Controller.IsZooping)
     {
-      //ConsoleWindow.Print("detected: " + multiConstructorItem.PrefabHash);
       ZoopMod.Log("detected: " + multiConstructorItem.PrefabHash, ZoopMod.Logs.debug);
-      ZoopUtility.StartZoop(__instance);
+      ZoopRuntime.Controller.StartZoop(__instance);
     }
   }
 }
@@ -32,11 +31,10 @@ public class InventoryManagerSetConstruct
   [UsedImplicitly]
   public static void Prefix(InventoryManager __instance, Constructor constructorItem)
   {
-    if (ZoopUtility.IsZooping)
+    if (ZoopRuntime.Controller.IsZooping)
     {
-      //ConsoleWindow.Print("detected: " + constructorItem.PrefabHash);
       ZoopMod.Log("detected: " + constructorItem.PrefabHash, ZoopMod.Logs.debug);
-      ZoopUtility.StartZoop(__instance);
+      ZoopRuntime.Controller.StartZoop(__instance);
     }
   }
 }
@@ -47,11 +45,11 @@ public class InventoryManagerCancelPlacement
   [UsedImplicitly]
   public static void Prefix(InventoryManager __instance)
   {
-    if (ZoopUtility.IsZooping)
+    if (ZoopRuntime.Controller.IsZooping)
     {
       ZoopMod.Log("zoop canceled at CancelPlacement", ZoopMod.Logs.debug);
-      ZoopUtility.CancelZoop();
-      ZoopUtility.IsZoopKeyPressed = false;
+      ZoopRuntime.Controller.CancelZoop();
+      ZoopRuntime.Controller.IsZoopKeyPressed = false;
     }
   }
 }
@@ -62,7 +60,7 @@ public class InventoryManagerUpdatePlacementConstructor
   [UsedImplicitly]
   public static bool Prefix(InventoryManager __instance)
   {
-    return !ZoopUtility.IsZooping || ZoopUtility.AllowPlacementUpdate; //false prevents placing down item //NICE CHECK
+    return !ZoopRuntime.Controller.IsZooping || ZoopRuntime.Controller.AllowPlacementUpdate;
   }
 }
 
@@ -72,7 +70,7 @@ public class InventoryManagerUpdatePlacementStructure
   [UsedImplicitly]
   public static bool Prefix(InventoryManager __instance)
   {
-    return !ZoopUtility.IsZooping || ZoopUtility.AllowPlacementUpdate; //false prevents placing down item
+    return !ZoopRuntime.Controller.IsZooping || ZoopRuntime.Controller.AllowPlacementUpdate;
   }
 }
 
@@ -84,20 +82,20 @@ public class InventoryManagerWaitUntilDone0
   public static void Prefix(InventoryManager __instance, InventoryManager.DelegateEvent onFinished,
     ref float timeToWait, Structure structure)
   {
-    if (!ZoopUtility.IsZooping)
+    if (!ZoopRuntime.Controller.IsZooping)
     {
       return;
     }
 
     if (!InventoryManager.IsAuthoringMode)
     {
-      var structureCount = Math.Max(ZoopUtility.PreviewCount, 1);
+      var structureCount = Math.Max(ZoopRuntime.Controller.PreviewCount, 1);
       var timeToWaitMultiplier = Math.Max(1, ZoopMod.MaxZoopWaitTimeMultiplier.Value);
-      timeToWait *= Math.Min(structureCount, timeToWaitMultiplier); //switch(ZoopConfig.GetDifficulty())
+      timeToWait *= Math.Min(structureCount, timeToWaitMultiplier);
     }
     else
     {
-      timeToWait = 0f; //try to make it instant for creative tool
+      timeToWait = 0f;
     }
   }
 }
@@ -108,32 +106,32 @@ public class InventoryManagerPlacementMode
   [UsedImplicitly]
   public static bool Prefix(InventoryManager __instance)
   {
-    ZoopUtility.IsZoopKeyPressed = KeyManager.GetButton(ZoopMod.ZoopHold);
+    ZoopRuntime.Controller.IsZoopKeyPressed = KeyManager.GetButton(ZoopMod.ZoopHold);
     var secondary = KeyManager.GetMouseDown("Secondary");
     var primary = KeyManager.GetMouseDown("Primary");
     var spec = KeyManager.GetButtonDown(ZoopMod.ZoopSwitch);
     var addWaypoint = KeyManager.GetButtonDown(ZoopMod.ZoopAddWaypoint);
     var removeWaypoint = KeyManager.GetButtonDown(ZoopMod.ZoopRemoveWaypoint);
 
-    if ((ZoopUtility.IsZoopKeyPressed && primary) || spec)
+    if ((ZoopRuntime.Controller.IsZoopKeyPressed && primary) || spec)
     {
       ZoopMod.Log("zoop must start now", ZoopMod.Logs.debug);
-      ZoopUtility.StartZoop(__instance);
+      ZoopRuntime.Controller.StartZoop(__instance);
     }
 
-    if (addWaypoint && ZoopUtility.IsZooping)
+    if (addWaypoint && ZoopRuntime.Controller.IsZooping)
     {
-      ZoopUtility.AddWaypoint();
+      ZoopRuntime.Controller.AddWaypoint();
     }
 
-    if (removeWaypoint && ZoopUtility.IsZooping)
+    if (removeWaypoint && ZoopRuntime.Controller.IsZooping)
     {
-      ZoopUtility.RemoveLastWaypoint();
+      ZoopRuntime.Controller.RemoveLastWaypoint();
     }
 
-    if (primary && ZoopUtility.IsZooping && !ZoopUtility.IsZoopKeyPressed)
+    if (primary && ZoopRuntime.Controller.IsZooping && !ZoopRuntime.Controller.IsZoopKeyPressed)
     {
-      if (!ZoopUtility.HasError)
+      if (!ZoopRuntime.Controller.HasError)
       {
         if (!InventoryManager.IsAuthoringMode && InventoryManager.ConstructionCursor.BuildPlacementTime > 0.0)
         {
@@ -149,31 +147,29 @@ public class InventoryManagerPlacementMode
             var actionCoroutine = __instance.StartCoroutine((IEnumerator)method.Invoke(
               __instance,
               [
-                new InventoryManager.DelegateEvent(() => ZoopUtility.BuildZoop(__instance)),
-                InventoryManager.ConstructionCursor.BuildPlacementTime /
-                num1,
+                new InventoryManager.DelegateEvent(() => ZoopRuntime.Controller.BuildZoop(__instance)),
+                InventoryManager.ConstructionCursor.BuildPlacementTime / num1,
                 InventoryManager.ConstructionCursor
-              ])
-            );
-            ZoopUtility.SetPendingBuild(__instance, actionCoroutine);
+              ]));
+            ZoopRuntime.Controller.SetPendingBuild(__instance, actionCoroutine);
           }
         }
         else
         {
-          ZoopUtility.BuildZoop(__instance);
+          ZoopRuntime.Controller.BuildZoop(__instance);
         }
       }
 
-      return !ZoopUtility.IsZooping;
+      return !ZoopRuntime.Controller.IsZooping;
     }
 
     if (secondary)
     {
       ZoopMod.Log("zoop canceled by rmb", ZoopMod.Logs.debug);
-      ZoopUtility.CancelZoop();
+      ZoopRuntime.Controller.CancelZoop();
     }
 
-    return !ZoopUtility.IsZoopKeyPressed;
+    return !ZoopRuntime.Controller.IsZoopKeyPressed;
   }
 }
 
@@ -183,7 +179,7 @@ public class ConstructionPanelSelectUp
   [UsedImplicitly]
   public static bool Prefix()
   {
-    return !ZoopUtility.IsZoopKeyPressed;
+    return !ZoopRuntime.Controller.IsZoopKeyPressed;
   }
 }
 
@@ -193,7 +189,7 @@ public class ConstructionPanelSelectDown
   [UsedImplicitly]
   public static bool Prefix()
   {
-    return !ZoopUtility.IsZoopKeyPressed;
+    return !ZoopRuntime.Controller.IsZoopKeyPressed;
   }
 }
 
@@ -203,10 +199,10 @@ public class CursorManagerSetSelectionColor
   [UsedImplicitly]
   public static void Postfix()
   {
-    if (ZoopUtility.IsZooping)
+    if (ZoopRuntime.Controller.IsZooping)
     {
       CursorManager.CursorSelectionRenderer.material.color =
-        ZoopUtility.LineColor.SetAlpha(InventoryManager.Instance.CursorAlphaInteractable);
+        ZoopRuntime.Controller.LineColor.SetAlpha(InventoryManager.Instance.CursorAlphaInteractable);
     }
   }
 }

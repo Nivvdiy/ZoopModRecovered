@@ -12,17 +12,15 @@ namespace ZoopMod.Zoop;
 internal sealed class ZoopBigGridCoordinator(
   ZoopSession session,
   ZoopPreviewFactory previewFactory,
-  Func<InventoryManager, Structure, int, bool> canConstructBigCell,
-  Action<bool> setHasError)
+  ZoopPreviewValidator previewValidator)
 {
   /// <summary>
   /// Rebuilds the active large-grid preview for the current snapped cursor position.
   /// </summary>
-  public async UniTask UpdatePreview(InventoryManager inventoryManager, Vector3 currentPos, int spacing,
-    Func<Vector3, Vector3, Vector3> clampWallZoopPositionToStartPlane)
+  public async UniTask UpdatePreview(InventoryManager inventoryManager, Vector3 currentPos, int spacing)
   {
     var startPos = session.Waypoints[0];
-    var endPos = clampWallZoopPositionToStartPlane(startPos, currentPos);
+    var endPos = ClampWallZoopPositionToStartPlane(startPos, currentPos);
 
     var plane = ZoopPathPlanner.BuildBigGridPlane(startPos, endPos);
 
@@ -42,8 +40,8 @@ internal sealed class ZoopBigGridCoordinator(
       plane,
       spacing,
       GetPreviewStructure,
-      canConstructBigCell,
-      setHasError);
+      CanConstructBigCell,
+      hasError => session.HasError = session.HasError || hasError);
   }
 
   /// <summary>
@@ -69,5 +67,33 @@ internal sealed class ZoopBigGridCoordinator(
   private Structure GetPreviewStructure(int index)
   {
     return session.PreviewPieces[index].Structure;
+  }
+
+  private bool CanConstructBigCell(InventoryManager inventoryManager, Structure structure, int structureIndex)
+  {
+    return previewValidator.CanConstructBigCell(session, inventoryManager, structure, structureIndex);
+  }
+
+  private Vector3 ClampWallZoopPositionToStartPlane(Vector3 startPos, Vector3 targetPos)
+  {
+    if (InventoryManager.ConstructionCursor is not Wall || session.ZoopStartWallNormal == Vector3.zero)
+    {
+      return targetPos;
+    }
+
+    if (Mathf.Abs(session.ZoopStartWallNormal.x) > 0.99f)
+    {
+      targetPos.x = startPos.x;
+    }
+    else if (Mathf.Abs(session.ZoopStartWallNormal.y) > 0.99f)
+    {
+      targetPos.y = startPos.y;
+    }
+    else
+    {
+      targetPos.z = startPos.z;
+    }
+
+    return targetPos;
   }
 }

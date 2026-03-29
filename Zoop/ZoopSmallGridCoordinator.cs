@@ -15,8 +15,7 @@ namespace ZoopMod.Zoop;
 internal sealed class ZoopSmallGridCoordinator(
   ZoopSession session,
   ZoopPreviewFactory previewFactory,
-  Func<InventoryManager, Structure, int, bool> canConstructSmallCell,
-  Action<bool> setHasError)
+  ZoopPreviewValidator previewValidator)
 {
   /// <summary>
   /// Rebuilds the active small-grid preview for the current snapped cursor position.
@@ -49,10 +48,10 @@ internal sealed class ZoopSmallGridCoordinator(
       spacing,
       GetPreviewStructure,
       ApplySmallGridRotation,
-      canConstructSmallCell,
+      CanConstructSmallCell,
       GetSmallGridCellKey,
       ZoopMod.CFree,
-      setHasError);
+      hasError => session.HasError = session.HasError || hasError);
   }
 
   /// <summary>
@@ -233,5 +232,10 @@ internal sealed class ZoopSmallGridCoordinator(
   private Structure GetPreviewStructure(int index)
   {
     return session.PreviewPieces[index].Structure;
+  }
+
+  private bool CanConstructSmallCell(InventoryManager inventoryManager, Structure structure, int structureIndex)
+  {
+    return previewValidator.CanConstructSmallCell(session, inventoryManager, structure, structureIndex);
   }
 }
