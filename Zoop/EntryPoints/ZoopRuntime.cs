@@ -9,9 +9,7 @@ namespace ZoopMod.Zoop.EntryPoints;
 internal static class ZoopRuntime
 {
   private static readonly ZoopPlacementUpdateGate PlacementUpdateGate = new();
-  private static readonly ZoopPreviewFactory PreviewFactory = new();
   private static readonly ZoopPreviewValidator PreviewValidator = new(PlacementUpdateGate);
 
-  public static ZoopController Controller { get; } =
-    new(PreviewFactory, PreviewValidator, PlacementUpdateGate);
+  public static ZoopController Controller { get; } = new(PreviewValidator, PlacementUpdateGate);
 }

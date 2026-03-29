@@ -11,9 +11,7 @@ namespace ZoopMod.Zoop.Placement;
 /// <summary>
 /// Owns the large-grid zoop preview flow from wall-plane planning through preview placement.
 /// </summary>
-internal sealed class ZoopBigGridCoordinator(
-  ZoopPreviewFactory previewFactory,
-  ZoopPreviewValidator previewValidator)
+internal sealed class ZoopBigGridCoordinator(ZoopPreviewValidator previewValidator)
 {
   private sealed class BigGridPreviewLayoutAdapter(ZoopDraft draft, ZoopPreviewValidator previewValidator)
     : IBigGridPreviewLayoutAdapter
@@ -63,10 +61,11 @@ internal sealed class ZoopBigGridCoordinator(
   /// <summary>
   /// Creates or reuses the preview pieces needed for the current large-grid plane.
   /// </summary>
-  private void BuildBigStructureList(ZoopDraft draft, ZoopPreviewCache previewCache, InventoryManager inventoryManager,
+  private static void BuildBigStructureList(ZoopDraft draft, ZoopPreviewCache previewCache, InventoryManager inventoryManager,
     ZoopPlane plane)
   {
-    previewFactory.ResetBigGridPreviewList(draft, previewCache);
+    ZoopPreviewFactory.ResetBigGridPreviewList(draft, previewCache);
+    var constructables = inventoryManager.ConstructionPanel.Parent.Constructables;
     var count = 0;
     var canBuildNext = true;
 
@@ -74,8 +73,20 @@ internal sealed class ZoopBigGridCoordinator(
     {
       for (var indexDirection1 = 0; indexDirection1 < plane.Count.direction1; indexDirection1++)
       {
-        previewFactory.AddStructure(draft, previewCache, inventoryManager.ConstructionPanel.Parent.Constructables, false, count, 0,
-          ref canBuildNext, inventoryManager, false);
+        var request = new ZoopPreviewFactory.AddStructureRequest
+        {
+          Draft = draft,
+          PreviewCache = previewCache,
+          Constructables = constructables,
+          SupportsCornerVariant = false,
+          InventoryManager = inventoryManager,
+          IsCorner = false,
+          Index = count,
+          SecondaryCount = 0,
+          CanBuildNext = canBuildNext
+        };
+        ZoopPreviewFactory.AddStructure(request);
+        canBuildNext = request.CanBuildNext;
         count++;
       }
     }

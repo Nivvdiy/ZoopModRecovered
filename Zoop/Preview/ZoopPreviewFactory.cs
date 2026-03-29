@@ -12,18 +12,32 @@ namespace ZoopMod.Zoop.Preview;
 
 internal sealed class ZoopPreviewFactory
 {
-  public void AddStructure(ZoopDraft draft, ZoopPreviewCache previewCache, List<Structure> constructables, bool isCorner, int index,
-    int secondaryCount, ref bool canBuildNext, InventoryManager inventoryManager, bool supportsCornerVariant)
+  internal sealed class AddStructureRequest
   {
-    var selectedIndex = inventoryManager.ConstructionPanel.Parent.LastSelectedIndex;
-    var straightCount = isCorner ? secondaryCount : index;
-    var cornerCount = isCorner ? index : secondaryCount;
-    var buildIndex = ZoopConstructableRules.ResolvePreviewBuildIndex(constructables, selectedIndex, isCorner,
-      supportsCornerVariant);
-    var activeItem = buildIndex >= 0 && buildIndex < constructables.Count ? constructables[buildIndex] : null;
+    public ZoopDraft Draft { get; set; }
+    public ZoopPreviewCache PreviewCache { get; set; }
+    public List<Structure> Constructables { get; set; }
+    public bool IsCorner { get; set; }
+    public int Index { get; set; }
+    public int SecondaryCount { get; set; }
+    public bool CanBuildNext { get; set; }
+    public InventoryManager InventoryManager { get; set; }
+    public bool SupportsCornerVariant { get; set; }
+  }
+
+  public static void AddStructure(AddStructureRequest request)
+  {
+    var selectedIndex = request.InventoryManager.ConstructionPanel.Parent.LastSelectedIndex;
+    var straightCount = request.IsCorner ? request.SecondaryCount : request.Index;
+    var cornerCount = request.IsCorner ? request.Index : request.SecondaryCount;
+    var buildIndex = ZoopConstructableRules.ResolvePreviewBuildIndex(request.Constructables, selectedIndex,
+      request.IsCorner, request.SupportsCornerVariant);
+    var activeItem = buildIndex >= 0 && buildIndex < request.Constructables.Count
+      ? request.Constructables[buildIndex]
+      : null;
     if (activeItem == null)
     {
-      canBuildNext = false;
+      request.CanBuildNext = false;
       return;
     }
 
@@ -33,30 +47,32 @@ internal sealed class ZoopPreviewFactory
       case Stackable constructor:
         var canMakeItem = activeItem switch
         {
-          Chute when buildIndex == 0 => constructor.Quantity > draft.PreviewCount,
-          Chute when buildIndex == 2 => constructor.Quantity > straightCount * 2 + (isCorner ? 0 : 1) + cornerCount,
-          _ => constructor.Quantity > draft.PreviewCount
+          Chute when buildIndex == 0 => constructor.Quantity > request.Draft.PreviewCount,
+          Chute when buildIndex == 2 => constructor.Quantity > straightCount * 2 + (request.IsCorner ? 0 : 1) + cornerCount,
+          _ => constructor.Quantity > request.Draft.PreviewCount
         };
 
-        if (canMakeItem && canBuildNext)
+        if (canMakeItem && request.CanBuildNext)
         {
-          MakeItem(draft, previewCache, constructables, index, buildIndex, supportsCornerVariant);
-          canBuildNext = true;
+          MakeItem(request.Draft, request.PreviewCache, request.Constructables, request.Index, buildIndex,
+            request.SupportsCornerVariant);
+          request.CanBuildNext = true;
         }
         else
         {
-          canBuildNext = false;
+          request.CanBuildNext = false;
         }
 
         break;
       case AuthoringTool:
-        MakeItem(draft, previewCache, constructables, index, buildIndex, supportsCornerVariant);
-        canBuildNext = true;
+        MakeItem(request.Draft, request.PreviewCache, request.Constructables, request.Index, buildIndex,
+          request.SupportsCornerVariant);
+        request.CanBuildNext = true;
         break;
     }
   }
 
-  public void ClearStructureCache(ZoopPreviewCache previewCache)
+  public static void ClearStructureCache(ZoopPreviewCache previewCache)
   {
     foreach (var structure in previewCache.StraightCache)
     {
@@ -77,20 +93,20 @@ internal sealed class ZoopPreviewFactory
     previewCache.CornerCacheBuildIndices.Clear();
   }
 
-  public void ResetSmallGridPreviewList(ZoopDraft draft, ZoopPreviewCache previewCache)
+  public static void ResetSmallGridPreviewList(ZoopDraft draft, ZoopPreviewCache previewCache)
   {
     draft.ClearPreviewPieces();
     previewCache.StraightCache.ForEach(structure => structure.GameObject.SetActive(false));
     previewCache.CornerCache.ForEach(structure => structure.GameObject.SetActive(false));
   }
 
-  public void ResetBigGridPreviewList(ZoopDraft draft, ZoopPreviewCache previewCache)
+  public static void ResetBigGridPreviewList(ZoopDraft draft, ZoopPreviewCache previewCache)
   {
     draft.ClearPreviewPieces();
     previewCache.StraightCache.ForEach(structure => structure.GameObject.SetActive(false));
   }
 
-  private void MakeItem(ZoopDraft draft, ZoopPreviewCache previewCache, List<Structure> constructables, int index, int selectedIndex,
+  private static void MakeItem(ZoopDraft draft, ZoopPreviewCache previewCache, List<Structure> constructables, int index, int selectedIndex,
     bool supportsCornerVariant)
   {
     var isCorner = selectedIndex == 1 && supportsCornerVariant;
@@ -148,7 +164,7 @@ internal sealed class ZoopPreviewFactory
     }
   }
 
-  private void ApplyCursorRotation(ZoopDraft draft, Structure structure)
+  private static void ApplyCursorRotation(ZoopDraft draft, Structure structure)
   {
     if (structure == null || InventoryManager.ConstructionCursor == null || draft == null)
     {

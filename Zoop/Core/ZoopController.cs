@@ -19,7 +19,6 @@ namespace ZoopMod.Zoop.Core;
 /// preview refresh, and final build execution.
 /// </summary>
 internal sealed class ZoopController(
-  ZoopPreviewFactory previewFactory,
   ZoopPreviewValidator previewValidator,
   ZoopPlacementUpdateGate placementUpdateGate)
 {
@@ -36,8 +35,8 @@ internal sealed class ZoopController(
     [typeof(InventoryManager.DelegateEvent), typeof(float), typeof(Structure)],
     null);
 
-  private readonly ZoopSmallGridCoordinator smallGridCoordinator = new(previewFactory, previewValidator);
-  private readonly ZoopBigGridCoordinator bigGridCoordinator = new(previewFactory, previewValidator);
+  private readonly ZoopSmallGridCoordinator smallGridCoordinator = new(previewValidator);
+  private readonly ZoopBigGridCoordinator bigGridCoordinator = new(previewValidator);
   private ZoopDraft activeDraft;
   private ZoopPreviewCache activePreviewCache;
   private CancellationTokenSource previewCancellationSource;
@@ -240,7 +239,7 @@ internal sealed class ZoopController(
     inventoryManager.CancelPlacement();
   }
 
-  private ZoopBuildPlan CaptureBuildPlan(ZoopDraft draft, InventoryManager inventoryManager)
+  private static ZoopBuildPlan CaptureBuildPlan(ZoopDraft draft, InventoryManager inventoryManager)
   {
     var pieces = new List<ZoopBuildPiece>(draft.PreviewCount);
     for (var structureIndex = 0; structureIndex < draft.PreviewCount; structureIndex++)
@@ -394,7 +393,7 @@ internal sealed class ZoopController(
     }
   }
 
-  private Assets.Scripts.ICreativeSpawnable ResolveSpawnPrefabForBuild(ZoopDraft draft, InventoryManager inventoryManager,
+  private static Assets.Scripts.ICreativeSpawnable ResolveSpawnPrefabForBuild(ZoopDraft draft, InventoryManager inventoryManager,
     int buildIndex, Structure previewStructure)
   {
     if (InventoryManager.IsAuthoringMode && draft.ZoopSpawnPrefab != null)
@@ -428,7 +427,7 @@ internal sealed class ZoopController(
     StopPreviewLoop(ZoopLifecycleState.Idle);
     if (activePreviewCache != null)
     {
-      previewFactory.ClearStructureCache(activePreviewCache);
+      ZoopPreviewFactory.ClearStructureCache(activePreviewCache);
     }
 
     activeDraft = null;
