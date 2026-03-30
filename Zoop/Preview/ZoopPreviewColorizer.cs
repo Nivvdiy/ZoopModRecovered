@@ -16,6 +16,7 @@ internal static class ZoopPreviewColorizer
   private static readonly Color StartColor = Color.magenta;
   private static readonly int ColorPropertyId = Shader.PropertyToID("_Color");
   private static readonly int BaseColorPropertyId = Shader.PropertyToID("_BaseColor");
+  private static readonly MaterialPropertyBlock SharedPropertyBlock = new();
 
   public static void ApplyColor(InventoryManager inventoryManager, Structure structure, IReadOnlyList<Vector3> waypoints,
     bool hasError, Color lineColor)
@@ -106,6 +107,7 @@ internal static class ZoopPreviewColorizer
 
     return -1;
   }
+
   private static void SetThingRendererColor(ThingRenderer thingRenderer, Color color, bool usePropertyBlock)
   {
     if (!usePropertyBlock)
@@ -120,10 +122,9 @@ internal static class ZoopPreviewColorizer
       return;
     }
 
-    var propertyBlock = new MaterialPropertyBlock();
-    unityRenderer.GetPropertyBlock(propertyBlock);
-    propertyBlock.SetColor(ColorPropertyId, color);
-    propertyBlock.SetColor(BaseColorPropertyId, color);
-    unityRenderer.SetPropertyBlock(propertyBlock);
+    unityRenderer.GetPropertyBlock(SharedPropertyBlock);
+    SharedPropertyBlock.SetColor(ColorPropertyId, color);
+    SharedPropertyBlock.SetColor(BaseColorPropertyId, color);
+    unityRenderer.SetPropertyBlock(SharedPropertyBlock);
   }
 }
