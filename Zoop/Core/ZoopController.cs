@@ -42,6 +42,8 @@ internal sealed class ZoopController(
   private Coroutine previewLoopCoroutine;
   private InventoryManager previewLoopOwner;
   private ZoopLifecycleState state;
+  private Vector3? lastPreviewCursorPosition;
+  private bool previewDirty = true;
   private Coroutine pendingBuildCoroutine;
   private InventoryManager pendingBuildOwner;
   private ZoopBuildPlan pendingBuildPlan;
@@ -147,6 +149,7 @@ internal sealed class ZoopController(
     if (currentPos.HasValue && !IsSameZoopPosition(lastWaypoint, currentPos.Value))
     {
       draft.Waypoints.Add(currentPos.Value);
+      InvalidatePreview();
       ZoopLog.Debug($"[Waypoint] Added waypoint at {currentPos.Value} directly from the snapped cursor position. NewWaypointCount={draft.Waypoints.Count}.");
     }
     else if (currentPos.HasValue && IsSameZoopPosition(lastWaypoint, currentPos.Value))
@@ -171,6 +174,7 @@ internal sealed class ZoopController(
     if (draft.Waypoints.Count > 1)
     {
       draft.Waypoints.RemoveAt(draft.Waypoints.Count - 1);
+      InvalidatePreview();
     }
   }
 
@@ -231,6 +235,7 @@ internal sealed class ZoopController(
     }
 
     state = ZoopLifecycleState.Previewing;
+    InvalidatePreview();
     ZoopLog.Debug($"[Lifecycle] Zoop preview started with {draft.Waypoints.Count} waypoint(s).");
     StartPreviewLoop(inventoryManager);
   }
@@ -493,6 +498,7 @@ internal sealed class ZoopController(
     }
 
     state = ZoopLifecycleState.Previewing;
+    InvalidatePreview();
     ZoopLog.Debug($"[Lifecycle] Resumed zoop preview with {activeDraft.Waypoints.Count} waypoint(s).");
     StartPreviewLoop(inventoryManager);
   }
@@ -522,18 +528,29 @@ internal sealed class ZoopController(
            ReferenceEquals(activeDraft, draft) &&
            ReferenceEquals(activePreviewCache, previewCache))
     {
-      Exception previewException = null;
-      yield return UpdatePreviewStep(draft, previewCache, inventoryManager, segments).ToCoroutine(exception =>
+      var currentPos = GetCurrentMouseGridPosition();
+      var shouldRefresh = currentPos.HasValue && ShouldRefreshPreview(currentPos.Value);
+      if (shouldRefresh)
       {
-        previewException = exception;
-      });
+        Exception previewException = null;
+        yield return UpdatePreviewStep(draft, previewCache, inventoryManager, segments).ToCoroutine(exception =>
+        {
+          previewException = exception;
+        });
 
-      if (previewException != null)
-      {
-        ZoopLog.Error(previewException, "Preview update loop failed.");
+        if (previewException != null)
+        {
+          ZoopLog.Error(previewException, "Preview update loop failed.");
+          InvalidatePreview();
+        }
+        else
+        {
+          lastPreviewCursorPosition = currentPos.Value;
+          previewDirty = false;
+        }
       }
 
-      yield return new WaitForSecondsRealtime(0.1f);
+      yield return null;
     }
   }
 
@@ -569,6 +586,8 @@ internal sealed class ZoopController(
 
     activeDraft = null;
     activePreviewCache = null;
+    lastPreviewCursorPosition = null;
+    previewDirty = false;
 
     if (restoreCursorVisibility)
     {
@@ -587,6 +606,19 @@ internal sealed class ZoopController(
   private static bool IsSameZoopPosition(Vector3 first, Vector3 second)
   {
     return Vector3.SqrMagnitude(first - second) < ZoopPreviewColorizer.PositionToleranceSqr;
+  }
+
+  private void InvalidatePreview()
+  {
+    previewDirty = true;
+    lastPreviewCursorPosition = null;
+  }
+
+  private bool ShouldRefreshPreview(Vector3 currentPos)
+  {
+    return previewDirty ||
+           !lastPreviewCursorPosition.HasValue ||
+           !IsSameZoopPosition(lastPreviewCursorPosition.Value, currentPos);
   }
 
   private static Structure GetSelectedConstructable(InventoryManager inventoryManager)
