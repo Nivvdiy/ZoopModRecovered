@@ -1,5 +1,4 @@
 using System.Collections.Generic;
-using System.Linq;
 using Assets.Scripts.Inventory;
 using Assets.Scripts.Objects;
 using Assets.Scripts.Util;
@@ -68,24 +67,46 @@ internal static class ZoopPreviewColorizer
       ? color.SetAlpha(inventoryManager.CursorAlphaConstructionHelper)
       : helperColor;
 
-    if (smallGrid.Renderers != null)
+    ApplyRendererColors(smallGrid, rendererColor, hasBlueprintMaterial);
+    ApplyOpenEndColors(smallGrid, helperColor);
+
+    return canConstruct && joiningOpenEnds.Count > 0 ? Color.yellow : color;
+  }
+
+  // Intentional guard-clause loop — avoids .Where() enumerator allocation in this per-frame hot path.
+#pragma warning disable S3267
+  private static void ApplyRendererColors(SmallGrid smallGrid, Color rendererColor, bool hasBlueprintMaterial)
+  {
+    if (smallGrid.Renderers == null)
     {
-      foreach (var renderer in smallGrid.Renderers.Where(r => r != null && r.HasRenderer()))
+      return;
+    }
+
+    foreach (var renderer in smallGrid.Renderers)
+    {
+      if (renderer != null && renderer.HasRenderer())
       {
         SetThingRendererColor(renderer, rendererColor, !hasBlueprintMaterial);
       }
     }
+  }
 
-    if (smallGrid.OpenEnds != null)
+  private static void ApplyOpenEndColors(SmallGrid smallGrid, Color helperColor)
+  {
+    if (smallGrid.OpenEnds == null)
     {
-      foreach (var end in smallGrid.OpenEnds.Where(end => end?.HelperRenderer?.material != null))
+      return;
+    }
+
+    foreach (var end in smallGrid.OpenEnds)
+    {
+      if (end?.HelperRenderer?.material != null)
       {
         end.HelperRenderer.material.color = helperColor;
       }
     }
-
-    return canConstruct && joiningOpenEnds.Count > 0 ? Color.yellow : color;
   }
+#pragma warning restore S3267
 
   private static int GetWaypointIndex(IReadOnlyList<Vector3> waypoints, Vector3 position)
   {

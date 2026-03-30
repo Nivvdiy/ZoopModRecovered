@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using Assets.Scripts.Objects;
 using Assets.Scripts.Objects.Electrical;
 using Assets.Scripts.Objects.Pipes;
@@ -33,9 +32,16 @@ internal static class ZoopConstructableRules
       return false;
     }
 
-    return constructables.Any(structure =>
-      IsCornerVariant(structure) &&
-      IsMatchingCornerFamily(selectedStructure, structure));
+    for (var i = 0; i < constructables.Count; i++)
+    {
+      var structure = constructables[i];
+      if (IsCornerVariant(structure) && IsMatchingCornerFamily(selectedStructure, structure))
+      {
+        return true;
+      }
+    }
+
+    return false;
   }
 
   public static int ResolvePreviewBuildIndex(List<Structure> constructables, int selectedIndex, bool isCorner,
