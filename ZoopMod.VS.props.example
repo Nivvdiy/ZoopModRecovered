@@ -1,13 +1,15 @@
 <Project>
 	<PropertyGroup>
 		<NuGetPackagesPath Condition=" '$(NuGetPackagesPath)' == '' ">..\packages</NuGetPackagesPath>
-		<RootFolder>H:\SteamLibrary\steamapps\</RootFolder>
+		<!-- Copy this file to ZoopMod.VS.props and update the paths below for your machine. -->
+		<RootFolder>C:\Path\To\Steam\steamapps</RootFolder>
 		<StationeersDirectory>$(RootFolder)\common\Stationeers</StationeersDirectory>
-		<!-- Change this to the path to your Stationeers directory -->
-		<UnityEditorDirectory>B:\Unity\Versions\2022.3.7f1\Editor\Data\Managed</UnityEditorDirectory>
+		<UnityEditorDirectory>C:\Path\To\Unity\Editor\Data\Managed</UnityEditorDirectory>
 		<StationeersModDirectory>$(StationeersDirectory)\BepInEx\plugins\StationeersLaunchPad\</StationeersModDirectory>
 		<ManagedDirectory>$(StationeersDirectory)\rocketstation_Data\Managed\</ManagedDirectory>
-		<StationeersModOutputFolder Condition=" '$(StationeersModOutputFolder)' == '' ">D:\Documents\My Games\Stationeers\mods</StationeersModOutputFolder>
+		<StationeersModOutputFolder Condition=" '$(StationeersModOutputFolder)' == '' ">C:\Users\%USERNAME%\Documents\My Games\Stationeers\mods</StationeersModOutputFolder>
 		<CreativeFreedomModPath Condition=" '$(CreativeFreedomModPath)' == '' ">$(RootFolder)\workshop\content\544550\3193624149</CreativeFreedomModPath>
+		<!-- Optional: set this to enable pdb2mdb generation for debug builds. -->
+		<Pdb2MdbPath Condition=" '$(Pdb2MdbPath)' == '' "></Pdb2MdbPath>
 	</PropertyGroup>
 </Project>

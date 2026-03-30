@@ -34,12 +34,15 @@
 		<Prefer32Bit>false</Prefer32Bit>
 	</PropertyGroup>
 
-	<!-- Import Props -->
-	<Import Project="$(SolutionDir)ZoopMod.VS.props" />
+	<!-- Import machine-local build props when present -->
+	<Import Project="$(MSBuildProjectDirectory)\ZoopMod.VS.props" Condition="Exists('$(MSBuildProjectDirectory)\ZoopMod.VS.props')" />
 	<PropertyGroup>
-		<TargetFramework>net35</TargetFramework>
+		<TargetFramework>net48</TargetFramework>
 		<AllowUnsafeBlocks>true</AllowUnsafeBlocks>
 		<LangVersion>latest</LangVersion>
+		<GitVersion>false</GitVersion>
+		<Pdb2MdbPath Condition=" '$(Pdb2MdbPath)' == '' "></Pdb2MdbPath>
+		<Pdb2MdbOutputPath Condition=" '$(Pdb2MdbOutputPath)' == '' ">$(TargetPath).mdb</Pdb2MdbOutputPath>
 		<RestoreAdditionalProjectSources>
 			https://api.nuget.org/v3/index.json;
 			https://nuget.bepinex.dev/v3/index.json;
@@ -47,12 +50,17 @@
 		</RestoreAdditionalProjectSources>
 	</PropertyGroup>
 
+	<Target Name="ValidateLocalBuildProps" BeforeTargets="ResolveReferences" Condition="!Exists('$(MSBuildProjectDirectory)\ZoopMod.VS.props')">
+		<Error Text="Missing ZoopMod.VS.props. Copy ZoopMod.VS.props.example to ZoopMod.VS.props and update the machine-specific paths for your setup." />
+	</Target>
+
 	<!-- References -->
 	<ItemGroup>
 		<PackageReference Include="BepInEx.Analyzers" Version="1.*" PrivateAssets="all" />
 		<PackageReference Include="BepInEx.Core" Version="5.*" />
 		<PackageReference Include="BepInEx.PluginInfoProps" Version="2.*" />
-		<PackageReference Include="UnityEngine.Modules" Version="2021.2.13" IncludeAssets="compile" />
+		<PackageReference Include="GitInfo" Version="3.6.0" PrivateAssets="all" IncludeAssets="runtime; build; native; contentfiles; analyzers" />
+		<PackageReference Include="UnityEngine.Modules" Version="2021.3.33" IncludeAssets="compile" />
 		<!-- Unity References -->
 		<Reference Include="Unity.TextMeshPro">
 			<HintPath>$(ManagedDirectory)Unity.TextMeshPro.dll</HintPath>
@@ -69,18 +77,6 @@
 		<Reference Include="UniTask, Version=2.3.3.0, Culture=neutral, PublicKeyToken=7a576c6e8fde454a, processorArchitecture=MSIL">
 			<SpecificVersion>False</SpecificVersion>
 			<HintPath>$(ManagedDirectory)\UniTask.dll</HintPath>
-		</Reference>
-		<!-- Other References -->
-		<Reference Include="StationeersLaunchPad">
-			<HintPath>$(StationeersModDirectory)StationeersLaunchPad.dll</HintPath>
-		</Reference>
-		<Reference Include="StationeersMods.Interface">
-			<HintPath>$(StationeersModDirectory)StationeersMods.Interface.dll</HintPath>
-			<Private>False</Private>
-		</Reference>
-		<Reference Include="CreativeFreedom">
-			<HintPath>$(CreativeFreedomModPath)\CreativeFreedom.dll</HintPath>
-			<Private>False</Private>
 		</Reference>
 	</ItemGroup>
 
@@ -104,16 +100,17 @@
 	<!-- Post-Build Events -->
 	<Target Name="CustomAfterBuild" AfterTargets="Build">
 		<Message Importance="High" Text="Start building project files" />
-		<Exec Command="&quot;B:\pdb2mdb.exe&quot; &quot;$(ProjectDir)\bin\Debug\$(ModName).dll&quot;" Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' " />
+		<Warning Text="Configured Pdb2MdbPath was not found. Skipping .mdb generation: $(Pdb2MdbPath)"
+		         Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' and '$(Pdb2MdbPath)' != '' and !Exists('$(Pdb2MdbPath)')" />
+		<Exec Command="&quot;$(Pdb2MdbPath)&quot; &quot;$(TargetPath)&quot;"
+		      Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' and '$(Pdb2MdbPath)' != '' and Exists('$(Pdb2MdbPath)')" />
 		<RemoveDir Directories="$(StationeersModOutputFolder)\$(ModName)" />
 		<Copy SourceFiles="$(ProjectDir)\$(ModName).info" DestinationFolder="$(StationeersModOutputFolder)\$(ModName)" ContinueOnError="false" />
-		<Copy SourceFiles="$(ProjectDir)\bin\Debug\$(ModName).dll" DestinationFolder="$(StationeersModOutputFolder)\$(ModName)" ContinueOnError="true" />
+		<Copy SourceFiles="$(ProjectDir)\bin\Debug\net48\$(ModName).dll" DestinationFolder="$(StationeersModOutputFolder)\$(ModName)" ContinueOnError="true" />
 		<Copy SourceFiles="@(_CopyItemsGameData)" DestinationFolder="$(StationeersModOutputFolder)\$(ModName)\GameData\%(RecursiveDir)" ContinueOnError="true" />
 		<Copy SourceFiles="@(_CopyItemsAbout)" DestinationFolder="$(StationeersModOutputFolder)\$(ModName)\About\%(RecursiveDir)" ContinueOnError="true" />
-		<Copy SourceFiles="$(ProjectDir)\bin\Debug\$(ModName).dll.mdb" DestinationFolder="$(StationeersModOutputFolder)\$(ModName)" ContinueOnError="true" Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' " />
+		<Copy SourceFiles="$(Pdb2MdbOutputPath)" DestinationFolder="$(StationeersModOutputFolder)\$(ModName)" ContinueOnError="true"
+		      Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' and Exists('$(Pdb2MdbOutputPath)')" />
 	</Target>
-
-	<!-- Import CSharp Targets -->
-	<Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 
 </Project>

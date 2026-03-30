@@ -1,44 +1,45 @@
 <?xml version="1.0" encoding="utf-8"?>
+
 <Language xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
-	<Name>English</Name>
-	<Code>EN</Code>
-	<Font>font_english</Font>
-	<Interface>
-		<Record>
-			<Key>SettingsMenuZoop</Key>
-			<Value>Zoop</Value>
-		</Record>
-		<Record>
-			<Key>SectionSettingsTitle1</Key>
-			<Value>Zoop Section 1</Value>
-		</Record>
-		<Record>
-			<Key>SectionSettingsTitle2</Key>
-			<Value>Zoop Section 2</Value>
-		</Record>
-		<Record>
-			<Key>ElementSettingsText</Key>
-			<Value>Zoop Text Example</Value>
-		</Record>
-		<Record>
-			<Key>ElementSettingsBoolean</Key>
-			<Value>Zoop Boolean Example</Value>
-		</Record>
-		<Record>
-			<Key>ElementSettingsInt</Key>
-			<Value>Zoop Int Example</Value>
-		</Record>
-		<Record>
-			<Key>ElementSettingsFloat</Key>
-			<Value>Zoop Float Example</Value>
-		</Record>
-		<Record>
-			<Key>ElementSettingsStringList</Key>
-			<Value>Zoop List Example</Value>
-		</Record>
-		<Record>
-			<Key>ElementSettingsString</Key>
-			<Value>Zoop String Example</Value>
-		</Record>
-	</Interface>
+  <Name>English</Name>
+  <Code>EN</Code>
+  <Font>font_english</Font>
+  <Interface>
+    <Record>
+      <Key>SettingsMenuZoop</Key>
+      <Value>Zoop</Value>
+    </Record>
+    <Record>
+      <Key>SectionSettingsTitle1</Key>
+      <Value>Zoop Section 1</Value>
+    </Record>
+    <Record>
+      <Key>SectionSettingsTitle2</Key>
+      <Value>Zoop Section 2</Value>
+    </Record>
+    <Record>
+      <Key>ElementSettingsText</Key>
+      <Value>Zoop Text Example</Value>
+    </Record>
+    <Record>
+      <Key>ElementSettingsBoolean</Key>
+      <Value>Zoop Boolean Example</Value>
+    </Record>
+    <Record>
+      <Key>ElementSettingsInt</Key>
+      <Value>Zoop Int Example</Value>
+    </Record>
+    <Record>
+      <Key>ElementSettingsFloat</Key>
+      <Value>Zoop Float Example</Value>
+    </Record>
+    <Record>
+      <Key>ElementSettingsStringList</Key>
+      <Value>Zoop List Example</Value>
+    </Record>
+    <Record>
+      <Key>ElementSettingsString</Key>
+      <Value>Zoop String Example</Value>
+    </Record>
+  </Interface>
 </Language>
