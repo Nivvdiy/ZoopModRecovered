@@ -4,13 +4,12 @@ using Assets.Scripts.Inventory;
 using Assets.Scripts.Objects;
 using Assets.Scripts.Util;
 using UnityEngine;
+using ZoopMod.Zoop.Core;
 
 namespace ZoopMod.Zoop.Preview;
 
 internal static class ZoopPreviewColorizer
 {
-
-  internal const float PositionToleranceSqr = 0.0001f;
 
   private static readonly Color ErrorColor = Color.red;
   private static readonly Color WaypointColor = Color.blue;
@@ -99,7 +98,7 @@ internal static class ZoopPreviewColorizer
   {
     for (var index = 0; index < waypoints.Count; index++)
     {
-      if (IsSameZoopPosition(waypoints[index], position))
+      if (ZoopPositionUtility.IsSameZoopPosition(waypoints[index], position))
       {
         return index;
       }
@@ -107,12 +106,6 @@ internal static class ZoopPreviewColorizer
 
     return -1;
   }
-
-  private static bool IsSameZoopPosition(Vector3 first, Vector3 second)
-  {
-    return Vector3.SqrMagnitude(first - second) < PositionToleranceSqr;
-  }
-
   private static void SetThingRendererColor(ThingRenderer thingRenderer, Color color, bool usePropertyBlock)
   {
     if (!usePropertyBlock)

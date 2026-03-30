@@ -552,11 +552,6 @@ internal sealed class ZoopController(
     }
   }
 
-  private static bool IsSameZoopPosition(Vector3 first, Vector3 second)
-  {
-    return Vector3.SqrMagnitude(first - second) < ZoopPreviewColorizer.PositionToleranceSqr;
-  }
-
   private WaypointCaptureResult TryCaptureCurrentWaypoint(ZoopDraft draft, bool invalidatePreview, out Vector3 capturedPos)
   {
     capturedPos = default;
@@ -568,7 +563,7 @@ internal sealed class ZoopController(
     }
 
     capturedPos = currentPos.Value;
-    if (IsSameZoopPosition(draft.Waypoints[draft.Waypoints.Count - 1], capturedPos))
+    if (ZoopPositionUtility.IsSameZoopPosition(draft.Waypoints[draft.Waypoints.Count - 1], capturedPos))
     {
       return WaypointCaptureResult.Duplicate;
     }

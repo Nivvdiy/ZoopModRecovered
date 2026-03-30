@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
-using ZoopMod.Zoop.Preview;
+using ZoopMod.Zoop.Core;
 
 namespace ZoopMod.Zoop.Planning;
 
@@ -20,7 +20,7 @@ internal static class ZoopPathPlanner
       var segment = new ZoopSegment();
       CalculateZoopSegments(startPos, endPos, segment);
 
-      isSinglePlacement = IsSameZoopPosition(startPos, endPos);
+      isSinglePlacement = ZoopPositionUtility.IsSameZoopPosition(startPos, endPos);
       if (isSinglePlacement)
       {
         segment.CountX = 1 + (int)(Math.Abs(startPos.x - endPos.x) * 2);
@@ -39,7 +39,7 @@ internal static class ZoopPathPlanner
     var plane = new ZoopPlane();
     CalculateZoopPlane(startPos, endPos, plane);
 
-    if (!IsSameZoopPosition(startPos, endPos))
+    if (!ZoopPositionUtility.IsSameZoopPosition(startPos, endPos))
     {
       return plane;
     }
@@ -186,10 +186,5 @@ internal static class ZoopPathPlanner
     plane.Directions = (direction1: directions[0].direction, direction2: directions[1].direction);
     plane.Count = (direction1: directions[0].count, direction2: directions[1].count);
     plane.Increasing = (direction1: directions[0].increasing, direction2: directions[1].increasing);
-  }
-
-  private static bool IsSameZoopPosition(Vector3 first, Vector3 second)
-  {
-    return Vector3.SqrMagnitude(first - second) < ZoopPreviewColorizer.PositionToleranceSqr;
   }
 }

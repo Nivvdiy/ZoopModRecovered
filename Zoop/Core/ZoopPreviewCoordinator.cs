@@ -175,12 +175,7 @@ internal sealed class ZoopPreviewCoordinator(ZoopPreviewValidator previewValidat
   {
     return previewDirty ||
            !lastPreviewCursorPosition.HasValue ||
-           !IsSameZoopPosition(lastPreviewCursorPosition.Value, currentPos);
-  }
-
-  private static bool IsSameZoopPosition(Vector3 first, Vector3 second)
-  {
-    return Vector3.SqrMagnitude(first - second) < ZoopPreviewColorizer.PositionToleranceSqr;
+           !ZoopPositionUtility.IsSameZoopPosition(lastPreviewCursorPosition.Value, currentPos);
   }
 
   private static bool IsZoopingSmallGrid()
