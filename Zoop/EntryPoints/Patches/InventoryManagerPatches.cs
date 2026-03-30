@@ -43,6 +43,12 @@ internal static class InventoryManagerCancelPlacementPatch
   [UsedImplicitly]
   public static void Prefix(InventoryManager __instance)
   {
+    if (ZoopRuntime.Controller.IsBuildExecuting)
+    {
+      ZoopLog.Debug("[Build] Active zoop build execution canceled during CancelPlacement.");
+      ZoopRuntime.Controller.CancelBuildExecution();
+    }
+
     if (ZoopRuntime.Controller.IsZooping)
     {
       ZoopLog.Debug("[Placement] Zoop canceled during CancelPlacement.");
@@ -104,6 +110,11 @@ internal static class InventoryManagerPlacementModePatch
   [UsedImplicitly]
   public static bool Prefix(InventoryManager __instance)
   {
+    if (ZoopRuntime.Controller.IsBuildExecuting)
+    {
+      return false;
+    }
+
     ZoopRuntime.Controller.IsZoopKeyPressed = KeyManager.GetButton(ZoopKeyBindings.Hold);
     var secondary = KeyManager.GetMouseDown("Secondary");
     var primary = KeyManager.GetMouseDown("Primary");

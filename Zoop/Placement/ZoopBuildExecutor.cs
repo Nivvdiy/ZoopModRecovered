@@ -1,3 +1,4 @@
+using System.Collections;
 using System.Reflection;
 using Assets.Scripts.Inventory;
 using Assets.Scripts.Objects;
@@ -8,6 +9,8 @@ namespace ZoopMod.Zoop.Placement;
 
 internal static class ZoopBuildExecutor
 {
+  private const int PlacementsPerFrame = 8;
+
   private static readonly FieldInfo UsePrimaryPositionField =
     typeof(InventoryManager).GetField("_usePrimaryPosition", BindingFlags.Instance | BindingFlags.NonPublic);
 
@@ -17,10 +20,16 @@ internal static class ZoopBuildExecutor
   private static readonly MethodInfo UsePrimaryCompleteMethod = typeof(InventoryManager).GetMethod("UsePrimaryComplete",
     BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
 
-  public static void BuildAll(
+  public static IEnumerator BuildAll(
     InventoryManager inventoryManager,
     ZoopBuildPlan buildPlan)
   {
+    if (UsePrimaryCompleteMethod == null)
+    {
+      ZoopLog.Error("[Build] Unable to find InventoryManager.UsePrimaryComplete; skipping zoop placement.");
+      yield break;
+    }
+
     for (var structureIndex = 0; structureIndex < buildPlan.Count; structureIndex++)
     {
       var piece = buildPlan.Pieces[structureIndex];
@@ -29,30 +38,37 @@ internal static class ZoopBuildExecutor
       InventoryManager.SpawnPrefab = piece.SpawnPrefab;
       UsePrimaryPositionField?.SetValue(inventoryManager, piece.Position);
       UsePrimaryRotationField?.SetValue(inventoryManager, piece.Rotation);
-      if (UsePrimaryCompleteMethod == null)
-      {
-        ZoopLog.Error("[Build] Unable to find InventoryManager.UsePrimaryComplete; skipping zoop placement.");
-        continue;
-      }
-
       UsePrimaryCompleteMethod.Invoke(inventoryManager, null);
 
-      if (!InventoryManager.IsAuthoringMode)
-      {
-        continue;
-      }
+      // Finalizes Build State in Authoring mode
+      FinalizeAuthoringModePlacement();
 
-      var placedStructure = Structure.LastCreatedStructure;
-      if (placedStructure?.NextBuildState == null)
+      if ((structureIndex + 1) % PlacementsPerFrame == 0 && structureIndex + 1 < buildPlan.Count)
       {
-        continue;
-      }
-
-      var lastBuildStateIndex = placedStructure.BuildStates.Count - 1;
-      if (lastBuildStateIndex >= 0)
-      {
-        placedStructure.UpdateBuildStateAndVisualizer(lastBuildStateIndex);
+        yield return null;
       }
     }
+  }
+
+  private static void FinalizeAuthoringModePlacement()
+  {
+    if (!InventoryManager.IsAuthoringMode)
+    {
+      return;
+    }
+
+    var placedStructure = Structure.LastCreatedStructure;
+    if (placedStructure?.NextBuildState == null)
+    {
+      return;
+    }
+
+    var lastBuildStateIndex = placedStructure.BuildStates.Count - 1;
+    if (lastBuildStateIndex < 0)
+    {
+      return;
+    }
+
+    placedStructure.UpdateBuildStateAndVisualizer(lastBuildStateIndex);
   }
 }

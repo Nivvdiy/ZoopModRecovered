@@ -45,9 +45,12 @@ internal sealed class ZoopController(
   private Coroutine pendingBuildCoroutine;
   private InventoryManager pendingBuildOwner;
   private ZoopBuildPlan pendingBuildPlan;
+  private Coroutine buildExecutionCoroutine;
+  private InventoryManager buildExecutionOwner;
 
   public int PreviewCount => activeDraft?.PreviewCount ?? 0;
   public bool AllowPlacementUpdate => placementUpdateGate.AllowPlacementUpdate;
+  public bool IsBuildExecuting => buildExecutionCoroutine != null;
   public bool IsZoopKeyPressed { get; set; }
   public bool IsZooping => state != ZoopLifecycleState.Idle;
   public bool IsPreviewing => state == ZoopLifecycleState.Previewing;
@@ -55,6 +58,12 @@ internal sealed class ZoopController(
 
   public void ToggleZoop(InventoryManager inventoryManager)
   {
+    if (IsBuildExecuting)
+    {
+      ZoopLog.Debug("[Lifecycle] Ignored zoop toggle while an automatic zoop build is still executing.");
+      return;
+    }
+
     if (IsZooping)
     {
       CancelZoop();
@@ -76,6 +85,13 @@ internal sealed class ZoopController(
 
   public void CancelZoop()
   {
+    if (IsBuildExecuting)
+    {
+      ZoopLog.Debug("[Lifecycle] Canceling active zoop build execution.");
+      CancelBuildExecution();
+      return;
+    }
+
     ZoopLog.Debug($"[Lifecycle] Canceling zoop from state {state}.");
     ResetSession(restoreCursorVisibility: true, cancelPendingBuild: true);
   }
@@ -230,9 +246,17 @@ internal sealed class ZoopController(
 
     ZoopLog.Debug($"[Build] Executing zoop build with {buildPlan.Count} piece(s).");
     ResetSession(restoreCursorVisibility: false, cancelPendingBuild: false);
-    ZoopBuildExecutor.BuildAll(inventoryManager, buildPlan);
-    ZoopLog.Debug($"[Build] Zoop build completed for {buildPlan.Count} piece(s); canceling placement cursor.");
-    inventoryManager.CancelPlacement();
+
+    var buildCoroutine = inventoryManager.StartCoroutine(ExecuteBuildPlan(inventoryManager, buildPlan));
+    if (buildCoroutine == null)
+    {
+      ZoopLog.Error("[Build] Failed to start frame-sliced zoop build coroutine; canceling placement cursor.");
+      inventoryManager.CancelPlacement();
+      return;
+    }
+
+    buildExecutionOwner = inventoryManager;
+    buildExecutionCoroutine = buildCoroutine;
   }
 
   private static ZoopBuildPlan CaptureBuildPlan(ZoopDraft draft, InventoryManager inventoryManager)
@@ -310,11 +334,28 @@ internal sealed class ZoopController(
     ClearPendingBuildState();
   }
 
+  public void CancelBuildExecution()
+  {
+    if (buildExecutionOwner != null && buildExecutionCoroutine != null)
+    {
+      ZoopLog.Debug("[Build] Stopping active zoop build coroutine.");
+      buildExecutionOwner.StopCoroutine(buildExecutionCoroutine);
+    }
+
+    ClearBuildExecutionState();
+  }
+
   private void ClearPendingBuildState()
   {
     pendingBuildCoroutine = null;
     pendingBuildOwner = null;
     pendingBuildPlan = null;
+  }
+
+  private void ClearBuildExecutionState()
+  {
+    buildExecutionCoroutine = null;
+    buildExecutionOwner = null;
   }
 
   private ZoopBuildPlan ConsumePendingBuildPlan()
@@ -409,6 +450,21 @@ internal sealed class ZoopController(
     var inventoryManagerAfterWait = pendingBuildOwner;
     ClearPendingBuildState();
     ResumePreviewing(inventoryManagerAfterWait);
+  }
+
+  private IEnumerator ExecuteBuildPlan(InventoryManager inventoryManager, ZoopBuildPlan buildPlan)
+  {
+    try
+    {
+      yield return ZoopBuildExecutor.BuildAll(inventoryManager, buildPlan);
+    }
+    finally
+    {
+      ClearBuildExecutionState();
+    }
+
+    ZoopLog.Debug($"[Build] Zoop build completed for {buildPlan.Count} piece(s); canceling placement cursor.");
+    inventoryManager.CancelPlacement();
   }
 
   private static Assets.Scripts.ICreativeSpawnable ResolveSpawnPrefabForBuild(ZoopDraft draft, InventoryManager inventoryManager,
