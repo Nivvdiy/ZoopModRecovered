@@ -44,6 +44,10 @@ internal sealed class SmallGridRotationStep
 /// </summary>
 internal static class ZoopPreviewLayoutCoordinator
 {
+  // Reused across calls to avoid per-frame HashSet allocation. Cleared at the top of every
+  // PositionSmallGridStructures call so it never carries stale data from a previous update.
+  private static readonly HashSet<Vector3Int> OccupiedCells = new();
+
   /// <summary>
   /// Walks the planned small-grid segments in build order and assigns each preview piece a world position.
   /// Corner-capable families also get their turn rotation applied here because that depends on neighboring
@@ -60,7 +64,7 @@ internal static class ZoopPreviewLayoutCoordinator
     var draft = adapter.Draft;
     var structureCounter = 0;
     var lastDirection = ZoopDirection.none;
-    var occupiedCells = new HashSet<Vector3Int>();
+    OccupiedCells.Clear();
     var hasError = false;
     var creativeFreedomEnabled = ZoopIntegrations.CreativeFreedomAvailable;
 
@@ -122,7 +126,7 @@ internal static class ZoopPreviewLayoutCoordinator
           // Small-grid previews cannot safely overlap the same snapped cell because there is no dedicated
           // intersection preview for most families, so revisiting a cell is treated as invalid.
           hasError = hasError || HasSmallGridCellError(creativeFreedomEnabled, adapter, inventoryManager,
-            occupiedCells, previewPosition, previewStructure, structureCounter);
+            OccupiedCells, previewPosition, previewStructure, structureCounter);
 
           structureCounter++;
         }
