@@ -183,17 +183,60 @@ internal static class ZoopPathPlanner
     var absY = Math.Abs(endY - startY) / 2;
     var absZ = Math.Abs(endZ - startZ) / 2;
 
-    var directions = new List<(float value, ZoopDirection direction, int count, bool increasing)>
+    // Pick the two largest axes without allocating a list — only three candidates exist so
+    // two comparisons are sufficient to identify the top-2 in descending order.
+    float val1, val2;
+    ZoopDirection dir1, dir2;
+    int cnt1, cnt2;
+    bool inc1, inc2;
+
+    if (absX >= absY && absX >= absZ)
     {
-      (absX, ZoopDirection.x, 1 + (int)(Math.Abs(startX - endX) / 2), startX < endX),
-      (absY, ZoopDirection.y, 1 + (int)(Math.Abs(startY - endY) / 2), startY < endY),
-      (absZ, ZoopDirection.z, 1 + (int)(Math.Abs(startZ - endZ) / 2), startZ < endZ)
-    };
+      // X is largest
+      val1 = absX; dir1 = ZoopDirection.x; cnt1 = 1 + (int)(Math.Abs(startX - endX) / 2); inc1 = startX < endX;
+      if (absY >= absZ)
+      {
+        val2 = absY; dir2 = ZoopDirection.y; cnt2 = 1 + (int)(Math.Abs(startY - endY) / 2); inc2 = startY < endY;
+      }
+      else
+      {
+        val2 = absZ; dir2 = ZoopDirection.z; cnt2 = 1 + (int)(Math.Abs(startZ - endZ) / 2); inc2 = startZ < endZ;
+      }
+    }
+    else if (absY >= absX && absY >= absZ)
+    {
+      // Y is largest
+      val1 = absY; dir1 = ZoopDirection.y; cnt1 = 1 + (int)(Math.Abs(startY - endY) / 2); inc1 = startY < endY;
+      if (absX >= absZ)
+      {
+        val2 = absX; dir2 = ZoopDirection.x; cnt2 = 1 + (int)(Math.Abs(startX - endX) / 2); inc2 = startX < endX;
+      }
+      else
+      {
+        val2 = absZ; dir2 = ZoopDirection.z; cnt2 = 1 + (int)(Math.Abs(startZ - endZ) / 2); inc2 = startZ < endZ;
+      }
+    }
+    else
+    {
+      // Z is largest
+      val1 = absZ; dir1 = ZoopDirection.z; cnt1 = 1 + (int)(Math.Abs(startZ - endZ) / 2); inc1 = startZ < endZ;
+      if (absX >= absY)
+      {
+        val2 = absX; dir2 = ZoopDirection.x; cnt2 = 1 + (int)(Math.Abs(startX - endX) / 2); inc2 = startX < endX;
+      }
+      else
+      {
+        val2 = absY; dir2 = ZoopDirection.y; cnt2 = 1 + (int)(Math.Abs(startY - endY) / 2); inc2 = startY < endY;
+      }
+    }
 
-    directions.Sort((a, b) => b.value.CompareTo(a.value));
+    // Suppress unused-variable warnings for val1/val2 — they are not stored on the plane but are
+    // kept to make the parallel structure of each branch clear and easy to verify.
+    _ = val1;
+    _ = val2;
 
-    plane.Directions = (direction1: directions[0].direction, direction2: directions[1].direction);
-    plane.Count = (direction1: directions[0].count, direction2: directions[1].count);
-    plane.Increasing = (direction1: directions[0].increasing, direction2: directions[1].increasing);
+    plane.Directions = (direction1: dir1, direction2: dir2);
+    plane.Count = (direction1: cnt1, direction2: cnt2);
+    plane.Increasing = (direction1: inc1, direction2: inc2);
   }
 }
