@@ -67,6 +67,7 @@ internal sealed class ZoopBigGridCoordinator(ZoopPreviewValidator previewValidat
   {
     ZoopPreviewFactory.ResetBigGridPreviewList(draft, previewCache);
     var constructables = inventoryManager.ConstructionPanel.Parent.Constructables;
+    var context = new ZoopPreviewContext(draft, previewCache, constructables, inventoryManager, supportsCornerVariant: false);
     var count = 0;
     var canBuildNext = true;
 
@@ -74,20 +75,7 @@ internal sealed class ZoopBigGridCoordinator(ZoopPreviewValidator previewValidat
     {
       for (var indexDirection1 = 0; indexDirection1 < plane.Count.direction1; indexDirection1++)
       {
-        var request = new ZoopPreviewFactory.AddStructureRequest
-        {
-          Draft = draft,
-          PreviewCache = previewCache,
-          Constructables = constructables,
-          SupportsCornerVariant = false,
-          InventoryManager = inventoryManager,
-          IsCorner = false,
-          Index = count,
-          SecondaryCount = 0,
-          CanBuildNext = canBuildNext
-        };
-        ZoopPreviewFactory.AddStructure(request);
-        canBuildNext = request.CanBuildNext;
+        canBuildNext = ZoopPreviewFactory.AddStructure(context, isCorner: false, index: count, secondaryCount: 0, canBuildNext: canBuildNext);
         count++;
       }
     }

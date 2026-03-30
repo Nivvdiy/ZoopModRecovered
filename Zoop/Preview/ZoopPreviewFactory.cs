@@ -10,35 +10,30 @@ using UnityObject = UnityEngine.Object;
 
 namespace ZoopMod.Zoop.Preview;
 
-internal sealed class ZoopPreviewFactory
+internal static class ZoopPreviewFactory
 {
-  internal sealed class AddStructureRequest
+  /// <returns>The updated <c>canBuildNext</c> value to carry forward to the next piece.</returns>
+  public static bool AddStructure(
+    ZoopPreviewContext context,
+    bool isCorner,
+    int index,
+    int secondaryCount,
+    bool canBuildNext)
   {
-    public ZoopDraft Draft { get; set; }
-    public ZoopPreviewCache PreviewCache { get; set; }
-    public List<Structure> Constructables { get; set; }
-    public bool IsCorner { get; set; }
-    public int Index { get; set; }
-    public int SecondaryCount { get; set; }
-    public bool CanBuildNext { get; set; }
-    public InventoryManager InventoryManager { get; set; }
-    public bool SupportsCornerVariant { get; set; }
-  }
-
-  public static void AddStructure(AddStructureRequest request)
-  {
-    var selectedIndex = request.InventoryManager.ConstructionPanel.Parent.LastSelectedIndex;
-    var straightCount = request.IsCorner ? request.SecondaryCount : request.Index;
-    var cornerCount = request.IsCorner ? request.Index : request.SecondaryCount;
-    var buildIndex = ZoopConstructableRules.ResolvePreviewBuildIndex(request.Constructables, selectedIndex,
-      request.IsCorner, request.SupportsCornerVariant);
-    var activeItem = buildIndex >= 0 && buildIndex < request.Constructables.Count
-      ? request.Constructables[buildIndex]
+    var draft = context.Draft;
+    var constructables = context.Constructables;
+    var supportsCornerVariant = context.SupportsCornerVariant;
+    var selectedIndex = context.InventoryManager.ConstructionPanel.Parent.LastSelectedIndex;
+    var straightCount = isCorner ? secondaryCount : index;
+    var cornerCount = isCorner ? index : secondaryCount;
+    var buildIndex = ZoopConstructableRules.ResolvePreviewBuildIndex(constructables, selectedIndex,
+      isCorner, supportsCornerVariant);
+    var activeItem = buildIndex >= 0 && buildIndex < constructables.Count
+      ? constructables[buildIndex]
       : null;
     if (activeItem == null)
     {
-      request.CanBuildNext = false;
-      return;
+      return false;
     }
 
     var activeHandItem = InventoryManager.ActiveHandSlot.Get();
@@ -47,29 +42,26 @@ internal sealed class ZoopPreviewFactory
       case Stackable constructor:
         var canMakeItem = activeItem switch
         {
-          Chute when buildIndex == 0 => constructor.Quantity > request.Draft.PreviewCount,
+          Chute when buildIndex == 0 => constructor.Quantity > draft.PreviewCount,
           Chute when buildIndex == 2 => constructor.Quantity >
-                                        straightCount * 2 + (request.IsCorner ? 0 : 1) + cornerCount,
-          _ => constructor.Quantity > request.Draft.PreviewCount
+                                        straightCount * 2 + (isCorner ? 0 : 1) + cornerCount,
+          _ => constructor.Quantity > draft.PreviewCount
         };
 
-        if (canMakeItem && request.CanBuildNext)
+        if (canMakeItem && canBuildNext)
         {
-          MakeItem(request.Draft, request.PreviewCache, request.Constructables, request.Index, buildIndex,
-            request.SupportsCornerVariant);
-          request.CanBuildNext = true;
-        }
-        else
-        {
-          request.CanBuildNext = false;
+          MakeItem(context.Draft, context.PreviewCache, constructables, index, buildIndex, supportsCornerVariant);
+          return true;
         }
 
-        break;
+        return false;
+
       case AuthoringTool:
-        MakeItem(request.Draft, request.PreviewCache, request.Constructables, request.Index, buildIndex,
-          request.SupportsCornerVariant);
-        request.CanBuildNext = true;
-        break;
+        MakeItem(context.Draft, context.PreviewCache, constructables, index, buildIndex, supportsCornerVariant);
+        return true;
+
+      default:
+        return canBuildNext;
     }
   }
 
