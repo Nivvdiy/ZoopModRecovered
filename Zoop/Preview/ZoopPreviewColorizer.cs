@@ -25,67 +25,12 @@ internal static class ZoopPreviewColorizer
     var waypointIndex = GetWaypointIndex(waypoints, structure.Position);
     var isWaypoint = waypointIndex >= 0;
     var isStart = waypointIndex == 0;
-    Color color;
-    if (!canConstruct)
-    {
-      color = ErrorColor;
-    }
-    else if (isStart)
-    {
-      color = StartColor;
-    }
-    else if (isWaypoint)
-    {
-      color = WaypointColor;
-    }
-    else
-    {
-      color = lineColor;
-    }
+
+    var color = ResolveMainColor(canConstruct, isStart, isWaypoint, lineColor);
 
     if (structure is SmallGrid smallGrid)
     {
-      var joiningOpenEnds = smallGrid.WillJoinNetwork() ?? [];
-      var hasBlueprintMaterial = structure.Wireframe?.BlueprintRenderer?.material != null;
-      Color helperColor;
-      if (!canConstruct)
-      {
-        helperColor = Color.red.SetAlpha(inventoryManager.CursorAlphaConstructionHelper);
-      }
-      else if (joiningOpenEnds.Count > 0)
-      {
-        helperColor = Color.yellow.SetAlpha(inventoryManager.CursorAlphaConstructionHelper);
-      }
-      else
-      {
-        helperColor = Color.green.SetAlpha(inventoryManager.CursorAlphaConstructionHelper);
-      }
-
-      var rendererColor = helperColor;
-      // Some modded small-grid previews do not expose a blueprint renderer, so their mesh tint
-      // needs to carry the start/waypoint/error color that vanilla previews show separately.
-      if (!hasBlueprintMaterial && (!canConstruct || isStart || isWaypoint))
-      {
-        rendererColor = color.SetAlpha(inventoryManager.CursorAlphaConstructionHelper);
-      }
-
-      if (smallGrid.Renderers != null)
-      {
-        foreach (var renderer in smallGrid.Renderers.Where(renderer => renderer != null && renderer.HasRenderer()))
-        {
-          SetThingRendererColor(renderer, rendererColor, !hasBlueprintMaterial);
-        }
-      }
-
-      if (smallGrid.OpenEnds != null)
-      {
-        foreach (var end in smallGrid.OpenEnds.Where(end => end?.HelperRenderer?.material != null))
-        {
-          end.HelperRenderer.material.color = helperColor;
-        }
-      }
-
-      color = canConstruct && joiningOpenEnds.Count > 0 ? Color.yellow : color;
+      color = ApplySmallGridColors(inventoryManager, smallGrid, canConstruct, isStart, isWaypoint, color);
     }
 
     color.a = inventoryManager.CursorAlphaConstructionMesh;
@@ -93,6 +38,53 @@ internal static class ZoopPreviewColorizer
     {
       structure.Wireframe.BlueprintRenderer.material.color = color;
     }
+  }
+
+  private static Color ResolveMainColor(bool canConstruct, bool isStart, bool isWaypoint, Color lineColor)
+  {
+    if (!canConstruct) return ErrorColor;
+    if (isStart) return StartColor;
+    if (isWaypoint) return WaypointColor;
+    return lineColor;
+  }
+
+  private static Color ResolveHelperColor(InventoryManager inventoryManager, bool canConstruct, int joiningCount)
+  {
+    if (!canConstruct) return Color.red.SetAlpha(inventoryManager.CursorAlphaConstructionHelper);
+    if (joiningCount > 0) return Color.yellow.SetAlpha(inventoryManager.CursorAlphaConstructionHelper);
+    return Color.green.SetAlpha(inventoryManager.CursorAlphaConstructionHelper);
+  }
+
+  private static Color ApplySmallGridColors(InventoryManager inventoryManager, SmallGrid smallGrid,
+    bool canConstruct, bool isStart, bool isWaypoint, Color color)
+  {
+    var joiningOpenEnds = smallGrid.WillJoinNetwork() ?? [];
+    var hasBlueprintMaterial = smallGrid.Wireframe?.BlueprintRenderer?.material != null;
+    var helperColor = ResolveHelperColor(inventoryManager, canConstruct, joiningOpenEnds.Count);
+
+    // Some modded small-grid previews do not expose a blueprint renderer, so their mesh tint
+    // needs to carry the start/waypoint/error color that vanilla previews show separately.
+    var rendererColor = !hasBlueprintMaterial && (!canConstruct || isStart || isWaypoint)
+      ? color.SetAlpha(inventoryManager.CursorAlphaConstructionHelper)
+      : helperColor;
+
+    if (smallGrid.Renderers != null)
+    {
+      foreach (var renderer in smallGrid.Renderers.Where(r => r != null && r.HasRenderer()))
+      {
+        SetThingRendererColor(renderer, rendererColor, !hasBlueprintMaterial);
+      }
+    }
+
+    if (smallGrid.OpenEnds != null)
+    {
+      foreach (var end in smallGrid.OpenEnds.Where(end => end?.HelperRenderer?.material != null))
+      {
+        end.HelperRenderer.material.color = helperColor;
+      }
+    }
+
+    return canConstruct && joiningOpenEnds.Count > 0 ? Color.yellow : color;
   }
 
   private static int GetWaypointIndex(IReadOnlyList<Vector3> waypoints, Vector3 position)
