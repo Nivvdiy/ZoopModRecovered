@@ -13,10 +13,10 @@ namespace ZoopMod.Zoop.Placement;
 /// </summary>
 internal sealed class ZoopBigGridCoordinator(ZoopPreviewValidator previewValidator)
 {
-  private sealed class BigGridPreviewLayoutAdapter(ZoopDraft draft, ZoopPreviewValidator previewValidator)
+  private sealed class BigGridPreviewLayoutAdapter(ZoopPreviewValidator previewValidator)
     : IBigGridPreviewLayoutAdapter
   {
-    public ZoopDraft Draft { get; } = draft;
+    public ZoopDraft Draft { get; set; }
 
     public Structure GetDraftPreviewStructure(int index)
     {
@@ -28,6 +28,8 @@ internal sealed class ZoopBigGridCoordinator(ZoopPreviewValidator previewValidat
       return previewValidator.CanConstructBigCell(Draft, inventoryManager, structure, structureIndex);
     }
   }
+
+  private readonly BigGridPreviewLayoutAdapter layoutAdapter = new(previewValidator);
 
   /// <summary>
   /// Rebuilds the active large-grid preview for the current snapped cursor position.
@@ -49,7 +51,7 @@ internal sealed class ZoopBigGridCoordinator(ZoopPreviewValidator previewValidat
       return;
     }
 
-    var layoutAdapter = new BigGridPreviewLayoutAdapter(draft, previewValidator);
+    layoutAdapter.Draft = draft;
     draft.HasError = draft.HasError || ZoopPreviewLayoutCoordinator.PositionBigGridStructures(
       layoutAdapter,
       inventoryManager,

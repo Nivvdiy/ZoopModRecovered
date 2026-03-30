@@ -17,10 +17,10 @@ namespace ZoopMod.Zoop.Placement;
 /// </summary>
 internal sealed class ZoopSmallGridCoordinator(ZoopPreviewValidator previewValidator)
 {
-  private sealed class SmallGridPreviewLayoutAdapter(ZoopDraft draft, ZoopPreviewValidator previewValidator)
+  private sealed class SmallGridPreviewLayoutAdapter(ZoopPreviewValidator previewValidator)
     : ISmallGridPreviewLayoutAdapter
   {
-    public ZoopDraft Draft { get; } = draft;
+    public ZoopDraft Draft { get; set; }
 
     public Structure GetDraftPreviewStructure(int index)
     {
@@ -64,20 +64,12 @@ internal sealed class ZoopSmallGridCoordinator(ZoopPreviewValidator previewValid
 
     public Vector3Int GetDraftCellKey(Vector3 position)
     {
-      return ToSmallGridCellKey(position);
+      return ZoopPositionUtility.ToSmallGridCellKey(position);
     }
 
     private Structure GetAdapterPreviewStructure(int index)
     {
       return Draft.PreviewPieces[index].Structure;
-    }
-
-    private static Vector3Int ToSmallGridCellKey(Vector3 position)
-    {
-      return new Vector3Int(
-        Mathf.RoundToInt(position.x * 2f),
-        Mathf.RoundToInt(position.y * 2f),
-        Mathf.RoundToInt(position.z * 2f));
     }
 
     private static void SetStraightRotation(Structure structure, ZoopDirection zoopDirection)
@@ -145,6 +137,8 @@ internal sealed class ZoopSmallGridCoordinator(ZoopPreviewValidator previewValid
     }
   }
 
+  private readonly SmallGridPreviewLayoutAdapter layoutAdapter = new(previewValidator);
+
   /// <summary>
   /// Rebuilds the active small-grid preview for the current snapped cursor position.
   /// </summary>
@@ -165,7 +159,7 @@ internal sealed class ZoopSmallGridCoordinator(ZoopPreviewValidator previewValid
       return;
     }
 
-    var layoutAdapter = new SmallGridPreviewLayoutAdapter(draft, previewValidator);
+    layoutAdapter.Draft = draft;
     draft.HasError = draft.HasError || ZoopPreviewLayoutCoordinator.PositionSmallGridStructures(
       layoutAdapter,
       inventoryManager,
