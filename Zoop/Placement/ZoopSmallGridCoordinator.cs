@@ -151,9 +151,7 @@ internal sealed class ZoopSmallGridCoordinator(ZoopPreviewValidator previewValid
   public async UniTask UpdatePreview(ZoopDraft draft, ZoopPreviewCache previewCache, InventoryManager inventoryManager,
     Vector3 currentPos, List<ZoopSegment> segments, int spacing)
   {
-    var plan = ZoopPathPlanner.BuildSmallGridPlan(draft.Waypoints, currentPos);
-    segments.Clear();
-    segments.AddRange(plan.Segments);
+    var isSinglePlacement = ZoopPathPlanner.BuildSmallGridPlan(draft.Waypoints, currentPos, segments);
 
     await UniTask.SwitchToMainThread(); // Switch to main thread for Unity API calls
 
@@ -174,7 +172,7 @@ internal sealed class ZoopSmallGridCoordinator(ZoopPreviewValidator previewValid
       segments,
       supportsCornerVariant,
       spacing,
-      plan.IsSinglePlacement);
+      isSinglePlacement);
   }
 
   /// <summary>

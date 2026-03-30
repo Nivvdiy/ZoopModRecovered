@@ -7,9 +7,15 @@ namespace ZoopMod.Zoop.Planning;
 
 internal static class ZoopPathPlanner
 {
-  public static SmallGridZoopPlan BuildSmallGridPlan(IReadOnlyList<Vector3> waypoints, Vector3 currentPos)
+  /// <summary>
+  /// Populates <paramref name="segments"/> in-place (clearing it first) and returns whether the path
+  /// covers a single placement position. The caller owns the list and should reuse it across calls
+  /// to avoid per-frame allocation.
+  /// </summary>
+  public static bool BuildSmallGridPlan(IReadOnlyList<Vector3> waypoints, Vector3 currentPos,
+    List<ZoopSegment> segments)
   {
-    var segments = new List<ZoopSegment>();
+    segments.Clear();
     var isSinglePlacement = true;
 
     for (var wpIndex = 0; wpIndex < waypoints.Count; wpIndex++)
@@ -31,7 +37,7 @@ internal static class ZoopPathPlanner
       segments.Add(segment);
     }
 
-    return new SmallGridZoopPlan(segments, isSinglePlacement);
+    return isSinglePlacement;
   }
 
   public static ZoopPlane BuildBigGridPlane(Vector3 startPos, Vector3 endPos)
