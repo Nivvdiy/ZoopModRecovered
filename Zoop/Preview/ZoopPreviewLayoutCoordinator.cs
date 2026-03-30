@@ -119,28 +119,40 @@ internal static class ZoopPreviewLayoutCoordinator
           previewStructure.GameObject.SetActive(true);
           previewStructure.ThingTransformPosition = previewPosition;
           previewStructure.Position = previewPosition;
-          if (!creativeFreedomEnabled)
-          {
-            // Small-grid previews cannot safely overlap the same snapped cell because there is no dedicated
-            // intersection preview for most families, so revisiting a cell is treated as invalid.
-            var cellKey = adapter.GetDraftCellKey(previewPosition);
-            var revisitsExistingZoopCell = occupiedCells.Contains(cellKey);
-            occupiedCells.Add(cellKey);
-            hasError = hasError || revisitsExistingZoopCell;
-            hasError = hasError || !adapter.CanConstructSmallCell(inventoryManager, previewStructure, structureCounter);
-          }
+          // Small-grid previews cannot safely overlap the same snapped cell because there is no dedicated
+          // intersection preview for most families, so revisiting a cell is treated as invalid.
+          hasError = hasError || HasSmallGridCellError(creativeFreedomEnabled, adapter, inventoryManager,
+            occupiedCells, previewPosition, previewStructure, structureCounter);
 
           structureCounter++;
-          if (placementIndex == zoopCounter - 1)
-          {
-            ZoopPathPlanner.SetDirectionalOffset(ref xOffset, ref yOffset, ref zOffset, zoopDirection,
-              (placementIndex + 1) * value);
-          }
         }
+
+        // Advance the offset past the last piece so the next direction starts at the correct position.
+        ZoopPathPlanner.SetDirectionalOffset(ref xOffset, ref yOffset, ref zOffset, zoopDirection, zoopCounter * value);
       }
     }
 
     return hasError;
+  }
+
+  /// <summary>
+  /// Returns true when a cell placement is invalid (occupied or not constructible).
+  /// Always returns false when CreativeFreedom is active, mirroring manual-placement behavior.
+  /// </summary>
+  private static bool HasSmallGridCellError(
+    bool creativeFreedomEnabled,
+    ISmallGridPreviewLayoutAdapter adapter,
+    InventoryManager inventoryManager,
+    HashSet<Vector3Int> occupiedCells,
+    Vector3 previewPosition,
+    Structure previewStructure,
+    int structureCounter)
+  {
+    if (creativeFreedomEnabled) return false;
+    var cellKey = adapter.GetDraftCellKey(previewPosition);
+    var revisitsExistingZoopCell = occupiedCells.Contains(cellKey);
+    occupiedCells.Add(cellKey);
+    return revisitsExistingZoopCell || !adapter.CanConstructSmallCell(inventoryManager, previewStructure, structureCounter);
   }
 
   /// <summary>
