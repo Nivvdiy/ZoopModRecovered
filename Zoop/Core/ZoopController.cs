@@ -420,8 +420,6 @@ internal sealed class ZoopController(
     {
       yield break;
     }
-
-    RestoreConstructionCursorVisibility();
     yield return null;
 
     if (state != ZoopLifecycleState.PendingBuild || pendingBuildPlan == null)
@@ -454,6 +452,8 @@ internal sealed class ZoopController(
     }
 
     yield return waitRoutine;
+
+    // TODO Restore cursor here?
 
     if (state != ZoopLifecycleState.PendingBuild || pendingBuildPlan == null)
     {
