@@ -187,6 +187,16 @@ internal sealed class ZoopSmallGridCoordinator(ZoopPreviewValidator previewValid
     ZoopPreviewFactory.ResetSmallGridPreviewList(draft, previewCache);
     var constructables = inventoryManager.ConstructionPanel.Parent.Constructables;
 
+    // Pre-populate the fields that are invariant across every piece in this call.
+    var requestTemplate = new ZoopPreviewFactory.AddStructureRequest
+    {
+      Draft = draft,
+      PreviewCache = previewCache,
+      Constructables = constructables,
+      SupportsCornerVariant = supportsCornerVariant,
+      InventoryManager = inventoryManager
+    };
+
     var straight = 0;
     var corners = 0;
     var lastDirection = ZoopDirection.none;
@@ -204,61 +214,22 @@ internal sealed class ZoopSmallGridCoordinator(ZoopPreviewValidator previewValid
 
         for (var placementIndex = 0; placementIndex < zoopCounter; placementIndex++)
         {
-          if (draft.PreviewCount > 0 && (placementIndex == 0 || segmentIndex > 0) && supportsCornerVariant)
+          // A corner turn piece is needed at the start of any new direction — but only when there
+          // are already previewed pieces to connect to and the constructable supports corner variants.
+          var isCornerTurn = supportsCornerVariant &&
+                             draft.PreviewCount > 0 &&
+                             (placementIndex == 0 || segmentIndex > 0) &&
+                             zoopDirection != lastDirection;
+
+          if (isCornerTurn)
           {
-            if (zoopDirection != lastDirection)
-            {
-              var request = new ZoopPreviewFactory.AddStructureRequest
-              {
-                Draft = draft,
-                PreviewCache = previewCache,
-                Constructables = constructables,
-                SupportsCornerVariant = supportsCornerVariant,
-                InventoryManager = inventoryManager,
-                IsCorner = true,
-                Index = corners,
-                SecondaryCount = straight,
-                CanBuildNext = canBuildNext
-              };
-              ZoopPreviewFactory.AddStructure(request); // start with corner on secondary and tertiary zoop directions
-              canBuildNext = request.CanBuildNext;
-              corners++;
-            }
-            else
-            {
-              var request = new ZoopPreviewFactory.AddStructureRequest
-              {
-                Draft = draft,
-                PreviewCache = previewCache,
-                Constructables = constructables,
-                SupportsCornerVariant = supportsCornerVariant,
-                InventoryManager = inventoryManager,
-                IsCorner = false,
-                Index = straight,
-                SecondaryCount = corners,
-                CanBuildNext = canBuildNext
-              };
-              ZoopPreviewFactory.AddStructure(request);
-              canBuildNext = request.CanBuildNext;
-              straight++;
-            }
+            // Place a corner piece to bridge from the previous direction to the new one.
+            AddPiece(requestTemplate, isCorner: true, index: corners, secondaryCount: straight, ref canBuildNext);
+            corners++;
           }
           else
           {
-            var request = new ZoopPreviewFactory.AddStructureRequest
-            {
-              Draft = draft,
-              PreviewCache = previewCache,
-              Constructables = constructables,
-              SupportsCornerVariant = supportsCornerVariant,
-              InventoryManager = inventoryManager,
-              IsCorner = false,
-              Index = straight,
-              SecondaryCount = corners,
-              CanBuildNext = canBuildNext
-            };
-            ZoopPreviewFactory.AddStructure(request);
-            canBuildNext = request.CanBuildNext;
+            AddPiece(requestTemplate, isCorner: false, index: straight, secondaryCount: corners, ref canBuildNext);
             straight++;
           }
 
@@ -268,4 +239,18 @@ internal sealed class ZoopSmallGridCoordinator(ZoopPreviewValidator previewValid
     }
   }
 
+  private static void AddPiece(
+    ZoopPreviewFactory.AddStructureRequest request,
+    bool isCorner,
+    int index,
+    int secondaryCount,
+    ref bool canBuildNext)
+  {
+    request.IsCorner = isCorner;
+    request.Index = index;
+    request.SecondaryCount = secondaryCount;
+    request.CanBuildNext = canBuildNext;
+    ZoopPreviewFactory.AddStructure(request);
+    canBuildNext = request.CanBuildNext;
+  }
 }
