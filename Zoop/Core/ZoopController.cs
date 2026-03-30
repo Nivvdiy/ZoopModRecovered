@@ -26,7 +26,14 @@ internal sealed class ZoopController(
     PendingBuild
   }
 
-  private const float PendingBuildStartDelaySeconds = 0.050f;
+  private enum WaypointCaptureResult
+  {
+    Added,
+    Duplicate,
+    MissingCursor
+  }
+
+  private const float ConfirmDraftDelaySeconds = 0.100f;
   private static readonly MethodInfo WaitUntilDoneMethod = typeof(InventoryManager).GetMethod("WaitUntilDone",
     BindingFlags.NonPublic | BindingFlags.Instance, null,
     [typeof(InventoryManager.DelegateEvent), typeof(float), typeof(Structure)],
@@ -97,10 +104,51 @@ internal sealed class ZoopController(
 
   public void ConfirmZoop(InventoryManager inventoryManager)
   {
-    var draft = activeDraft;
-    if (!IsPreviewing || draft == null || draft.HasError)
+    try
     {
-      ZoopLog.Debug($"[Build] Confirm ignored. IsPreviewing={IsPreviewing}, DraftPresent={draft != null}, HasError={draft?.HasError ?? false}.");
+      var confirmCoroutine = inventoryManager.StartCoroutine(ConfirmZoopAfterDelay(inventoryManager));
+      if (confirmCoroutine != null)
+      {
+        pendingBuildCoroutine = confirmCoroutine;
+        pendingBuildOwner = inventoryManager;
+        ZoopLog.Debug($"[Build] Waiting {ConfirmDraftDelaySeconds:0.###} seconds before confirming zoop draft.");
+        return;
+      }
+    }
+    catch (Exception exception)
+    {
+      ZoopLog.Error(exception, "[Build] Failed to schedule delayed zoop confirm.");
+      return;
+    }
+
+    ZoopLog.Error("[Build] Unable to start delayed zoop confirm.");
+  }
+
+  private IEnumerator ConfirmZoopAfterDelay(InventoryManager inventoryManager)
+  {
+    yield return new WaitForSecondsRealtime(ConfirmDraftDelaySeconds);
+
+    ClearPendingBuildState();
+    FinalizeConfirmedZoop(inventoryManager);
+  }
+
+  private void FinalizeConfirmedZoop(InventoryManager inventoryManager)
+  {
+    var draft = activeDraft;
+    if (!IsPreviewing || draft == null)
+    {
+      ZoopLog.Debug($"[Build] Confirm ignored. IsPreviewing={IsPreviewing}, DraftPresent={draft != null}.");
+      return;
+    }
+
+    if (!previewCoordinator.TryFinalizePreview(draft, activePreviewCache, inventoryManager))
+    {
+      ZoopLog.Debug("[Build] Confirm could not finalize the latest preview state; using the current draft preview.");
+    }
+
+    if (draft.HasError)
+    {
+      ZoopLog.Debug("[Build] Confirm ignored because the finalized zoop preview has errors.");
       return;
     }
 
@@ -143,20 +191,18 @@ internal sealed class ZoopController(
     var currentPos = ZoopPreviewCoordinator.GetCurrentMouseGridPosition();
     var lastWaypoint = draft.Waypoints[draft.Waypoints.Count - 1];
     ZoopLog.Debug($"[Waypoint] Add requested. CurrentPos={(currentPos.HasValue ? currentPos.Value.ToString() : "<none>")}, LastWaypoint={lastWaypoint}, PreviewCount={draft.PreviewCount}, WaypointCount={draft.Waypoints.Count}.");
-    if (currentPos.HasValue && !IsSameZoopPosition(lastWaypoint, currentPos.Value))
+    switch (TryCaptureCurrentWaypoint(draft, invalidatePreview: true, out var capturedPos))
     {
-      draft.Waypoints.Add(currentPos.Value);
-      previewCoordinator.Invalidate();
-      ZoopLog.Debug($"[Waypoint] Added waypoint at {currentPos.Value} directly from the snapped cursor position. NewWaypointCount={draft.Waypoints.Count}.");
-    }
-    else if (currentPos.HasValue && IsSameZoopPosition(lastWaypoint, currentPos.Value))
-    {
-      ZoopLog.Debug("[Waypoint] Add ignored because the current cursor position already matches the last waypoint.");
-      // TODO show message to user that waypoint is already added
-    }
-    else
-    {
-      ZoopLog.Debug("[Waypoint] Add ignored because no current grid position was available.");
+      case WaypointCaptureResult.Added:
+        ZoopLog.Debug($"[Waypoint] Added waypoint at {capturedPos} directly from the snapped cursor position. NewWaypointCount={draft.Waypoints.Count}.");
+        break;
+      case WaypointCaptureResult.Duplicate:
+        ZoopLog.Debug("[Waypoint] Add ignored because the current cursor position already matches the last waypoint.");
+        // TODO show message to user that waypoint is already added
+        break;
+      case WaypointCaptureResult.MissingCursor:
+        ZoopLog.Debug("[Waypoint] Add ignored because no current grid position was available.");
+        break;
     }
   }
 
@@ -295,7 +341,7 @@ internal sealed class ZoopController(
   {
     if (pendingBuildOwner != null && pendingBuildCoroutine != null)
     {
-      ZoopLog.Debug("[Build] Stopping pending delayed build coroutine.");
+      ZoopLog.Debug("[Build] Stopping pending delayed zoop confirm/build coroutine.");
       pendingBuildOwner.StopCoroutine(pendingBuildCoroutine);
     }
 
@@ -349,7 +395,7 @@ internal sealed class ZoopController(
 
     try
     {
-      var actionCoroutine = inventoryManager.StartCoroutine(BeginPendingBuildAfterDelay(inventoryManager));
+      var actionCoroutine = inventoryManager.StartCoroutine(WaitForPendingBuildCompletion(inventoryManager));
 
       if (actionCoroutine == null)
       {
@@ -368,15 +414,15 @@ internal sealed class ZoopController(
     }
   }
 
-  /// <summary>
-  /// Adds a short realtime pause before entering the game's native build wait coroutine.
-  /// This gives the construction cursor time to settle after fast tool/build-option changes,
-  /// which avoids native wait cancellation caused by transitional cursor state.
-  /// </summary>
-  private IEnumerator BeginPendingBuildAfterDelay(InventoryManager inventoryManager)
+  private IEnumerator WaitForPendingBuildCompletion(InventoryManager inventoryManager)
   {
-    ZoopLog.Debug($"[Build] Waiting {PendingBuildStartDelaySeconds:0.###} seconds before starting native delayed build.");
-    yield return new WaitForSecondsRealtime(PendingBuildStartDelaySeconds);
+    if (state != ZoopLifecycleState.PendingBuild || pendingBuildPlan == null)
+    {
+      yield break;
+    }
+
+    RestoreConstructionCursorVisibility();
+    yield return null;
 
     if (state != ZoopLifecycleState.PendingBuild || pendingBuildPlan == null)
     {
@@ -509,6 +555,31 @@ internal sealed class ZoopController(
   private static bool IsSameZoopPosition(Vector3 first, Vector3 second)
   {
     return Vector3.SqrMagnitude(first - second) < ZoopPreviewColorizer.PositionToleranceSqr;
+  }
+
+  private WaypointCaptureResult TryCaptureCurrentWaypoint(ZoopDraft draft, bool invalidatePreview, out Vector3 capturedPos)
+  {
+    capturedPos = default;
+
+    var currentPos = ZoopPreviewCoordinator.GetCurrentMouseGridPosition();
+    if (!currentPos.HasValue)
+    {
+      return WaypointCaptureResult.MissingCursor;
+    }
+
+    capturedPos = currentPos.Value;
+    if (IsSameZoopPosition(draft.Waypoints[draft.Waypoints.Count - 1], capturedPos))
+    {
+      return WaypointCaptureResult.Duplicate;
+    }
+
+    draft.Waypoints.Add(capturedPos);
+    if (invalidatePreview)
+    {
+      previewCoordinator.Invalidate();
+    }
+
+    return WaypointCaptureResult.Added;
   }
 
   private static Structure GetSelectedConstructable(InventoryManager inventoryManager)

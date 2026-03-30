@@ -65,6 +65,34 @@ internal sealed class ZoopPreviewCoordinator(ZoopPreviewValidator previewValidat
     lastPreviewCursorPosition = null;
   }
 
+  public bool TryFinalizePreview(ZoopDraft draft, ZoopPreviewCache previewCache, InventoryManager inventoryManager)
+  {
+    if (draft == null || previewCache == null || inventoryManager == null)
+    {
+      return false;
+    }
+
+    var currentPos = GetCurrentMouseGridPosition();
+    if (!currentPos.HasValue)
+    {
+      return false;
+    }
+
+    try
+    {
+      UpdatePreviewStep(draft, previewCache, inventoryManager, new List<ZoopSegment>(), currentPos.Value).GetAwaiter().GetResult();
+      lastPreviewCursorPosition = currentPos.Value;
+      previewDirty = false;
+      return true;
+    }
+    catch (Exception exception)
+    {
+      ZoopLog.Error(exception, "[Build] Failed to finalize zoop preview.");
+      Invalidate();
+      return false;
+    }
+  }
+
   internal static Vector3? GetCurrentMouseGridPosition()
   {
     if (InventoryManager.ConstructionCursor == null)
@@ -96,7 +124,7 @@ internal sealed class ZoopPreviewCoordinator(ZoopPreviewValidator previewValidat
       if (shouldRefresh)
       {
         Exception previewException = null;
-        yield return UpdatePreviewStep(draft, previewCache, inventoryManager, segments).ToCoroutine(exception =>
+        yield return UpdatePreviewStep(draft, previewCache, inventoryManager, segments, currentPos.Value).ToCoroutine(exception =>
         {
           previewException = exception;
         });
@@ -118,15 +146,9 @@ internal sealed class ZoopPreviewCoordinator(ZoopPreviewValidator previewValidat
   }
 
   private async UniTask UpdatePreviewStep(ZoopDraft draft, ZoopPreviewCache previewCache, InventoryManager inventoryManager,
-    List<ZoopSegment> segments)
+    List<ZoopSegment> segments, Vector3 currentPos)
   {
     if (draft.Waypoints.Count <= 0)
-    {
-      return;
-    }
-
-    var currentPos = GetCurrentMouseGridPosition();
-    if (!currentPos.HasValue)
     {
       return;
     }
@@ -135,11 +157,11 @@ internal sealed class ZoopPreviewCoordinator(ZoopPreviewValidator previewValidat
 
     if (IsZoopingSmallGrid())
     {
-      await smallGridCoordinator.UpdatePreview(draft, previewCache, inventoryManager, currentPos.Value, segments, 1);
+      await smallGridCoordinator.UpdatePreview(draft, previewCache, inventoryManager, currentPos, segments, 1);
     }
     else if (IsZoopingBigGrid())
     {
-      await bigGridCoordinator.UpdatePreview(draft, previewCache, inventoryManager, currentPos.Value, 1);
+      await bigGridCoordinator.UpdatePreview(draft, previewCache, inventoryManager, currentPos, 1);
     }
 
     foreach (var previewPiece in draft.PreviewPieces)
