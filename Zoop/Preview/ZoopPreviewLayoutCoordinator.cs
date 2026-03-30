@@ -24,7 +24,7 @@ internal interface IBigGridPreviewLayoutAdapter
   bool CanConstructBigCell(InventoryManager inventoryManager, Structure structure, int structureIndex);
 }
 
-internal sealed class SmallGridRotationStep
+internal struct SmallGridRotationStep
 {
   public int StructureCounter { get; set; }
   public bool SupportsCornerVariant { get; set; }
