@@ -453,6 +453,8 @@ internal sealed class ZoopController(
 
     yield return waitRoutine;
 
+    // TODO Restore cursor here?
+
     if (state != ZoopLifecycleState.PendingBuild || pendingBuildPlan == null)
     {
       yield break;
