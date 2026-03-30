@@ -61,7 +61,8 @@ internal sealed class ZoopBigGridCoordinator(ZoopPreviewValidator previewValidat
   /// <summary>
   /// Creates or reuses the preview pieces needed for the current large-grid plane.
   /// </summary>
-  private static void BuildBigStructureList(ZoopDraft draft, ZoopPreviewCache previewCache, InventoryManager inventoryManager,
+  private static void BuildBigStructureList(ZoopDraft draft, ZoopPreviewCache previewCache,
+    InventoryManager inventoryManager,
     ZoopPlane plane)
   {
     ZoopPreviewFactory.ResetBigGridPreviewList(draft, previewCache);
@@ -91,6 +92,7 @@ internal sealed class ZoopBigGridCoordinator(ZoopPreviewValidator previewValidat
       }
     }
   }
+
   private static Vector3 ClampWallZoopPositionToStartPlane(ZoopDraft draft, Vector3 startPos, Vector3 targetPos)
   {
     if (InventoryManager.ConstructionCursor is not Wall || draft.ZoopStartWallNormal == Vector3.zero)

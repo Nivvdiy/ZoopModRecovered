@@ -58,7 +58,8 @@ internal static class ZoopPathPlanner
     return increasing ? minValue * safeSpacing : -(minValue * safeSpacing);
   }
 
-  public static bool GetIncreasingFromPreviousDirection(List<ZoopSegment> segments, ZoopSegment segment, int segmentIndex,
+  public static bool GetIncreasingFromPreviousDirection(List<ZoopSegment> segments, ZoopSegment segment,
+    int segmentIndex,
     int directionIndex, int placementIndex, ZoopDirection lastDirection)
   {
     var increasingFrom = lastDirection != ZoopDirection.none &&
@@ -94,7 +95,8 @@ internal static class ZoopPathPlanner
     };
   }
 
-  public static int GetPlacementCount(int segmentCount, int segmentIndex, int directionCount, int directionIndex, int zoopCount)
+  public static int GetPlacementCount(int segmentCount, int segmentIndex, int directionCount, int directionIndex,
+    int zoopCount)
   {
     if ((segmentIndex < segmentCount - 1 && directionIndex == directionCount - 1) ||
         directionIndex < directionCount - 1)
@@ -105,7 +107,8 @@ internal static class ZoopPathPlanner
     return zoopCount;
   }
 
-  public static void SetDirectionalOffset(ref float xOffset, ref float yOffset, ref float zOffset, ZoopDirection direction,
+  public static void SetDirectionalOffset(ref float xOffset, ref float yOffset, ref float zOffset,
+    ZoopDirection direction,
     float value)
   {
     switch (direction)

@@ -6,7 +6,8 @@ namespace ZoopMod.Zoop.Placement;
 
 internal static class ZoopConstructableResolver
 {
-  public static int ResolveBuildIndex(ZoopDraft draft, InventoryManager inventoryManager, Structure item, int structureIndex)
+  public static int ResolveBuildIndex(ZoopDraft draft, InventoryManager inventoryManager, Structure item,
+    int structureIndex)
   {
     if (draft != null && structureIndex >= 0 && structureIndex < draft.PreviewCount)
     {

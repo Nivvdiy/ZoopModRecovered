@@ -34,6 +34,7 @@ internal sealed class ZoopController(
   }
 
   private const float ConfirmDraftDelaySeconds = 0.100f;
+
   private static readonly MethodInfo WaitUntilDoneMethod = typeof(InventoryManager).GetMethod("WaitUntilDone",
     BindingFlags.NonPublic | BindingFlags.Instance, null,
     [typeof(InventoryManager.DelegateEvent), typeof(float), typeof(Structure)],
@@ -184,17 +185,20 @@ internal sealed class ZoopController(
     var supportsWaypoints = ZoopConstructableRules.SupportsWaypoints(InventoryManager.ConstructionCursor);
     if (!IsPreviewing || draft == null || !supportsWaypoints)
     {
-      ZoopLog.Debug($"[Waypoint] Add ignored. IsPreviewing={IsPreviewing}, DraftPresent={draft != null}, SupportsWaypoints={supportsWaypoints}.");
+      ZoopLog.Debug(
+        $"[Waypoint] Add ignored. IsPreviewing={IsPreviewing}, DraftPresent={draft != null}, SupportsWaypoints={supportsWaypoints}.");
       return;
     }
 
     var currentPos = ZoopPreviewCoordinator.GetCurrentMouseGridPosition();
     var lastWaypoint = draft.Waypoints[draft.Waypoints.Count - 1];
-    ZoopLog.Debug($"[Waypoint] Add requested. CurrentPos={(currentPos.HasValue ? currentPos.Value.ToString() : "<none>")}, LastWaypoint={lastWaypoint}, PreviewCount={draft.PreviewCount}, WaypointCount={draft.Waypoints.Count}.");
+    ZoopLog.Debug(
+      $"[Waypoint] Add requested. CurrentPos={(currentPos.HasValue ? currentPos.Value.ToString() : "<none>")}, LastWaypoint={lastWaypoint}, PreviewCount={draft.PreviewCount}, WaypointCount={draft.Waypoints.Count}.");
     switch (TryCaptureCurrentWaypoint(draft, invalidatePreview: true, out var capturedPos))
     {
       case WaypointCaptureResult.Added:
-        ZoopLog.Debug($"[Waypoint] Added waypoint at {capturedPos} directly from the snapped cursor position. NewWaypointCount={draft.Waypoints.Count}.");
+        ZoopLog.Debug(
+          $"[Waypoint] Added waypoint at {capturedPos} directly from the snapped cursor position. NewWaypointCount={draft.Waypoints.Count}.");
         break;
       case WaypointCaptureResult.Duplicate:
         ZoopLog.Debug("[Waypoint] Add ignored because the current cursor position already matches the last waypoint.");
@@ -209,7 +213,8 @@ internal sealed class ZoopController(
   public void RemoveLastWaypoint()
   {
     var draft = activeDraft;
-    if (!IsPreviewing || draft == null || !ZoopConstructableRules.SupportsWaypoints(InventoryManager.ConstructionCursor))
+    if (!IsPreviewing || draft == null ||
+        !ZoopConstructableRules.SupportsWaypoints(InventoryManager.ConstructionCursor))
     {
       return;
     }
@@ -313,10 +318,12 @@ internal sealed class ZoopController(
     {
       var previewPiece = draft.PreviewPieces[structureIndex];
       var previewStructure = previewPiece.Structure;
-      var buildIndex = ZoopConstructableResolver.ResolveBuildIndex(draft, inventoryManager, previewStructure, structureIndex);
+      var buildIndex =
+        ZoopConstructableResolver.ResolveBuildIndex(draft, inventoryManager, previewStructure, structureIndex);
       if (buildIndex < 0)
       {
-        ZoopLog.Error($"[Build] Unable to resolve build index for {previewStructure.PrefabName}; skipping zoop placement.");
+        ZoopLog.Error(
+          $"[Build] Unable to resolve build index for {previewStructure.PrefabName}; skipping zoop placement.");
         continue;
       }
 
@@ -420,6 +427,7 @@ internal sealed class ZoopController(
     {
       yield break;
     }
+
     yield return null;
 
     if (state != ZoopLifecycleState.PendingBuild || pendingBuildPlan == null)
@@ -481,7 +489,8 @@ internal sealed class ZoopController(
     inventoryManager.CancelPlacement();
   }
 
-  private static Assets.Scripts.ICreativeSpawnable ResolveSpawnPrefabForBuild(ZoopDraft draft, InventoryManager inventoryManager,
+  private static Assets.Scripts.ICreativeSpawnable ResolveSpawnPrefabForBuild(ZoopDraft draft,
+    InventoryManager inventoryManager,
     int buildIndex, Structure previewStructure)
   {
     if (InventoryManager.IsAuthoringMode && draft.ZoopSpawnPrefab != null)
@@ -519,7 +528,8 @@ internal sealed class ZoopController(
 
   private void ResetSession(bool restoreCursorVisibility, bool cancelPendingBuild)
   {
-    ZoopLog.Debug($"[Lifecycle] Resetting zoop session from state {state}. RestoreCursor={restoreCursorVisibility}, CancelPendingBuild={cancelPendingBuild}.");
+    ZoopLog.Debug(
+      $"[Lifecycle] Resetting zoop session from state {state}. RestoreCursor={restoreCursorVisibility}, CancelPendingBuild={cancelPendingBuild}.");
     if (cancelPendingBuild)
     {
       CancelPendingBuild();
@@ -552,7 +562,8 @@ internal sealed class ZoopController(
     }
   }
 
-  private WaypointCaptureResult TryCaptureCurrentWaypoint(ZoopDraft draft, bool invalidatePreview, out Vector3 capturedPos)
+  private WaypointCaptureResult TryCaptureCurrentWaypoint(ZoopDraft draft, bool invalidatePreview,
+    out Vector3 capturedPos)
   {
     capturedPos = default;
 
@@ -608,5 +619,4 @@ internal sealed class ZoopController(
 
     return normalized.z >= 0f ? Vector3.forward : Vector3.back;
   }
-
 }

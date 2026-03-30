@@ -80,7 +80,8 @@ internal sealed class ZoopPreviewCoordinator(ZoopPreviewValidator previewValidat
 
     try
     {
-      UpdatePreviewStep(draft, previewCache, inventoryManager, new List<ZoopSegment>(), currentPos.Value).GetAwaiter().GetResult();
+      UpdatePreviewStep(draft, previewCache, inventoryManager, new List<ZoopSegment>(), currentPos.Value).GetAwaiter()
+        .GetResult();
       lastPreviewCursorPosition = currentPos.Value;
       previewDirty = false;
       return true;
@@ -124,10 +125,8 @@ internal sealed class ZoopPreviewCoordinator(ZoopPreviewValidator previewValidat
       if (shouldRefresh)
       {
         Exception previewException = null;
-        yield return UpdatePreviewStep(draft, previewCache, inventoryManager, segments, currentPos.Value).ToCoroutine(exception =>
-        {
-          previewException = exception;
-        });
+        yield return UpdatePreviewStep(draft, previewCache, inventoryManager, segments, currentPos.Value)
+          .ToCoroutine(exception => { previewException = exception; });
 
         if (previewException != null)
         {
@@ -145,7 +144,8 @@ internal sealed class ZoopPreviewCoordinator(ZoopPreviewValidator previewValidat
     }
   }
 
-  private async UniTask UpdatePreviewStep(ZoopDraft draft, ZoopPreviewCache previewCache, InventoryManager inventoryManager,
+  private async UniTask UpdatePreviewStep(ZoopDraft draft, ZoopPreviewCache previewCache,
+    InventoryManager inventoryManager,
     List<ZoopSegment> segments, Vector3 currentPos)
   {
     if (draft.Waypoints.Count <= 0)

@@ -48,7 +48,8 @@ internal sealed class ZoopPreviewFactory
         var canMakeItem = activeItem switch
         {
           Chute when buildIndex == 0 => constructor.Quantity > request.Draft.PreviewCount,
-          Chute when buildIndex == 2 => constructor.Quantity > straightCount * 2 + (request.IsCorner ? 0 : 1) + cornerCount,
+          Chute when buildIndex == 2 => constructor.Quantity >
+                                        straightCount * 2 + (request.IsCorner ? 0 : 1) + cornerCount,
           _ => constructor.Quantity > request.Draft.PreviewCount
         };
 
@@ -106,7 +107,8 @@ internal sealed class ZoopPreviewFactory
     previewCache.StraightCache.ForEach(structure => structure.GameObject.SetActive(false));
   }
 
-  private static void MakeItem(ZoopDraft draft, ZoopPreviewCache previewCache, List<Structure> constructables, int index, int selectedIndex,
+  private static void MakeItem(ZoopDraft draft, ZoopPreviewCache previewCache, List<Structure> constructables,
+    int index, int selectedIndex,
     bool supportsCornerVariant)
   {
     var isCorner = selectedIndex == 1 && supportsCornerVariant;

@@ -180,7 +180,8 @@ internal sealed class ZoopSmallGridCoordinator(ZoopPreviewValidator previewValid
   /// <summary>
   /// Creates or reuses the preview pieces needed for the current small-grid path.
   /// </summary>
-  private static void BuildSmallStructureList(ZoopDraft draft, ZoopPreviewCache previewCache, InventoryManager inventoryManager,
+  private static void BuildSmallStructureList(ZoopDraft draft, ZoopPreviewCache previewCache,
+    InventoryManager inventoryManager,
     List<ZoopSegment> segments,
     bool supportsCornerVariant)
   {

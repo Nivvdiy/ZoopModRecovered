@@ -152,7 +152,8 @@ internal static class ZoopPreviewLayoutCoordinator
     var cellKey = adapter.GetDraftCellKey(previewPosition);
     var revisitsExistingZoopCell = occupiedCells.Contains(cellKey);
     occupiedCells.Add(cellKey);
-    return revisitsExistingZoopCell || !adapter.CanConstructSmallCell(inventoryManager, previewStructure, structureCounter);
+    return revisitsExistingZoopCell ||
+           !adapter.CanConstructSmallCell(inventoryManager, previewStructure, structureCounter);
   }
 
   /// <summary>

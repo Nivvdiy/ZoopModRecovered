@@ -10,7 +10,11 @@ internal sealed class ZoopBuildPlan(IReadOnlyList<ZoopBuildPiece> pieces)
   public int Count => Pieces.Count;
 }
 
-internal sealed class ZoopBuildPiece(ICreativeSpawnable spawnPrefab, int buildIndex, Vector3 position, Quaternion rotation)
+internal sealed class ZoopBuildPiece(
+  ICreativeSpawnable spawnPrefab,
+  int buildIndex,
+  Vector3 position,
+  Quaternion rotation)
 {
   public ICreativeSpawnable SpawnPrefab { get; } = spawnPrefab;
   public int BuildIndex { get; } = buildIndex;

@@ -24,7 +24,8 @@ internal static class ZoopConfig
       config.Bind(
         new ConfigDefinition("Zoop", nameof(MaxZoopWaitTimeMultiplier)),
         5,
-        new ConfigDescription("Maximum multiplier applied to placement wait time when building multiple structures in one zoop."));
+        new ConfigDescription(
+          "Maximum multiplier applied to placement wait time when building multiple structures in one zoop."));
 
     IsInitialized = true;
   }

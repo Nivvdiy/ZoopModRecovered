@@ -10,7 +10,6 @@ namespace ZoopMod.Zoop.Preview;
 
 internal static class ZoopPreviewColorizer
 {
-
   private static readonly Color ErrorColor = Color.red;
   private static readonly Color WaypointColor = Color.blue;
   private static readonly Color StartColor = Color.magenta;
@@ -18,7 +17,8 @@ internal static class ZoopPreviewColorizer
   private static readonly int BaseColorPropertyId = Shader.PropertyToID("_BaseColor");
   private static readonly MaterialPropertyBlock SharedPropertyBlock = new();
 
-  public static void ApplyColor(InventoryManager inventoryManager, Structure structure, IReadOnlyList<Vector3> waypoints,
+  public static void ApplyColor(InventoryManager inventoryManager, Structure structure,
+    IReadOnlyList<Vector3> waypoints,
     bool hasError, Color lineColor)
   {
     var canConstruct = !hasError;

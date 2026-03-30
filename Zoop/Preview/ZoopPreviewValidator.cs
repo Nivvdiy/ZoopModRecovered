@@ -28,18 +28,22 @@ internal sealed class ZoopPreviewValidator(ZoopPlacementUpdateGate placementUpda
     public Quaternion OriginalCursorLocalRotation { get; } = originalCursorLocalRotation;
   }
 
-  public bool CanConstructSmallCell(ZoopDraft draft, InventoryManager inventoryManager, Structure structure, int structureIndex)
+  public bool CanConstructSmallCell(ZoopDraft draft, InventoryManager inventoryManager, Structure structure,
+    int structureIndex)
   {
     return CanConstructWithValidationCursor(draft, inventoryManager, structure, structureIndex,
       validationCursor => ValidateSmallCellCursor(inventoryManager, validationCursor));
   }
 
-  public bool CanConstructBigCell(ZoopDraft draft, InventoryManager inventoryManager, Structure structure, int structureIndex)
+  public bool CanConstructBigCell(ZoopDraft draft, InventoryManager inventoryManager, Structure structure,
+    int structureIndex)
   {
-    return CanConstructWithValidationCursor(draft, inventoryManager, structure, structureIndex, ValidateLargeGridCursor);
+    return CanConstructWithValidationCursor(draft, inventoryManager, structure, structureIndex,
+      ValidateLargeGridCursor);
   }
 
-  private bool CanConstructWithValidationCursor(ZoopDraft draft, InventoryManager inventoryManager, Structure structure, int structureIndex,
+  private bool CanConstructWithValidationCursor(ZoopDraft draft, InventoryManager inventoryManager, Structure structure,
+    int structureIndex,
     Func<Structure, bool> validator)
   {
     var originalCursor = InventoryManager.ConstructionCursor;
@@ -58,7 +62,8 @@ internal sealed class ZoopPreviewValidator(ZoopPlacementUpdateGate placementUpda
     {
       using (placementUpdateGate.BeginScope())
       {
-        var validationCursor = PrepareValidationCursor(inventoryManager, structure, validationConstructable, cursorState);
+        var validationCursor =
+          PrepareValidationCursor(inventoryManager, structure, validationConstructable, cursorState);
         if (validationCursor == null)
         {
           return false;
@@ -77,12 +82,15 @@ internal sealed class ZoopPreviewValidator(ZoopPlacementUpdateGate placementUpda
     }
   }
 
-  private static bool TryGetValidationTarget(ZoopDraft draft, InventoryManager inventoryManager, Structure structure, int structureIndex,
+  private static bool TryGetValidationTarget(ZoopDraft draft, InventoryManager inventoryManager, Structure structure,
+    int structureIndex,
     Structure originalCursor, out Structure validationConstructable, out ValidationCursorState cursorState)
   {
     var originalBuildIndex = inventoryManager.ConstructionPanel.BuildIndex;
-    var validationBuildIndex = ZoopConstructableResolver.ResolveBuildIndex(draft, inventoryManager, structure, structureIndex);
-    validationConstructable = ZoopConstructableResolver.GetConstructableForBuildIndex(inventoryManager, validationBuildIndex);
+    var validationBuildIndex =
+      ZoopConstructableResolver.ResolveBuildIndex(draft, inventoryManager, structure, structureIndex);
+    validationConstructable =
+      ZoopConstructableResolver.GetConstructableForBuildIndex(inventoryManager, validationBuildIndex);
     if (validationConstructable == null)
     {
       cursorState = default;
@@ -117,7 +125,8 @@ internal sealed class ZoopPreviewValidator(ZoopPlacementUpdateGate placementUpda
       return null;
     }
 
-    ApplyStructurePlacementState(validationCursor, structure.ThingTransformPosition, structure.ThingTransformLocalPosition,
+    ApplyStructurePlacementState(validationCursor, structure.ThingTransformPosition,
+      structure.ThingTransformLocalPosition,
       structure.ThingTransformRotation, structure.ThingTransformLocalRotation);
     validationCursor.CheckBounds();
     validationCursor.RebuildGridState();
@@ -156,7 +165,8 @@ internal sealed class ZoopPreviewValidator(ZoopPlacementUpdateGate placementUpda
     if (cursorState.NeedsCursorSwap)
     {
       inventoryManager.ConstructionPanel.BuildIndex = cursorState.OriginalBuildIndex;
-      var originalConstructable = ZoopConstructableResolver.GetConstructableForBuildIndex(inventoryManager, cursorState.OriginalBuildIndex);
+      var originalConstructable =
+        ZoopConstructableResolver.GetConstructableForBuildIndex(inventoryManager, cursorState.OriginalBuildIndex);
       if (originalConstructable != null)
       {
         InventoryManager.UpdatePlacement(originalConstructable);
