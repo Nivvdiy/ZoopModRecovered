@@ -101,7 +101,11 @@ internal sealed class ZoopController : IZoopController
 
   ZoopDraft IZoopController.ActiveDraft => activeDraft;
   ZoopPreviewCache IZoopController.ActivePreviewCache => activePreviewCache;
-  void IZoopController.EnterPendingBuildState() => StopPreviewLoop(ZoopLifecycleState.PendingBuild);
+  void IZoopController.EnterPendingBuildState()
+  {
+    previewCoordinator.StopForPendingBuild(activeDraft);
+    state = ZoopLifecycleState.PendingBuild;
+  }
   void IZoopController.ResetSessionForBuild() => ResetSession(restoreCursorVisibility: false, cancelPendingBuild: false);
   void IZoopController.ResumePreviewing(InventoryManager inventoryManager) => ResumePreviewing(inventoryManager);
 

@@ -6,6 +6,7 @@ using Assets.Scripts.Objects.Pipes;
 using UnityEngine;
 using ZoopMod.Zoop.Core;
 using ZoopMod.Zoop.Placement;
+using Thing = Assets.Scripts.Objects.Thing;
 using UnityObject = UnityEngine.Object;
 
 namespace ZoopMod.Zoop.Preview;
@@ -135,7 +136,33 @@ internal static class ZoopPreviewFactory
             return;
           }
 
+          // Deactivate the clone so OnDisable fires on all components and deregisters
+          // them from the game's global tick lists (Thing.AllThings, network registries, etc.).
+          structureNew.gameObject.SetActive(false);
+
+          // Disable game-logic MonoBehaviours (Thing and its derivatives: Structure, SmallGrid, Wall, etc.)
+          // to prevent their OnEnable from re-registering in global tick lists when we reactivate.
+          foreach (var thing in structureNew.GetComponentsInChildren<Thing>(true))
+          {
+            thing.enabled = false;
+          }
+
+          // Disable colliders to remove them from the physics broadphase.
+          foreach (var col in structureNew.GetComponentsInChildren<Collider>(true))
+          {
+            col.enabled = false;
+          }
+
+          // Reactivate so visual components (Wireframe, etc.) run their OnEnable and set up
+          // blueprint materials, renderer states, and child object visibility correctly.
           structureNew.gameObject.SetActive(true);
+
+          // Now disable all remaining MonoBehaviours to stop per-frame Update/LateUpdate
+          // calls. The visual state is already initialized from OnEnable above.
+          foreach (var mb in structureNew.GetComponentsInChildren<MonoBehaviour>(true))
+          {
+            mb.enabled = false;
+          }
           if (!supportsCornerVariant)
           {
             ApplyCursorRotation(draft, structureNew);
