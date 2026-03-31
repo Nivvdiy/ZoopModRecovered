@@ -26,6 +26,10 @@ internal sealed class ZoopPreviewCoordinator(ZoopPreviewValidator previewValidat
   private InventoryManager previewLoopOwner;
   private Vector3? lastPreviewCursorPosition;
   private bool previewDirty = true;
+  private readonly List<Structure> fullFidelityPieces = new();
+
+  // Amount of pieces that will be rendered fully during Build Preview
+  private const int FullFidelityCount = 1;
 
   public Color LineColor { get; set; } = Color.green;
 
@@ -46,17 +50,23 @@ internal sealed class ZoopPreviewCoordinator(ZoopPreviewValidator previewValidat
 
   public void Stop()
   {
-    if (previewLoopOwner != null && previewLoopCoroutine != null)
-    {
-      previewLoopOwner.StopCoroutine(previewLoopCoroutine);
-    }
+    StopLoop();
+    StripVisualMonoBehaviours();
+  }
 
-    previewLoopCoroutine = null;
-    previewLoopOwner = null;
-    activeDraft = null;
-    activePreviewCache = null;
-    lastPreviewCursorPosition = null;
-    previewDirty = false;
+  /// <summary>
+  /// Stops the preview loop and restores full-fidelity visuals on ALL preview pieces.
+  /// Used when entering the pending-build state so pieces look correct during the build wait.
+  /// The preview loop is no longer running, so the enabled MBs have no per-frame cost.
+  /// </summary>
+  public void StopForPendingBuild(ZoopDraft draft)
+  {
+    StopLoop();
+    fullFidelityPieces.Clear();
+    // Re-enable visual MonoBehaviours on only the last N pieces (same as during preview)
+    // so the cursor-end looks correct without re-introducing per-frame cost on all pieces.
+    if (draft != null)
+      EnableVisualMonoBehavioursOnLastN(draft.PreviewPieces);
   }
 
   public void Invalidate()
@@ -164,6 +174,8 @@ internal sealed class ZoopPreviewCoordinator(ZoopPreviewValidator previewValidat
       await bigGridCoordinator.UpdatePreview(draft, previewCache, inventoryManager, currentPos, 1);
     }
 
+    UpdateFullFidelityPieces(draft);
+
     foreach (var previewPiece in draft.PreviewPieces)
     {
       ZoopPreviewColorizer.ApplyColor(inventoryManager, previewPiece.Structure, draft.Waypoints, draft.HasError,
@@ -186,5 +198,53 @@ internal sealed class ZoopPreviewCoordinator(ZoopPreviewValidator previewValidat
   private static bool IsZoopingBigGrid()
   {
     return InventoryManager.ConstructionCursor is LargeStructure;
+  }
+
+  private void UpdateFullFidelityPieces(ZoopDraft draft)
+  {
+    // Disable visual MBs on pieces that were previously in the full-fidelity set.
+    StripVisualMonoBehaviours();
+    // Re-enable visual MBs on the last N pieces so they render with correct blueprint visuals.
+    EnableVisualMonoBehavioursOnLastN(draft.PreviewPieces);
+  }
+
+  private void StopLoop()
+  {
+    if (previewLoopOwner != null && previewLoopCoroutine != null)
+      previewLoopOwner.StopCoroutine(previewLoopCoroutine);
+    previewLoopCoroutine = null;
+    previewLoopOwner = null;
+    activeDraft = null;
+    activePreviewCache = null;
+    lastPreviewCursorPosition = null;
+    previewDirty = false;
+  }
+
+  private void EnableVisualMonoBehavioursOnLastN(IList<PreviewPiece> pieces)
+  {
+    var startIndex = Math.Max(0, pieces.Count - FullFidelityCount);
+    for (var i = startIndex; i < pieces.Count; i++)
+    {
+      var structure = pieces[i].Structure;
+      if (structure == null) continue;
+      foreach (var mb in structure.GetComponentsInChildren<MonoBehaviour>(true))
+      {
+        if (mb is not Thing) mb.enabled = true;
+      }
+      fullFidelityPieces.Add(structure);
+    }
+  }
+
+  private void StripVisualMonoBehaviours()
+  {
+    foreach (var structure in fullFidelityPieces)
+    {
+      if (structure == null) continue;
+      foreach (var mb in structure.GetComponentsInChildren<MonoBehaviour>(true))
+      {
+        if (mb is not Thing) mb.enabled = false;
+      }
+    }
+    fullFidelityPieces.Clear();
   }
 }
