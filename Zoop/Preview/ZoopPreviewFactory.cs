@@ -43,10 +43,10 @@ internal static class ZoopPreviewFactory
       case Stackable constructor:
         var canMakeItem = activeItem switch
         {
-          Chute when buildIndex == 0 => constructor.Quantity > draft.PreviewCount,
+          Chute when buildIndex == 0 => constructor.Quantity > draft.TotalCellCost,
           Chute when buildIndex == 2 => constructor.Quantity >
                                         straightCount * 2 + (isCorner ? 0 : 1) + cornerCount,
-          _ => constructor.Quantity > draft.PreviewCount
+          _ => constructor.Quantity > draft.TotalCellCost
         };
 
         if (canMakeItem && canBuildNext)
@@ -85,6 +85,18 @@ internal static class ZoopPreviewFactory
 
     previewCache.CornerCache.Clear();
     previewCache.CornerCacheBuildIndices.Clear();
+
+    foreach (var kvp in previewCache.LongCaches)
+    {
+      foreach (var structure in kvp.Value)
+      {
+        structure.gameObject.SetActive(false);
+        UnityObject.Destroy(structure);
+      }
+    }
+
+    previewCache.LongCaches.Clear();
+    previewCache.LongCacheBuildIndices.Clear();
   }
 
   public static void ResetSmallGridPreviewList(ZoopDraft draft, ZoopPreviewCache previewCache)
@@ -92,6 +104,10 @@ internal static class ZoopPreviewFactory
     draft.ClearPreviewPieces();
     previewCache.StraightCache.ForEach(structure => structure.GameObject.SetActive(false));
     previewCache.CornerCache.ForEach(structure => structure.GameObject.SetActive(false));
+    foreach (var kvp in previewCache.LongCaches)
+    {
+      kvp.Value.ForEach(structure => structure.GameObject.SetActive(false));
+    }
   }
 
   public static void ResetBigGridPreviewList(ZoopDraft draft, ZoopPreviewCache previewCache)
@@ -200,8 +216,113 @@ internal static class ZoopPreviewFactory
     structure.transform.rotation = rotation;
   }
 
-  private static void AddPreviewPiece(ZoopDraft draft, Structure structure, int buildIndex)
+  /// <returns>The updated <c>canBuildNext</c> value to carry forward to the next piece.</returns>
+  public static bool AddLongStructure(
+    ZoopPreviewContext context,
+    int longBuildIndex,
+    int cellSpan,
+    int longIndex,
+    bool canBuildNext)
   {
-    draft.PreviewPieces.Add(new PreviewPiece(structure, buildIndex));
+    var draft = context.Draft;
+    var constructables = context.Constructables;
+    var activeItem = longBuildIndex >= 0 && longBuildIndex < constructables.Count
+      ? constructables[longBuildIndex]
+      : null;
+    if (activeItem == null)
+    {
+      return false;
+    }
+
+    var activeHandItem = InventoryManager.ActiveHandSlot.Get();
+    switch (activeHandItem)
+    {
+      case Stackable constructor:
+        if (constructor.Quantity > draft.TotalCellCost + cellSpan - 1 && canBuildNext)
+        {
+          MakeLongItem(draft, context.PreviewCache, constructables, longIndex, longBuildIndex, cellSpan,
+            context.SupportsCornerVariant);
+          return true;
+        }
+
+        return false;
+
+      case AuthoringTool:
+        MakeLongItem(draft, context.PreviewCache, constructables, longIndex, longBuildIndex, cellSpan,
+          context.SupportsCornerVariant);
+        return true;
+
+      default:
+        return canBuildNext;
+    }
+  }
+
+  private static void MakeLongItem(ZoopDraft draft, ZoopPreviewCache previewCache,
+    List<Structure> constructables, int longIndex, int buildIndex, int cellSpan,
+    bool supportsCornerVariant)
+  {
+    if (!previewCache.LongCaches.TryGetValue(cellSpan, out var cache))
+    {
+      cache = new List<Structure>();
+      previewCache.LongCaches[cellSpan] = cache;
+      previewCache.LongCacheBuildIndices[cellSpan] = new List<int>();
+    }
+
+    var indexCache = previewCache.LongCacheBuildIndices[cellSpan];
+
+    if (cache.Count > longIndex)
+    {
+      if (!supportsCornerVariant)
+      {
+        ApplyCursorRotation(draft, cache[longIndex]);
+      }
+
+      AddPreviewPiece(draft, cache[longIndex], indexCache[longIndex], cellSpan);
+      return;
+    }
+
+    var structure = constructables[buildIndex];
+    if (structure == null)
+    {
+      return;
+    }
+
+    var structureNew = UnityObject.Instantiate(InventoryManager.GetStructureCursor(structure.PrefabName));
+    if (structureNew == null)
+    {
+      return;
+    }
+
+    structureNew.gameObject.SetActive(false);
+    foreach (var thing in structureNew.GetComponentsInChildren<Thing>(true))
+    {
+      thing.enabled = false;
+    }
+
+    foreach (var col in structureNew.GetComponentsInChildren<Collider>(true))
+    {
+      col.enabled = false;
+    }
+
+    structureNew.gameObject.SetActive(true);
+    foreach (var mb in structureNew.GetComponentsInChildren<MonoBehaviour>(true))
+    {
+      mb.enabled = false;
+    }
+
+    if (!supportsCornerVariant)
+    {
+      ApplyCursorRotation(draft, structureNew);
+    }
+
+    AddPreviewPiece(draft, structureNew, buildIndex, cellSpan);
+    cache.Add(structureNew);
+    indexCache.Add(buildIndex);
+  }
+
+  private static void AddPreviewPiece(ZoopDraft draft, Structure structure, int buildIndex, int cellSpan = 1)
+  {
+    draft.PreviewPieces.Add(new PreviewPiece(structure, buildIndex, cellSpan));
+    draft.TotalCellCost += cellSpan;
   }
 }

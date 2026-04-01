@@ -4,6 +4,7 @@ using Assets.Scripts.Objects;
 using UnityEngine;
 using ZoopMod.Zoop.Core;
 using ZoopMod.Zoop.EntryPoints.Integrations;
+using ZoopMod.Zoop.Logging;
 using ZoopMod.Zoop.Planning;
 
 namespace ZoopMod.Zoop.Preview;
@@ -12,6 +13,7 @@ internal interface ISmallGridPreviewLayoutAdapter
 {
   ZoopDraft Draft { get; }
   Structure GetDraftPreviewStructure(int index);
+  int GetDraftCellSpan(int index);
   void ApplyRotation(SmallGridRotationStep step);
   bool CanConstructSmallCell(InventoryManager inventoryManager, Structure structure, int structureIndex);
   Vector3Int GetDraftCellKey(Vector3 position);
@@ -89,16 +91,17 @@ internal static class ZoopPreviewLayoutCoordinator
         var value = ZoopPathPlanner.GetDirectionalPlacementValue(increasing,
           InventoryManager.ConstructionCursor is SmallGrid, spacing);
 
-        for (var placementIndex = 0; placementIndex < zoopCounter; placementIndex++)
+        for (var placementIndex = 0; placementIndex < zoopCounter;)
         {
           if (structureCounter == draft.PreviewCount)
           {
             break;
           }
 
-          ZoopPathPlanner.SetDirectionalOffset(ref xOffset, ref yOffset, ref zOffset, zoopDirection,
-            placementIndex * value);
+          var cellSpan = adapter.GetDraftCellSpan(structureCounter);
 
+          // Apply rotation first so we can read the actual quaternion to determine
+          // which direction the model's mesh extends in world space.
           var increasingFrom = ZoopPathPlanner.GetIncreasingFromPreviousDirection(segments, segment, segmentIndex,
             directionIndex, placementIndex, lastDirection);
           adapter.ApplyRotation(new SmallGridRotationStep
@@ -115,6 +118,39 @@ internal static class ZoopPreviewLayoutCoordinator
             IncreasingTo = increasing
           });
 
+          // The pipe mesh extends from its origin in local -X. After rotation,
+          // the mesh world direction = -(rotation * Vector3.right).
+          // When the mesh extends opposite to travel we must place the origin at the
+          // far end so the mesh covers the cells behind it.
+          // needFarEnd = mesh opposite to travel = (-extent sign) != travel sign
+          //            = (extent sign) == travel sign = (extentAlongAxis > 0) == increasing
+          var placementOffset = placementIndex;
+          if (cellSpan > 1)
+          {
+            var axisUnit = zoopDirection == ZoopDirection.x ? Vector3.right
+              : zoopDirection == ZoopDirection.y ? Vector3.up
+              : Vector3.forward;
+            var rotatedExtent = adapter.GetDraftPreviewStructure(structureCounter).ThingTransformRotation * Vector3.right;
+            var extentAlongAxis = Vector3.Dot(rotatedExtent, axisUnit);
+            if ((extentAlongAxis > 0) == increasing)
+              placementOffset = placementIndex + cellSpan - 1;
+          }
+
+          var pieceOffset = placementOffset * value;
+
+          ZoopPathPlanner.SetDirectionalOffset(ref xOffset, ref yOffset, ref zOffset, zoopDirection,
+            pieceOffset);
+
+          // Diagnostic: log every long piece placement so we can verify positioning.
+          if (cellSpan > 1)
+          {
+            var rot = adapter.GetDraftPreviewStructure(structureCounter).ThingTransformRotation;
+            var extentWorld = rot * Vector3.right;
+            ZoopLog.Debug($"[LongPos] dir={zoopDirection} inc={increasing} span={cellSpan} " +
+                          $"pIdx={placementIndex} pOff={placementOffset} val={value} pieceOff={pieceOffset} " +
+                          $"rot={rot.eulerAngles} extent={extentWorld}");
+          }
+
           lastDirection = zoopDirection;
 
           var offset = new Vector3(xOffset, yOffset, zOffset);
@@ -123,12 +159,14 @@ internal static class ZoopPreviewLayoutCoordinator
           previewStructure.GameObject.SetActive(true);
           previewStructure.ThingTransformPosition = previewPosition;
           previewStructure.Position = previewPosition;
-          // Small-grid previews cannot safely overlap the same snapped cell because there is no dedicated
-          // intersection preview for most families, so revisiting a cell is treated as invalid.
+
+          // Track all cells this piece covers and check for overlaps/constructibility.
           hasError = hasError || HasSmallGridCellError(creativeFreedomEnabled, adapter, inventoryManager,
-            OccupiedCells, previewPosition, previewStructure, structureCounter);
+            OccupiedCells, startPos, xOffset, yOffset, zOffset, zoopDirection, value, placementIndex,
+            cellSpan, previewStructure, structureCounter);
 
           structureCounter++;
+          placementIndex += cellSpan;
         }
 
         // Advance the offset past the last piece so the next direction starts at the correct position.
@@ -141,6 +179,7 @@ internal static class ZoopPreviewLayoutCoordinator
 
   /// <summary>
   /// Returns true when a cell placement is invalid (occupied or not constructible).
+  /// For long pieces (cellSpan > 1), all covered cells are tracked for self-overlap detection.
   /// Always returns false when CreativeFreedom is active, mirroring manual-placement behavior.
   /// </summary>
   private static bool HasSmallGridCellError(
@@ -148,15 +187,31 @@ internal static class ZoopPreviewLayoutCoordinator
     ISmallGridPreviewLayoutAdapter adapter,
     InventoryManager inventoryManager,
     HashSet<Vector3Int> occupiedCells,
-    Vector3 previewPosition,
+    Vector3 startPos,
+    float xOffset,
+    float yOffset,
+    float zOffset,
+    ZoopDirection zoopDirection,
+    float value,
+    int placementIndex,
+    int cellSpan,
     Structure previewStructure,
     int structureCounter)
   {
     if (creativeFreedomEnabled) return false;
-    var cellKey = adapter.GetDraftCellKey(previewPosition);
-    var revisitsExistingZoopCell = occupiedCells.Contains(cellKey);
-    occupiedCells.Add(cellKey);
-    return revisitsExistingZoopCell ||
+
+    var hasOverlap = false;
+    for (var c = 0; c < cellSpan; c++)
+    {
+      float cx = xOffset, cy = yOffset, cz = zOffset;
+      ZoopPathPlanner.SetDirectionalOffset(ref cx, ref cy, ref cz, zoopDirection, (placementIndex + c) * value);
+      var cellPos = startPos + new Vector3(cx, cy, cz);
+      var cellKey = adapter.GetDraftCellKey(cellPos);
+      if (occupiedCells.Contains(cellKey)) hasOverlap = true;
+      occupiedCells.Add(cellKey);
+    }
+
+    return hasOverlap ||
            !adapter.CanConstructSmallCell(inventoryManager, previewStructure, structureCounter);
   }
 

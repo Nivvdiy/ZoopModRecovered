@@ -16,9 +16,11 @@ internal sealed class ZoopDraft
   public Vector3 ZoopStartWallNormal { get; set; } = Vector3.zero;
 
   public int PreviewCount => PreviewPieces.Count;
+  public int TotalCellCost { get; set; }
 
   public void ClearPreviewPieces()
   {
     PreviewPieces.Clear();
+    TotalCellCost = 0;
   }
 }

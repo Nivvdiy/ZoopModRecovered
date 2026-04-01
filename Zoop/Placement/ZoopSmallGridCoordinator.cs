@@ -27,6 +27,11 @@ internal sealed class ZoopSmallGridCoordinator(ZoopPreviewValidator previewValid
       return Draft.PreviewPieces[index].Structure;
     }
 
+    public int GetDraftCellSpan(int index)
+    {
+      return Draft.PreviewPieces[index].CellSpan;
+    }
+
     public void ApplyRotation(SmallGridRotationStep step)
     {
       if (!step.SupportsCornerVariant)
@@ -171,6 +176,9 @@ internal sealed class ZoopSmallGridCoordinator(ZoopPreviewValidator previewValid
 
   /// <summary>
   /// Creates or reuses the preview pieces needed for the current small-grid path.
+  /// When long variants are available (e.g. long-3, long-5, long-10 pipes), consecutive straight
+  /// pieces in a direction are packed with the longest fitting variant first.
+  /// First piece, last piece, and waypoint pieces are always single-cell.
   /// </summary>
   private static void BuildSmallStructureList(ZoopDraft draft, ZoopPreviewCache previewCache,
     InventoryManager inventoryManager,
@@ -184,43 +192,82 @@ internal sealed class ZoopSmallGridCoordinator(ZoopPreviewValidator previewValid
     bool AddPiece(bool isCorner, int index, int secondaryCount, bool currentCanBuildNext) =>
       ZoopPreviewFactory.AddStructure(context, isCorner, index, secondaryCount, currentCanBuildNext);
 
+    var longVariants = ZoopLongVariantRules.FindLongVariants(constructables);
+    var hasLongVariants = longVariants.Count > 0;
+    var runPlan = new List<int>();
+    var longCounts = new Dictionary<int, int>();
+
     var straight = 0;
     var corners = 0;
     var lastDirection = ZoopDirection.none;
     var canBuildNext = true;
-    for (var segmentIndex = 0; segmentIndex < segments.Count; segmentIndex++)
+    var totalSegmentCount = segments.Count;
+    for (var segmentIndex = 0; segmentIndex < totalSegmentCount; segmentIndex++)
     {
       var segment = segments[segmentIndex];
-      for (var directionIndex = 0; directionIndex < segment.Directions.Count; directionIndex++)
+      var totalDirectionCount = segment.Directions.Count;
+      for (var directionIndex = 0; directionIndex < totalDirectionCount; directionIndex++)
       {
         var zoopDirection = segment.Directions[directionIndex];
         var zoopCounter = ZoopPathPlanner.GetCountForDirection(zoopDirection, segment);
 
-        zoopCounter = ZoopPathPlanner.GetPlacementCount(segments.Count, segmentIndex, segment.Directions.Count,
+        zoopCounter = ZoopPathPlanner.GetPlacementCount(totalSegmentCount, segmentIndex, totalDirectionCount,
           directionIndex, zoopCounter);
 
-        for (var placementIndex = 0; placementIndex < zoopCounter; placementIndex++)
-        {
-          // A corner turn piece is needed at the start of any new direction — but only when there
-          // are already previewed pieces to connect to and the constructable supports corner variants.
-          var isCornerTurn = supportsCornerVariant &&
+        // Determine if the first placement in this direction is a corner turn.
+        var willHaveCorner = supportsCornerVariant &&
                              draft.PreviewCount > 0 &&
-                             (placementIndex == 0 || segmentIndex > 0) &&
                              zoopDirection != lastDirection;
 
-          if (isCornerTurn)
-          {
-            // Place a corner piece to bridge from the previous direction to the new one.
-            canBuildNext = AddPiece(isCorner: true, index: corners, secondaryCount: straight, currentCanBuildNext: canBuildNext);
-            corners++;
-          }
-          else
-          {
-            canBuildNext = AddPiece(isCorner: false, index: straight, secondaryCount: corners, currentCanBuildNext: canBuildNext);
-            straight++;
-          }
-
+        if (willHaveCorner && zoopCounter > 0)
+        {
+          canBuildNext = AddPiece(isCorner: true, index: corners, secondaryCount: straight,
+            currentCanBuildNext: canBuildNext);
+          corners++;
           lastDirection = zoopDirection;
+        }
+
+        var straightInDir = willHaveCorner ? zoopCounter - 1 : zoopCounter;
+
+        if (straightInDir > 0 && hasLongVariants)
+        {
+          var isGlobalFirst = segmentIndex == 0 && directionIndex == 0 && !willHaveCorner;
+          var isGlobalLast = segmentIndex == totalSegmentCount - 1 && directionIndex == totalDirectionCount - 1;
+          var isWaypointStart = segmentIndex > 0 && directionIndex == 0 && !willHaveCorner;
+
+          ZoopLongVariantRules.PlanRun(straightInDir, longVariants,
+            isGlobalFirst || isWaypointStart, isGlobalLast, runPlan);
+
+          foreach (var cellSpan in runPlan)
+          {
+            if (cellSpan > 1)
+            {
+              var longBuildIndex = ZoopLongVariantRules.GetBuildIndexForSpan(longVariants, cellSpan);
+              if (!longCounts.TryGetValue(cellSpan, out var longIndex))
+                longIndex = 0;
+              canBuildNext = ZoopPreviewFactory.AddLongStructure(context, longBuildIndex, cellSpan, longIndex,
+                canBuildNext);
+              longCounts[cellSpan] = longIndex + 1;
+            }
+            else
+            {
+              canBuildNext = AddPiece(isCorner: false, index: straight, secondaryCount: corners,
+                currentCanBuildNext: canBuildNext);
+              straight++;
+            }
+
+            lastDirection = zoopDirection;
+          }
+        }
+        else
+        {
+          for (var i = 0; i < straightInDir; i++)
+          {
+            canBuildNext = AddPiece(isCorner: false, index: straight, secondaryCount: corners,
+              currentCanBuildNext: canBuildNext);
+            straight++;
+            lastDirection = zoopDirection;
+          }
         }
       }
     }
