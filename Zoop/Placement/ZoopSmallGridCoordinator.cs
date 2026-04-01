@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using Assets.Scripts.Inventory;
 using Assets.Scripts.Objects;
+using Assets.Scripts.Objects.Items;
 using Assets.Scripts.Objects.Pipes;
 using Assets.Scripts.Util;
 using Cysharp.Threading.Tasks;
@@ -235,34 +236,84 @@ internal sealed class ZoopSmallGridCoordinator(ZoopPreviewValidator previewValid
           var isGlobalLast = segmentIndex == totalSegmentCount - 1 && directionIndex == totalDirectionCount - 1;
           var isWaypointStart = segmentIndex > 0 && directionIndex == 0 && !willHaveCorner;
 
-          ZoopLongVariantRules.PlanRun(straightInDir, longVariants,
-            isGlobalFirst || isWaypointStart, isGlobalLast, runPlan);
-
-          foreach (var cellSpan in runPlan)
+          // Exclude last cell from long variants when a corner or segment boundary follows,
+          // so the transition piece is always a span-1 item.
+          var nextWillCorner = false;
+          if (supportsCornerVariant && !isGlobalLast)
           {
+            ZoopDirection nextDir;
+            if (directionIndex + 1 < totalDirectionCount)
+              nextDir = segment.Directions[directionIndex + 1];
+            else if (segmentIndex + 1 < totalSegmentCount)
+              nextDir = segments[segmentIndex + 1].Directions[0];
+            else
+              nextDir = zoopDirection;
+            nextWillCorner = nextDir != zoopDirection;
+          }
+
+          ZoopLongVariantRules.PlanRun(straightInDir, longVariants,
+            isGlobalFirst || isWaypointStart, isGlobalLast || nextWillCorner, runPlan);
+
+          for (var planIdx = 0; planIdx < runPlan.Count; planIdx++)
+          {
+            var cellSpan = runPlan[planIdx];
             if (cellSpan > 1)
             {
+              // Before placing a long piece, verify we can also afford at least one more
+              // span-1 piece after it — otherwise the preview would end on a long variant
+              // which changes the build cursor and may cover fewer total cells than span-1 pieces.
+              var isLastInPlan = planIdx == runPlan.Count - 1;
+              var mustReserveTrailing = !isLastInPlan;
+
               var longBuildIndex = ZoopLongVariantRules.GetBuildIndexForSpan(longVariants, cellSpan);
               if (!longCounts.TryGetValue(cellSpan, out var longIndex))
                 longIndex = 0;
 
-              var previousCanBuild = canBuildNext;
-              canBuildNext = ZoopPreviewFactory.AddLongStructure(context, longBuildIndex, cellSpan, longIndex,
-                canBuildNext);
-
-              if (canBuildNext)
+              var skipLong = false;
+              if (mustReserveTrailing && canBuildNext)
               {
-                longCounts[cellSpan] = longIndex + 1;
+                var activeHandItem = InventoryManager.ActiveHandSlot.Get();
+                if (activeHandItem is Stackable stack)
+                {
+                  var longCost = longBuildIndex >= 0 && longBuildIndex < constructables.Count
+                    ? ZoopPreviewFactory.GetEntryQuantity(constructables[longBuildIndex])
+                    : cellSpan;
+                  // Need budget for the long piece + at least 1 more after it
+                  if (stack.Quantity <= draft.TotalResourceCost + longCost)
+                    skipLong = true;
+                }
               }
-              else
+
+              if (skipLong)
               {
-                // Long piece too expensive — fall back to span-1 pieces for these cells.
-                canBuildNext = previousCanBuild;
+                // Not enough budget for long + trailing — use span-1 pieces instead.
                 for (var f = 0; f < cellSpan; f++)
                 {
                   canBuildNext = AddPiece(isCorner: false, index: straight, secondaryCount: corners,
                     currentCanBuildNext: canBuildNext);
                   straight++;
+                }
+              }
+              else
+              {
+                var previousCanBuild = canBuildNext;
+                canBuildNext = ZoopPreviewFactory.AddLongStructure(context, longBuildIndex, cellSpan, longIndex,
+                  canBuildNext);
+
+                if (canBuildNext)
+                {
+                  longCounts[cellSpan] = longIndex + 1;
+                }
+                else
+                {
+                  // Long piece too expensive — fall back to span-1 pieces for these cells.
+                  canBuildNext = previousCanBuild;
+                  for (var f = 0; f < cellSpan; f++)
+                  {
+                    canBuildNext = AddPiece(isCorner: false, index: straight, secondaryCount: corners,
+                      currentCanBuildNext: canBuildNext);
+                    straight++;
+                  }
                 }
               }
             }

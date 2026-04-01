@@ -328,7 +328,7 @@ internal static class ZoopPreviewFactory
     draft.TotalResourceCost += GetEntryQuantity(structure);
   }
 
-  private static int GetEntryQuantity(Structure structure)
+  internal static int GetEntryQuantity(Structure structure)
   {
     if (structure.BuildStates != null && structure.BuildStates.Count > 0)
     {
