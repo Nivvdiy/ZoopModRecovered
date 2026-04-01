@@ -245,9 +245,26 @@ internal sealed class ZoopSmallGridCoordinator(ZoopPreviewValidator previewValid
               var longBuildIndex = ZoopLongVariantRules.GetBuildIndexForSpan(longVariants, cellSpan);
               if (!longCounts.TryGetValue(cellSpan, out var longIndex))
                 longIndex = 0;
+
+              var previousCanBuild = canBuildNext;
               canBuildNext = ZoopPreviewFactory.AddLongStructure(context, longBuildIndex, cellSpan, longIndex,
                 canBuildNext);
-              longCounts[cellSpan] = longIndex + 1;
+
+              if (canBuildNext)
+              {
+                longCounts[cellSpan] = longIndex + 1;
+              }
+              else
+              {
+                // Long piece too expensive — fall back to span-1 pieces for these cells.
+                canBuildNext = previousCanBuild;
+                for (var f = 0; f < cellSpan; f++)
+                {
+                  canBuildNext = AddPiece(isCorner: false, index: straight, secondaryCount: corners,
+                    currentCanBuildNext: canBuildNext);
+                  straight++;
+                }
+              }
             }
             else
             {
