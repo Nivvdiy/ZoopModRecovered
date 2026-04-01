@@ -125,6 +125,57 @@ internal static class ZoopLongVariantRules
   }
 
   /// <summary>
+  /// Plans a run like <see cref="PlanRun"/> but splits around barrier cell positions.
+  /// Barrier cells (e.g. merge points with existing structures) are always span-1.
+  /// Sub-runs between barriers are planned with long variants independently.
+  /// </summary>
+  public static void PlanRunWithBarriers(
+    int cellCount,
+    List<LongVariant> longVariants,
+    bool excludeFirst,
+    bool excludeLast,
+    HashSet<int> barriers,
+    List<int> result)
+  {
+    result.Clear();
+    if (cellCount <= 0) return;
+
+    if (barriers == null || barriers.Count == 0)
+    {
+      PlanRun(cellCount, longVariants, excludeFirst, excludeLast, result);
+      return;
+    }
+
+    var subResult = new List<int>();
+    var subRunStart = 0;
+
+    for (var i = 0; i <= cellCount; i++)
+    {
+      var isBarrier = i < cellCount && barriers.Contains(i);
+
+      if (isBarrier || i == cellCount)
+      {
+        var subRunLength = i - subRunStart;
+        if (subRunLength > 0)
+        {
+          var subExcludeFirst = excludeFirst && subRunStart == 0;
+          // Always apply excludeLast at the true end of the run so the zoop
+          // ends on a span-1 piece (keeps the cursor on the base item).
+          var subExcludeLast = excludeLast && i == cellCount;
+          PlanRun(subRunLength, longVariants, subExcludeFirst, subExcludeLast, subResult);
+          result.AddRange(subResult);
+        }
+
+        if (isBarrier)
+        {
+          result.Add(1);
+          subRunStart = i + 1;
+        }
+      }
+    }
+  }
+
+  /// <summary>
   /// Returns the build index of the long variant with the given cell span, or -1 if not found.
   /// </summary>
   public static int GetBuildIndexForSpan(List<LongVariant> longVariants, int cellSpan)

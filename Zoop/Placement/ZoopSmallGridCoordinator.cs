@@ -8,6 +8,7 @@ using Assets.Scripts.Util;
 using Cysharp.Threading.Tasks;
 using UnityEngine;
 using ZoopMod.Zoop.Core;
+using ZoopMod.Zoop.Logging;
 using ZoopMod.Zoop.Planning;
 using ZoopMod.Zoop.Preview;
 
@@ -158,7 +159,8 @@ internal sealed class ZoopSmallGridCoordinator(ZoopPreviewValidator previewValid
     var supportsCornerVariant =
       ZoopConstructableRules.SupportsCornerVariant(inventoryManager.ConstructionPanel.Parent.Constructables,
         inventoryManager.ConstructionPanel.Parent.LastSelectedIndex);
-    BuildSmallStructureList(draft, previewCache, inventoryManager, segments, supportsCornerVariant);
+    BuildSmallStructureList(draft, previewCache, inventoryManager, segments, supportsCornerVariant,
+      barrierCells: null);
 
     if (draft.PreviewCount <= 0)
     {
@@ -166,13 +168,43 @@ internal sealed class ZoopSmallGridCoordinator(ZoopPreviewValidator previewValid
     }
 
     layoutAdapter.Draft = draft;
+    HashSet<(int seg, int dir)> blockedDirections = null;
+    Dictionary<(int seg, int dir), HashSet<int>> errorCells = null;
     draft.HasError = draft.HasError || ZoopPreviewLayoutCoordinator.PositionSmallGridStructures(
       layoutAdapter,
       inventoryManager,
       segments,
       supportsCornerVariant,
       spacing,
-      isSinglePlacement);
+      isSinglePlacement,
+      out blockedDirections,
+      out errorCells);
+
+    // If any long piece is blocked (e.g. crossing an existing structure), rebuild
+    // with the blocked cells as barriers so long variants resume after the obstacle.
+    // Span-1 pieces can merge at these cells (T-junctions), but long pieces cannot,
+    // so we use the error cells from pass 1 directly as barriers.
+    if (blockedDirections is { Count: > 0 })
+    {
+      draft.HasError = false;
+
+      BuildSmallStructureList(draft, previewCache, inventoryManager, segments, supportsCornerVariant,
+        barrierCells: errorCells);
+
+      if (draft.PreviewCount > 0)
+      {
+        layoutAdapter.Draft = draft;
+        draft.HasError = ZoopPreviewLayoutCoordinator.PositionSmallGridStructures(
+          layoutAdapter,
+          inventoryManager,
+          segments,
+          supportsCornerVariant,
+          spacing,
+          isSinglePlacement,
+          out _,
+          out _);
+      }
+    }
   }
 
   /// <summary>
@@ -184,7 +216,8 @@ internal sealed class ZoopSmallGridCoordinator(ZoopPreviewValidator previewValid
   private static void BuildSmallStructureList(ZoopDraft draft, ZoopPreviewCache previewCache,
     InventoryManager inventoryManager,
     List<ZoopSegment> segments,
-    bool supportsCornerVariant)
+    bool supportsCornerVariant,
+    Dictionary<(int seg, int dir), HashSet<int>> barrierCells)
   {
     ZoopPreviewFactory.ResetSmallGridPreviewList(draft, previewCache);
     var constructables = inventoryManager.ConstructionPanel.Parent.Constructables;
@@ -251,8 +284,27 @@ internal sealed class ZoopSmallGridCoordinator(ZoopPreviewValidator previewValid
             nextWillCorner = nextDir != zoopDirection;
           }
 
-          ZoopLongVariantRules.PlanRun(straightInDir, longVariants,
-            isGlobalFirst || isWaypointStart, isGlobalLast || nextWillCorner, runPlan);
+          // Use exact error cell positions as barriers for long variant planning.
+          HashSet<int> barriers = null;
+          var dirKey = (segmentIndex, directionIndex);
+          if (barrierCells != null && barrierCells.TryGetValue(dirKey, out var cellSet))
+          {
+            barriers = new HashSet<int>();
+            var cornerOffset = willHaveCorner ? 1 : 0;
+            foreach (var cell in cellSet)
+              barriers.Add(cell - cornerOffset);
+          }
+
+          ZoopLongVariantRules.PlanRunWithBarriers(straightInDir, longVariants,
+            isGlobalFirst || isWaypointStart, isGlobalLast || nextWillCorner, barriers, runPlan);
+
+          if (barriers != null && barriers.Count > 0)
+          {
+            var barrierStr = string.Join(",", barriers);
+            var planStr = string.Join(",", runPlan);
+            ZoopLog.Debug($"[Barrier] seg={segmentIndex} dir={directionIndex} straightInDir={straightInDir} " +
+                          $"barriers=[{barrierStr}] plan=[{planStr}]");
+          }
 
           for (var planIdx = 0; planIdx < runPlan.Count; planIdx++)
           {

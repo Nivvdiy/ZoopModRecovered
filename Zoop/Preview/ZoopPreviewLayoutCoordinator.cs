@@ -6,6 +6,7 @@ using Assets.Scripts.Objects.Pipes;
 using UnityEngine;
 using ZoopMod.Zoop.Core;
 using ZoopMod.Zoop.EntryPoints.Integrations;
+using ZoopMod.Zoop.Logging;
 using ZoopMod.Zoop.Planning;
 
 namespace ZoopMod.Zoop.Preview;
@@ -62,13 +63,17 @@ internal static class ZoopPreviewLayoutCoordinator
     List<ZoopSegment> segments,
     bool supportsCornerVariant,
     int spacing,
-    bool isSinglePlacement)
+    bool isSinglePlacement,
+    out HashSet<(int seg, int dir)> blockedDirections,
+    out Dictionary<(int seg, int dir), HashSet<int>> errorCells)
   {
     var draft = adapter.Draft;
     var structureCounter = 0;
     var lastDirection = ZoopDirection.none;
     OccupiedCells.Clear();
     var hasError = false;
+    blockedDirections = null;
+    errorCells = null;
     var creativeFreedomEnabled = ZoopIntegrations.CreativeFreedomAvailable;
 
     for (var segmentIndex = 0; segmentIndex < segments.Count; segmentIndex++)
@@ -155,9 +160,30 @@ internal static class ZoopPreviewLayoutCoordinator
           previewStructure.Position = previewPosition;
 
           // Track all cells this piece covers and check for overlaps/constructibility.
-          hasError = hasError || HasSmallGridCellError(creativeFreedomEnabled, adapter, inventoryManager,
+          var cellError = HasSmallGridCellError(creativeFreedomEnabled, adapter, inventoryManager,
             OccupiedCells, startPos, xOffset, yOffset, zOffset, zoopDirection, value, placementIndex,
             cellSpan, previewStructure, structureCounter);
+          hasError = hasError || cellError;
+          if (cellError)
+          {
+            if (cellSpan > 1)
+            {
+              blockedDirections ??= new HashSet<(int seg, int dir)>();
+              blockedDirections.Add((segmentIndex, directionIndex));
+            }
+
+            // Record every error cell so the rebuild pass can place barriers precisely.
+            var key = (segmentIndex, directionIndex);
+            errorCells ??= new Dictionary<(int seg, int dir), HashSet<int>>();
+            if (!errorCells.TryGetValue(key, out var cellSet))
+            {
+              cellSet = new HashSet<int>();
+              errorCells[key] = cellSet;
+            }
+            for (var ec = 0; ec < cellSpan; ec++)
+              cellSet.Add(placementIndex + ec);
+            ZoopLog.Debug($"[CellError] seg={segmentIndex} dir={directionIndex} pIdx={placementIndex} span={cellSpan}");
+          }
 
           structureCounter++;
           placementIndex += cellSpan;
