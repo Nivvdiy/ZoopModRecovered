@@ -70,36 +70,17 @@ internal static class ZoopLongVariantRules
   /// <summary>
   /// Plans how to fill a straight run of <paramref name="cellCount"/> cells using available long variants.
   /// Populates <paramref name="result"/> with cell spans (1 for single pieces, >1 for long variants).
-  /// The list is reused across calls to avoid allocation.
+  /// Uses a greedy algorithm, placing the longest fitting variant first.
   /// </summary>
   public static void PlanRun(
     int cellCount,
     List<LongVariant> longVariants,
-    bool excludeFirst,
-    bool excludeLast,
     List<int> result)
   {
     result.Clear();
     if (cellCount <= 0) return;
-    if (cellCount == 1)
-    {
-      result.Add(1);
-      return;
-    }
 
-    var startExclude = excludeFirst ? 1 : 0;
-    var endExclude = excludeLast ? 1 : 0;
-    var interiorCells = cellCount - startExclude - endExclude;
-
-    if (interiorCells <= 0)
-    {
-      for (var i = 0; i < cellCount; i++) result.Add(1);
-      return;
-    }
-
-    for (var i = 0; i < startExclude; i++) result.Add(1);
-
-    var remaining = interiorCells;
+    var remaining = cellCount;
     while (remaining > 0)
     {
       var placed = false;
@@ -120,56 +101,48 @@ internal static class ZoopLongVariantRules
         remaining--;
       }
     }
-
-    for (var i = 0; i < endExclude; i++) result.Add(1);
   }
 
   /// <summary>
-  /// Plans a run like <see cref="PlanRun"/> but splits around barrier cell positions.
-  /// Barrier cells (e.g. merge points with existing structures) are always span-1.
-  /// Sub-runs between barriers are planned with long variants independently.
+  /// Plans a run by splitting it into sections around separator cells.
+  /// Separators (start point, end point, corners, waypoints, barrier/merge cells) are always span-1.
+  /// Contiguous non-separator cells form sections that are independently packed with long variants.
   /// </summary>
-  public static void PlanRunWithBarriers(
+  public static void PlanSections(
     int cellCount,
     List<LongVariant> longVariants,
-    bool excludeFirst,
-    bool excludeLast,
-    HashSet<int> barriers,
+    HashSet<int> separators,
     List<int> result)
   {
     result.Clear();
     if (cellCount <= 0) return;
 
-    if (barriers == null || barriers.Count == 0)
+    if (separators == null || separators.Count == 0)
     {
-      PlanRun(cellCount, longVariants, excludeFirst, excludeLast, result);
+      PlanRun(cellCount, longVariants, result);
       return;
     }
 
     var subResult = new List<int>();
-    var subRunStart = 0;
+    var sectionStart = 0;
 
     for (var i = 0; i <= cellCount; i++)
     {
-      var isBarrier = i < cellCount && barriers.Contains(i);
+      var isSeparator = i < cellCount && separators.Contains(i);
 
-      if (isBarrier || i == cellCount)
+      if (isSeparator || i == cellCount)
       {
-        var subRunLength = i - subRunStart;
-        if (subRunLength > 0)
+        var sectionLength = i - sectionStart;
+        if (sectionLength > 0)
         {
-          var subExcludeFirst = excludeFirst && subRunStart == 0;
-          // Always apply excludeLast at the true end of the run so the zoop
-          // ends on a span-1 piece (keeps the cursor on the base item).
-          var subExcludeLast = excludeLast && i == cellCount;
-          PlanRun(subRunLength, longVariants, subExcludeFirst, subExcludeLast, subResult);
+          PlanRun(sectionLength, longVariants, subResult);
           result.AddRange(subResult);
         }
 
-        if (isBarrier)
+        if (isSeparator)
         {
           result.Add(1);
-          subRunStart = i + 1;
+          sectionStart = i + 1;
         }
       }
     }

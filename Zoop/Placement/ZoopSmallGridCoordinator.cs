@@ -269,8 +269,7 @@ internal sealed class ZoopSmallGridCoordinator(ZoopPreviewValidator previewValid
           var isGlobalLast = segmentIndex == totalSegmentCount - 1 && directionIndex == totalDirectionCount - 1;
           var isWaypointStart = segmentIndex > 0 && directionIndex == 0 && !willHaveCorner;
 
-          // Exclude last cell from long variants when a corner or segment boundary follows,
-          // so the transition piece is always a span-1 item.
+          // Detect whether the next direction will be a corner turn.
           var nextWillCorner = false;
           if (supportsCornerVariant && !isGlobalLast)
           {
@@ -284,26 +283,33 @@ internal sealed class ZoopSmallGridCoordinator(ZoopPreviewValidator previewValid
             nextWillCorner = nextDir != zoopDirection;
           }
 
-          // Use exact error cell positions as barriers for long variant planning.
-          HashSet<int> barriers = null;
+          // Build a unified separator set. Separators are always span-1 pieces that
+          // act as section boundaries: start, end, corners, waypoints, and barriers.
+          var separators = new HashSet<int>();
+
+          if (isGlobalFirst || isWaypointStart)
+            separators.Add(0);
+          if (isGlobalLast || nextWillCorner)
+            separators.Add(straightInDir - 1);
+
+          // Barrier cells from pass 1 (merge points with existing structures).
           var dirKey = (segmentIndex, directionIndex);
           if (barrierCells != null && barrierCells.TryGetValue(dirKey, out var cellSet))
           {
-            barriers = new HashSet<int>();
             var cornerOffset = willHaveCorner ? 1 : 0;
             foreach (var cell in cellSet)
-              barriers.Add(cell - cornerOffset);
+              separators.Add(cell - cornerOffset);
           }
 
-          ZoopLongVariantRules.PlanRunWithBarriers(straightInDir, longVariants,
-            isGlobalFirst || isWaypointStart, isGlobalLast || nextWillCorner, barriers, runPlan);
+          ZoopLongVariantRules.PlanSections(straightInDir, longVariants,
+            separators.Count > 0 ? separators : null, runPlan);
 
-          if (barriers != null && barriers.Count > 0)
+          if (separators.Count > 0)
           {
-            var barrierStr = string.Join(",", barriers);
+            var sepStr = string.Join(",", separators);
             var planStr = string.Join(",", runPlan);
-            ZoopLog.Debug($"[Barrier] seg={segmentIndex} dir={directionIndex} straightInDir={straightInDir} " +
-                          $"barriers=[{barrierStr}] plan=[{planStr}]");
+            ZoopLog.Debug($"[Sections] seg={segmentIndex} dir={directionIndex} straightInDir={straightInDir} " +
+                          $"separators=[{sepStr}] plan=[{planStr}]");
           }
 
           for (var planIdx = 0; planIdx < runPlan.Count; planIdx++)
