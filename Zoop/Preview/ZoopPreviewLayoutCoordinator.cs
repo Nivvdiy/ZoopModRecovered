@@ -1,6 +1,8 @@
 using System.Collections.Generic;
 using Assets.Scripts.Inventory;
 using Assets.Scripts.Objects;
+using Assets.Scripts.Objects.Electrical;
+using Assets.Scripts.Objects.Pipes;
 using UnityEngine;
 using ZoopMod.Zoop.Core;
 using ZoopMod.Zoop.EntryPoints.Integrations;
@@ -118,21 +120,24 @@ internal static class ZoopPreviewLayoutCoordinator
             IncreasingTo = increasing
           });
 
-          // The pipe mesh extends from its origin in local -X. After rotation,
-          // the mesh world direction = -(rotation * Vector3.right).
-          // When the mesh extends opposite to travel we must place the origin at the
-          // far end so the mesh covers the cells behind it.
-          // needFarEnd = mesh opposite to travel = (-extent sign) != travel sign
-          //            = (extent sign) == travel sign = (extentAlongAxis > 0) == increasing
+          // Each structure family has a different local mesh direction:
+          //   Chute: local -X    Pipe: local +Z    Cable: local -Z
+          // After rotation, determine if the mesh extends with or against the travel
+          // direction. When opposite, place the origin at the far end so the mesh
+          // covers the cells behind it.
           var placementOffset = placementIndex;
           if (cellSpan > 1)
           {
+            var structure = adapter.GetDraftPreviewStructure(structureCounter);
+            var rotation = structure.ThingTransformRotation;
             var axisUnit = zoopDirection == ZoopDirection.x ? Vector3.right
               : zoopDirection == ZoopDirection.y ? Vector3.up
               : Vector3.forward;
-            var rotatedExtent = adapter.GetDraftPreviewStructure(structureCounter).ThingTransformRotation * Vector3.right;
-            var extentAlongAxis = Vector3.Dot(rotatedExtent, axisUnit);
-            if ((extentAlongAxis > 0) == increasing)
+            var meshLocalDir = structure is Chute ? Vector3.left
+              : structure is Cable ? Vector3.back
+              : Vector3.forward;
+            var meshAlongTravel = Vector3.Dot(rotation * meshLocalDir, axisUnit);
+            if ((meshAlongTravel > 0) != increasing)
               placementOffset = placementIndex + cellSpan - 1;
           }
 
@@ -144,11 +149,15 @@ internal static class ZoopPreviewLayoutCoordinator
           // Diagnostic: log every long piece placement so we can verify positioning.
           if (cellSpan > 1)
           {
-            var rot = adapter.GetDraftPreviewStructure(structureCounter).ThingTransformRotation;
-            var extentWorld = rot * Vector3.right;
+            var diagStructure = adapter.GetDraftPreviewStructure(structureCounter);
+            var rot = diagStructure.ThingTransformRotation;
+            var meshLocal = diagStructure is Chute ? Vector3.left
+              : diagStructure is Cable ? Vector3.back
+              : Vector3.forward;
+            var meshWorld = rot * meshLocal;
             ZoopLog.Debug($"[LongPos] dir={zoopDirection} inc={increasing} span={cellSpan} " +
                           $"pIdx={placementIndex} pOff={placementOffset} val={value} pieceOff={pieceOffset} " +
-                          $"rot={rot.eulerAngles} extent={extentWorld}");
+                          $"type={diagStructure.GetType().Name} rot={rot.eulerAngles} meshWorld={meshWorld}");
           }
 
           lastDirection = zoopDirection;
@@ -159,6 +168,20 @@ internal static class ZoopPreviewLayoutCoordinator
           previewStructure.GameObject.SetActive(true);
           previewStructure.ThingTransformPosition = previewPosition;
           previewStructure.Position = previewPosition;
+
+          // Log world-space bounds of long pieces to determine pivot vs mesh layout.
+          if (cellSpan > 1)
+          {
+            var renderers = previewStructure.GameObject.GetComponentsInChildren<Renderer>(true);
+            if (renderers.Length > 0)
+            {
+              var combined = renderers[0].bounds;
+              for (var r = 1; r < renderers.Length; r++)
+                combined.Encapsulate(renderers[r].bounds);
+              ZoopLog.Debug($"[LongBounds] origin={previewPosition} boundsMin={combined.min} " +
+                            $"boundsMax={combined.max} boundsSize={combined.size}");
+            }
+          }
 
           // Track all cells this piece covers and check for overlaps/constructibility.
           hasError = hasError || HasSmallGridCellError(creativeFreedomEnabled, adapter, inventoryManager,
