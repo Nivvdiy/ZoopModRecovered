@@ -17,10 +17,12 @@ internal sealed class ZoopDraft
 
   public int PreviewCount => PreviewPieces.Count;
   public int TotalCellCost { get; set; }
+  public int TotalResourceCost { get; set; }
 
   public void ClearPreviewPieces()
   {
     PreviewPieces.Clear();
     TotalCellCost = 0;
+    TotalResourceCost = 0;
   }
 }

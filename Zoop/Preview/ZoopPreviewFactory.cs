@@ -43,10 +43,10 @@ internal static class ZoopPreviewFactory
       case Stackable constructor:
         var canMakeItem = activeItem switch
         {
-          Chute when buildIndex == 0 => constructor.Quantity > draft.TotalCellCost,
+          Chute when buildIndex == 0 => constructor.Quantity > draft.TotalResourceCost,
           Chute when buildIndex == 2 => constructor.Quantity >
                                         straightCount * 2 + (isCorner ? 0 : 1) + cornerCount,
-          _ => constructor.Quantity > draft.TotalCellCost
+          _ => constructor.Quantity > draft.TotalResourceCost
         };
 
         if (canMakeItem && canBuildNext)
@@ -238,7 +238,8 @@ internal static class ZoopPreviewFactory
     switch (activeHandItem)
     {
       case Stackable constructor:
-        if (constructor.Quantity > draft.TotalCellCost + cellSpan - 1 && canBuildNext)
+        var nextLongCost = GetEntryQuantity(activeItem);
+        if (constructor.Quantity > draft.TotalResourceCost + nextLongCost - 1 && canBuildNext)
         {
           MakeLongItem(draft, context.PreviewCache, constructables, longIndex, longBuildIndex, cellSpan,
             context.SupportsCornerVariant);
@@ -324,5 +325,16 @@ internal static class ZoopPreviewFactory
   {
     draft.PreviewPieces.Add(new PreviewPiece(structure, buildIndex, cellSpan));
     draft.TotalCellCost += cellSpan;
+    draft.TotalResourceCost += GetEntryQuantity(structure);
+  }
+
+  private static int GetEntryQuantity(Structure structure)
+  {
+    if (structure.BuildStates != null && structure.BuildStates.Count > 0)
+    {
+      return structure.BuildStates[0].Tool.EntryQuantity;
+    }
+
+    return 1;
   }
 }
