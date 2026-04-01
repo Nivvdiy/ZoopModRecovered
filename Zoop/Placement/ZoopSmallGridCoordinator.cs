@@ -156,11 +156,17 @@ internal sealed class ZoopSmallGridCoordinator(ZoopPreviewValidator previewValid
 
     await UniTask.SwitchToMainThread(); // Switch to main thread for Unity API calls
 
+    var constructables = inventoryManager.ConstructionPanel.Parent.Constructables;
     var supportsCornerVariant =
-      ZoopConstructableRules.SupportsCornerVariant(inventoryManager.ConstructionPanel.Parent.Constructables,
+      ZoopConstructableRules.SupportsCornerVariant(constructables,
         inventoryManager.ConstructionPanel.Parent.LastSelectedIndex);
+
+    // Pre-scan every cell along the path for existing structures. Occupied cells
+    // become separators so long variants never straddle an obstacle.
+    var occupiedCells = ScanOccupiedCells(draft, segments, spacing);
+
     BuildSmallStructureList(draft, previewCache, inventoryManager, segments, supportsCornerVariant,
-      barrierCells: null);
+      barrierCells: occupiedCells);
 
     if (draft.PreviewCount <= 0)
     {
@@ -168,8 +174,6 @@ internal sealed class ZoopSmallGridCoordinator(ZoopPreviewValidator previewValid
     }
 
     layoutAdapter.Draft = draft;
-    HashSet<(int seg, int dir)> blockedDirections = null;
-    Dictionary<(int seg, int dir), HashSet<int>> errorCells = null;
     draft.HasError = draft.HasError || ZoopPreviewLayoutCoordinator.PositionSmallGridStructures(
       layoutAdapter,
       inventoryManager,
@@ -177,34 +181,93 @@ internal sealed class ZoopSmallGridCoordinator(ZoopPreviewValidator previewValid
       supportsCornerVariant,
       spacing,
       isSinglePlacement,
-      out blockedDirections,
-      out errorCells);
+      out _,
+      out _);
+  }
 
-    // If any long piece is blocked (e.g. crossing an existing structure), rebuild
-    // with the blocked cells as barriers so long variants resume after the obstacle.
-    // Span-1 pieces can merge at these cells (T-junctions), but long pieces cannot,
-    // so we use the error cells from pass 1 directly as barriers.
-    if (blockedDirections is { Count: > 0 })
+  // Half-extent for the Physics overlap check. Small grid cells are 0.5 units apart;
+  // a tiny box at the cell center avoids false positives from adjacent structures.
+  private static readonly Vector3 CellProbeHalfExtent = Vector3.one * 0.05f;
+
+  /// <summary>
+  /// Walks every cell position along the planned path and uses a Physics overlap check to detect
+  /// existing small-grid structures. <c>CanConstruct</c> cannot be used here because it returns
+  /// true for cells with perpendicular pipes (T-junctions are valid placements for span-1 pieces).
+  /// Long pieces cannot merge, so any occupied cell must become a separator.
+  /// Preview structures have their colliders disabled and the construction cursor is deactivated,
+  /// so the overlap only finds actual world structures.
+  /// </summary>
+  private static Dictionary<(int seg, int dir), HashSet<int>> ScanOccupiedCells(
+    ZoopDraft draft,
+    List<ZoopSegment> segments,
+    int spacing)
+  {
+    var cursor = InventoryManager.ConstructionCursor;
+    if (cursor == null) return null;
+
+    Dictionary<(int seg, int dir), HashSet<int>> occupied = null;
+
+    for (var segmentIndex = 0; segmentIndex < segments.Count; segmentIndex++)
     {
-      draft.HasError = false;
+      var segment = segments[segmentIndex];
+      var startPos = draft.Waypoints[segmentIndex];
+      float xOffset = 0, yOffset = 0, zOffset = 0;
 
-      BuildSmallStructureList(draft, previewCache, inventoryManager, segments, supportsCornerVariant,
-        barrierCells: errorCells);
-
-      if (draft.PreviewCount > 0)
+      for (var directionIndex = 0; directionIndex < segment.Directions.Count; directionIndex++)
       {
-        layoutAdapter.Draft = draft;
-        draft.HasError = ZoopPreviewLayoutCoordinator.PositionSmallGridStructures(
-          layoutAdapter,
-          inventoryManager,
-          segments,
-          supportsCornerVariant,
-          spacing,
-          isSinglePlacement,
-          out _,
-          out _);
+        var zoopDirection = segment.Directions[directionIndex];
+        var increasing = ZoopPathPlanner.GetIncreasingForDirection(zoopDirection, segment);
+        var zoopCounter = ZoopPathPlanner.GetPlacementCount(
+          segments.Count, segmentIndex,
+          segment.Directions.Count, directionIndex,
+          ZoopPathPlanner.GetCountForDirection(zoopDirection, segment));
+        var value = ZoopPathPlanner.GetDirectionalPlacementValue(
+          increasing, cursor is SmallGrid, spacing);
+
+        for (var placementIndex = 0; placementIndex < zoopCounter; placementIndex++)
+        {
+          float cx = xOffset, cy = yOffset, cz = zOffset;
+          ZoopPathPlanner.SetDirectionalOffset(ref cx, ref cy, ref cz, zoopDirection,
+            placementIndex * value);
+          var cellPos = startPos + new Vector3(cx, cy, cz);
+
+          if (HasSmallGridStructureAt(cellPos))
+          {
+            occupied ??= new Dictionary<(int seg, int dir), HashSet<int>>();
+            var key = (segmentIndex, directionIndex);
+            if (!occupied.TryGetValue(key, out var cellSet))
+            {
+              cellSet = new HashSet<int>();
+              occupied[key] = cellSet;
+            }
+
+            cellSet.Add(placementIndex);
+          }
+        }
+
+        ZoopPathPlanner.SetDirectionalOffset(ref xOffset, ref yOffset, ref zOffset, zoopDirection,
+          zoopCounter * value);
       }
     }
+
+    return occupied;
+  }
+
+  /// <summary>
+  /// Returns true when any world <see cref="SmallGrid"/> collider overlaps the given cell position.
+  /// Uses a tiny Physics box so only structures actually at the cell are detected.
+  /// </summary>
+  private static bool HasSmallGridStructureAt(Vector3 position)
+  {
+    var colliders = Physics.OverlapBox(position, CellProbeHalfExtent, Quaternion.identity, ~0,
+      QueryTriggerInteraction.Ignore);
+    for (var i = 0; i < colliders.Length; i++)
+    {
+      if (colliders[i].GetComponentInParent<SmallGrid>() != null)
+        return true;
+    }
+
+    return false;
   }
 
   /// <summary>
