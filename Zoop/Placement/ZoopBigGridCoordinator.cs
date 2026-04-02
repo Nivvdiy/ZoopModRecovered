@@ -85,16 +85,16 @@ internal sealed class ZoopBigGridCoordinator(ZoopPreviewValidator previewValidat
 
   private static Vector3 ClampWallZoopPositionToStartPlane(ZoopDraft draft, Vector3 startPos, Vector3 targetPos)
   {
-    if (InventoryManager.ConstructionCursor is not Wall || draft.ZoopStartWallNormal == Vector3.zero)
+    if (InventoryManager.ConstructionCursor is not Wall || draft.Session.StartWallNormal == Vector3.zero)
     {
       return targetPos;
     }
 
-    if (Mathf.Abs(draft.ZoopStartWallNormal.x) > 0.99f)
+    if (Mathf.Abs(draft.Session.StartWallNormal.x) > 0.99f)
     {
       targetPos.x = startPos.x;
     }
-    else if (Mathf.Abs(draft.ZoopStartWallNormal.y) > 0.99f)
+    else if (Mathf.Abs(draft.Session.StartWallNormal.y) > 0.99f)
     {
       targetPos.y = startPos.y;
     }

@@ -16,7 +16,14 @@ internal interface ISmallGridPreviewLayoutAdapter
   ZoopDraft Draft { get; }
   Structure GetDraftPreviewStructure(int index);
   int GetDraftCellSpan(int index);
-  void ApplyRotation(SmallGridRotationStep step);
+  void ApplyRotation(
+    int structureCounter,
+    ZoopPathStep step,
+    int placementIndex,
+    ZoopDirection lastDirection,
+    bool increasingFrom,
+    bool isSinglePlacement,
+    bool supportsCornerVariant);
   bool CanConstructSmallCell(InventoryManager inventoryManager, Structure structure, int structureIndex);
   Vector3Int GetDraftCellKey(Vector3 position);
 }
@@ -26,20 +33,6 @@ internal interface IBigGridPreviewLayoutAdapter
   ZoopDraft Draft { get; }
   Structure GetDraftPreviewStructure(int index);
   bool CanConstructBigCell(InventoryManager inventoryManager, Structure structure, int structureIndex);
-}
-
-internal struct SmallGridRotationStep
-{
-  public int StructureCounter { get; set; }
-  public bool SupportsCornerVariant { get; set; }
-  public bool IsSinglePlacement { get; set; }
-  public int SegmentIndex { get; set; }
-  public int DirectionIndex { get; set; }
-  public int PlacementIndex { get; set; }
-  public ZoopDirection LastDirection { get; set; }
-  public ZoopDirection ZoopDirection { get; set; }
-  public bool IncreasingFrom { get; set; }
-  public bool IncreasingTo { get; set; }
 }
 
 /// <summary>
@@ -91,21 +84,8 @@ internal static class ZoopPreviewLayoutCoordinator
 
           // Apply rotation first so we can read the actual quaternion to determine
           // which direction the model's mesh extends in world space.
-          var increasingFrom = ZoopPathPlanner.GetIncreasingFromPreviousDirection(segments, step.Segment, step.SegmentIndex,
-            step.DirectionIndex, placementIndex, lastDirection);
-          adapter.ApplyRotation(new SmallGridRotationStep
-          {
-            StructureCounter = structureCounter,
-            SupportsCornerVariant = supportsCornerVariant,
-            IsSinglePlacement = isSinglePlacement,
-            SegmentIndex = step.SegmentIndex,
-            DirectionIndex = step.DirectionIndex,
-            PlacementIndex = placementIndex,
-            LastDirection = lastDirection,
-            ZoopDirection = step.Direction,
-            IncreasingFrom = increasingFrom,
-            IncreasingTo = increasing
-          });
+          // increasingFromPrevious is precomputed by the walker; no segment lookback needed here.
+          adapter.ApplyRotation(structureCounter, step, placementIndex, lastDirection, step.IncreasingFromPrevious, isSinglePlacement, supportsCornerVariant);
 
           // Each structure family has a different local mesh direction:
           //   Chute: local -X    Pipe: local +Z    Cable: local -Z

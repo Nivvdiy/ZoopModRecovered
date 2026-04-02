@@ -3,12 +3,16 @@ using Assets.Scripts.Objects;
 
 namespace ZoopMod.Zoop.Core;
 
+/// <summary>A pooled preview structure paired with the build-index it was instantiated for.</summary>
+internal readonly struct CachedStructure(Structure instance, int buildIndex)
+{
+  public Structure Instance { get; } = instance;
+  public int BuildIndex { get; } = buildIndex;
+}
+
 internal sealed class ZoopPreviewCache
 {
-  public readonly List<Structure> StraightCache = [];
-  public readonly List<int> StraightCacheBuildIndices = [];
-  public readonly List<Structure> CornerCache = [];
-  public readonly List<int> CornerCacheBuildIndices = [];
-  public readonly Dictionary<int, List<Structure>> LongCaches = new();
-  public readonly Dictionary<int, List<int>> LongCacheBuildIndices = new();
+  public readonly List<CachedStructure> StraightCache = [];
+  public readonly List<CachedStructure> CornerCache = [];
+  public readonly Dictionary<int, List<CachedStructure>> LongCaches = new();
 }

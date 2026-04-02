@@ -34,33 +34,40 @@ internal sealed class ZoopSmallGridCoordinator(ZoopPreviewValidator previewValid
       return Draft.PreviewPieces[index].CellSpan;
     }
 
-    public void ApplyRotation(SmallGridRotationStep step)
+    public void ApplyRotation(
+      int structureCounter,
+      ZoopPathStep step,
+      int placementIndex,
+      ZoopDirection lastDirection,
+      bool increasingFrom,
+      bool isSinglePlacement,
+      bool supportsCornerVariant)
     {
-      if (!step.SupportsCornerVariant)
+      if (!supportsCornerVariant)
       {
         return;
       }
 
       var isSegmentTurnStart =
-        (step.DirectionIndex > 0 || (step.SegmentIndex > 0 && step.DirectionIndex == 0)) && step.PlacementIndex == 0;
+        (step.DirectionIndex > 0 || (step.SegmentIndex > 0 && step.DirectionIndex == 0)) && placementIndex == 0;
       if (isSegmentTurnStart)
       {
-        if (step.LastDirection == step.ZoopDirection)
+        if (lastDirection == step.Direction)
         {
-          SetStraightRotation(GetAdapterPreviewStructure(step.StructureCounter), step.ZoopDirection);
+          SetStraightRotation(GetAdapterPreviewStructure(structureCounter), step.Direction);
         }
         else
         {
-          SetCornerRotation(GetAdapterPreviewStructure(step.StructureCounter), step.LastDirection, step.IncreasingFrom,
-            step.ZoopDirection, step.IncreasingTo);
+          SetCornerRotation(GetAdapterPreviewStructure(structureCounter), lastDirection, increasingFrom,
+            step.Direction, step.Axis.Increasing);
         }
 
         return;
       }
 
-      if (!step.IsSinglePlacement)
+      if (!isSinglePlacement)
       {
-        SetStraightRotation(GetAdapterPreviewStructure(step.StructureCounter), step.ZoopDirection);
+        SetStraightRotation(GetAdapterPreviewStructure(structureCounter), step.Direction);
       }
     }
 

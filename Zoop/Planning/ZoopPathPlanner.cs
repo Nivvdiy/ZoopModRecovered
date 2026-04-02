@@ -76,55 +76,62 @@ internal static class ZoopPathPlanner
     System.Action<ZoopPathStep> onDirection)
   {
     var totalSegmentCount = segments.Count;
+    ZoopDirection lastDirection = ZoopDirection.none;
+    bool lastIncreasing = false;
     for (var segmentIndex = 0; segmentIndex < totalSegmentCount; segmentIndex++)
     {
       var segment = segments[segmentIndex];
-      var totalDirectionCount = segment.DirectionCount;
+      var directionCount = segment.DirectionCount;
       var startPos = waypoints[segmentIndex];
       float xOffset = 0, yOffset = 0, zOffset = 0;
 
-      for (var directionIndex = 0; directionIndex < totalDirectionCount; directionIndex++)
+      for (var directionIndex = 0; directionIndex < directionCount; directionIndex++)
       {
         var direction = segment.GetDirection(directionIndex);
         var axis = segment.GetAxis(direction);
-        var zoopCounter = GetPlacementCount(totalSegmentCount, segmentIndex, totalDirectionCount, directionIndex, axis.Count);
+        var zoopCounter = GetPlacementCount(totalSegmentCount, segmentIndex, directionCount, directionIndex, axis.Count);
         var value = GetDirectionalPlacementValue(axis.Increasing, isSmallGrid, spacing);
 
         // Compute the next direction for lookahead (ZoopDirection.none when this is the global last).
         ZoopDirection nextDirection;
-        if (directionIndex + 1 < totalDirectionCount)
+        if (directionIndex + 1 < directionCount)
           nextDirection = segment.GetDirection(directionIndex + 1);
         else if (segmentIndex + 1 < totalSegmentCount)
           nextDirection = segments[segmentIndex + 1].GetDirection(0);
         else
           nextDirection = ZoopDirection.none;
 
+        // Precompute the increasing flag of the previous direction run for corner rotation.
+        // When crossing a segment boundary (directionIndex==0 on a non-first segment), read
+        // from the last direction of the previous segment.
+        bool increasingFromPrevious;
+        if (lastDirection == ZoopDirection.none)
+        {
+          increasingFromPrevious = false;
+        }
+        else if (directionIndex == 0 && segmentIndex > 0)
+        {
+          var prevSeg = segments[segmentIndex - 1];
+          increasingFromPrevious = prevSeg.GetAxis(prevSeg.LastDirection).Increasing;
+        }
+        else
+        {
+          increasingFromPrevious = lastIncreasing;
+        }
+
         onDirection(new ZoopPathStep(
           segmentIndex, directionIndex,
-          totalSegmentCount, totalDirectionCount,
+          totalSegmentCount, directionCount,
           direction, axis,
           zoopCounter, value,
           startPos, new Vector3(xOffset, yOffset, zOffset),
-          nextDirection, segment));
+          nextDirection, increasingFromPrevious));
 
+        lastDirection = direction;
+        lastIncreasing = axis.Increasing;
         SetDirectionalOffset(ref xOffset, ref yOffset, ref zOffset, direction, zoopCounter * value);
       }
     }
-  }
-
-  public static bool GetIncreasingFromPreviousDirection(IReadOnlyList<ZoopSegment> segments, ZoopSegment segment,
-    int segmentIndex,
-    int directionIndex, int placementIndex, ZoopDirection lastDirection)
-  {
-    var increasingFrom = lastDirection != ZoopDirection.none &&
-                         segment.GetAxis(lastDirection).Increasing;
-    if (segmentIndex <= 0 || directionIndex != 0 || placementIndex != 0)
-    {
-      return increasingFrom;
-    }
-
-    var lastSegment = segments[segmentIndex - 1];
-    return lastSegment.GetAxis(lastSegment.LastDirection).Increasing;
   }
 
   public static int GetPlacementCount(int segmentCount, int segmentIndex, int directionCount, int directionIndex,

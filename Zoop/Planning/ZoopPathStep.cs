@@ -9,12 +9,12 @@ namespace ZoopMod.Zoop.Planning;
 /// </summary>
 internal readonly struct ZoopPathStep(
   int segmentIndex, int directionIndex,
-  int totalSegmentCount, int totalDirectionCount,
+  int totalSegmentCount, int directionCount,
   ZoopDirection direction, ZoopAxisData axis,
   int zoopCounter, float value,
   Vector3 startPos, Vector3 baseOffset,
   ZoopDirection nextDirection,
-  ZoopSegment segment)
+  bool increasingFromPrevious)
 {
   /// <summary>Index of the current segment (waypoint pair) in the path.</summary>
   public int SegmentIndex { get; } = segmentIndex;
@@ -26,7 +26,7 @@ internal readonly struct ZoopPathStep(
   public int TotalSegmentCount { get; } = totalSegmentCount;
 
   /// <summary>Total number of directions in the current segment.</summary>
-  public int TotalDirectionCount { get; } = totalDirectionCount;
+  public int DirectionCount { get; } = directionCount;
 
   /// <summary>World axis being traversed in this run.</summary>
   public ZoopDirection Direction { get; } = direction;
@@ -57,16 +57,17 @@ internal readonly struct ZoopPathStep(
   public ZoopDirection NextDirection { get; } = nextDirection;
 
   /// <summary>
-  /// The current <see cref="ZoopSegment"/>. Needed by
-  /// <see cref="ZoopPathPlanner.GetIncreasingFromPreviousDirection"/> when computing corner rotation.
+  /// The <c>increasing</c> flag of the previous direction run (i.e. the direction the zoop was
+  /// travelling before it arrived at this run). Used for corner rotation. Precomputed by the
+  /// walker so callers never need to look up the previous segment themselves.
   /// </summary>
-  public ZoopSegment Segment { get; } = segment;
+  public bool IncreasingFromPrevious { get; } = increasingFromPrevious;
 
   /// <summary>Returns true if this is the very first direction-run in the entire path.</summary>
   public bool IsGlobalFirst => SegmentIndex == 0 && DirectionIndex == 0;
 
   /// <summary>Returns true if this is the very last direction-run in the entire path.</summary>
-  public bool IsGlobalLast => SegmentIndex == TotalSegmentCount - 1 && DirectionIndex == TotalDirectionCount - 1;
+  public bool IsGlobalLast => SegmentIndex == TotalSegmentCount - 1 && DirectionIndex == DirectionCount - 1;
 
   /// <summary>Returns true if this is the first direction of a non-first waypoint segment.</summary>
   public bool IsWaypointStart => SegmentIndex > 0 && DirectionIndex == 0;
