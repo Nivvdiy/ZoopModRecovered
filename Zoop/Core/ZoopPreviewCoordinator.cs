@@ -122,10 +122,7 @@ internal sealed class ZoopPreviewCoordinator(ZoopPreviewValidator previewValidat
   private IEnumerator PreviewLoop(ZoopDraft draft, ZoopPreviewCache previewCache, InventoryManager inventoryManager)
   {
     var segments = new List<ZoopSegment>();
-    if (InventoryManager.ConstructionCursor != null)
-    {
-      InventoryManager.ConstructionCursor.gameObject.SetActive(false);
-    }
+    InventoryManager.ConstructionCursor?.gameObject.SetActive(false);
 
     while (ReferenceEquals(activeDraft, draft) &&
            ReferenceEquals(activePreviewCache, previewCache))

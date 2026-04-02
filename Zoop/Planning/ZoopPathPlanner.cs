@@ -29,9 +29,8 @@ internal static class ZoopPathPlanner
       isSinglePlacement = ZoopPositionUtility.IsSameZoopPosition(startPos, endPos);
       if (isSinglePlacement)
       {
-        segment.CountX = 1 + (int)(Math.Abs(startPos.x - endPos.x) * 2);
-        segment.IncreasingX = startPos.x < endPos.x;
-        segment.Directions.Add(ZoopDirection.x);
+        segment.X = new ZoopAxisData(1 + (int)(Math.Abs(startPos.x - endPos.x) * 2), startPos.x < endPos.x);
+        segment.AddDirection(ZoopDirection.x);
       }
 
       segments.Add(segment);
@@ -69,36 +68,14 @@ internal static class ZoopPathPlanner
     int directionIndex, int placementIndex, ZoopDirection lastDirection)
   {
     var increasingFrom = lastDirection != ZoopDirection.none &&
-                         GetIncreasingForDirection(lastDirection, segment);
+                         segment.GetAxis(lastDirection).Increasing;
     if (segmentIndex <= 0 || directionIndex != 0 || placementIndex != 0)
     {
       return increasingFrom;
     }
 
     var lastSegment = segments[segmentIndex - 1];
-    return GetIncreasingForDirection(lastSegment.Directions[lastSegment.Directions.Count - 1], lastSegment);
-  }
-
-  public static int GetCountForDirection(ZoopDirection direction, ZoopSegment segment)
-  {
-    return direction switch
-    {
-      ZoopDirection.x => segment.CountX,
-      ZoopDirection.y => segment.CountY,
-      ZoopDirection.z => segment.CountZ,
-      _ => throw new ArgumentOutOfRangeException(nameof(direction), direction, null)
-    };
-  }
-
-  public static bool GetIncreasingForDirection(ZoopDirection direction, ZoopSegment segment)
-  {
-    return direction switch
-    {
-      ZoopDirection.x => segment.IncreasingX,
-      ZoopDirection.y => segment.IncreasingY,
-      ZoopDirection.z => segment.IncreasingZ,
-      _ => throw new ArgumentOutOfRangeException(nameof(direction), direction, null)
-    };
+    return lastSegment.GetAxis(lastSegment.LastDirection).Increasing;
   }
 
   public static int GetPlacementCount(int segmentCount, int segmentIndex, int directionCount, int directionIndex,
@@ -135,7 +112,7 @@ internal static class ZoopPathPlanner
 
   private static void CalculateZoopSegments(Vector3 startPos, Vector3 endPos, ZoopSegment segment)
   {
-    segment.Directions.Clear();
+    segment.ClearDirections();
 
     var startX = startPos.x;
     var startY = startPos.y;
@@ -150,23 +127,20 @@ internal static class ZoopPathPlanner
 
     if (absX > float.Epsilon)
     {
-      segment.CountX = 1 + (int)(Math.Abs(startX - endX) * 2);
-      segment.IncreasingX = startX < endX;
-      segment.Directions.Add(ZoopDirection.x);
+      segment.X = new ZoopAxisData(1 + (int)(Math.Abs(startX - endX) * 2), startX < endX);
+      segment.AddDirection(ZoopDirection.x);
     }
 
     if (absY > float.Epsilon)
     {
-      segment.CountY = 1 + (int)(Math.Abs(startY - endY) * 2);
-      segment.IncreasingY = startY < endY;
-      segment.Directions.Add(ZoopDirection.y);
+      segment.Y = new ZoopAxisData(1 + (int)(Math.Abs(startY - endY) * 2), startY < endY);
+      segment.AddDirection(ZoopDirection.y);
     }
 
     if (absZ > float.Epsilon)
     {
-      segment.CountZ = 1 + (int)(Math.Abs(startZ - endZ) * 2);
-      segment.IncreasingZ = startZ < endZ;
-      segment.Directions.Add(ZoopDirection.z);
+      segment.Z = new ZoopAxisData(1 + (int)(Math.Abs(startZ - endZ) * 2), startZ < endZ);
+      segment.AddDirection(ZoopDirection.z);
     }
   }
 

@@ -213,16 +213,16 @@ internal sealed class ZoopSmallGridCoordinator(ZoopPreviewValidator previewValid
       var startPos = draft.Waypoints[segmentIndex];
       float xOffset = 0, yOffset = 0, zOffset = 0;
 
-      for (var directionIndex = 0; directionIndex < segment.Directions.Count; directionIndex++)
+      for (var directionIndex = 0; directionIndex < segment.DirectionCount; directionIndex++)
       {
-        var zoopDirection = segment.Directions[directionIndex];
-        var increasing = ZoopPathPlanner.GetIncreasingForDirection(zoopDirection, segment);
+        var zoopDirection = segment.GetDirection(directionIndex);
+        var axis = segment.GetAxis(zoopDirection);
         var zoopCounter = ZoopPathPlanner.GetPlacementCount(
           segments.Count, segmentIndex,
-          segment.Directions.Count, directionIndex,
-          ZoopPathPlanner.GetCountForDirection(zoopDirection, segment));
+          segment.DirectionCount, directionIndex,
+          axis.Count);
         var value = ZoopPathPlanner.GetDirectionalPlacementValue(
-          increasing, cursor is SmallGrid, spacing);
+          axis.Increasing, cursor is SmallGrid, spacing);
 
         for (var placementIndex = 0; placementIndex < zoopCounter; placementIndex++)
         {
@@ -302,14 +302,12 @@ internal sealed class ZoopSmallGridCoordinator(ZoopPreviewValidator previewValid
     for (var segmentIndex = 0; segmentIndex < totalSegmentCount; segmentIndex++)
     {
       var segment = segments[segmentIndex];
-      var totalDirectionCount = segment.Directions.Count;
+      var totalDirectionCount = segment.DirectionCount;
       for (var directionIndex = 0; directionIndex < totalDirectionCount; directionIndex++)
       {
-        var zoopDirection = segment.Directions[directionIndex];
-        var zoopCounter = ZoopPathPlanner.GetCountForDirection(zoopDirection, segment);
-
-        zoopCounter = ZoopPathPlanner.GetPlacementCount(totalSegmentCount, segmentIndex, totalDirectionCount,
-          directionIndex, zoopCounter);
+        var zoopDirection = segment.GetDirection(directionIndex);
+        var zoopCounter = ZoopPathPlanner.GetPlacementCount(totalSegmentCount, segmentIndex, totalDirectionCount,
+          directionIndex, segment.GetAxis(zoopDirection).Count);
 
         // Determine if the first placement in this direction is a corner turn.
         var willHaveCorner = supportsCornerVariant &&
@@ -338,9 +336,9 @@ internal sealed class ZoopSmallGridCoordinator(ZoopPreviewValidator previewValid
           {
             ZoopDirection nextDir;
             if (directionIndex + 1 < totalDirectionCount)
-              nextDir = segment.Directions[directionIndex + 1];
+              nextDir = segment.GetDirection(directionIndex + 1);
             else if (segmentIndex + 1 < totalSegmentCount)
-              nextDir = segments[segmentIndex + 1].Directions[0];
+              nextDir = segments[segmentIndex + 1].GetDirection(0);
             else
               nextDir = zoopDirection;
             nextWillCorner = nextDir != zoopDirection;

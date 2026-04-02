@@ -83,17 +83,18 @@ internal static class ZoopPreviewLayoutCoordinator
       float yOffset = 0;
       float zOffset = 0;
       var startPos = draft.Waypoints[segmentIndex];
-      for (var directionIndex = 0; directionIndex < segment.Directions.Count; directionIndex++)
+      for (var directionIndex = 0; directionIndex < segment.DirectionCount; directionIndex++)
       {
         if (structureCounter == draft.PreviewCount)
         {
           break;
         }
 
-        var zoopDirection = segment.Directions[directionIndex];
-        var increasing = ZoopPathPlanner.GetIncreasingForDirection(zoopDirection, segment);
-        var zoopCounter = ZoopPathPlanner.GetPlacementCount(segments.Count, segmentIndex, segment.Directions.Count,
-          directionIndex, ZoopPathPlanner.GetCountForDirection(zoopDirection, segment));
+        var zoopDirection = segment.GetDirection(directionIndex);
+        var axis = segment.GetAxis(zoopDirection);
+        var increasing = axis.Increasing;
+        var zoopCounter = ZoopPathPlanner.GetPlacementCount(segments.Count, segmentIndex, segment.DirectionCount,
+          directionIndex, axis.Count);
         var value = ZoopPathPlanner.GetDirectionalPlacementValue(increasing,
           InventoryManager.ConstructionCursor is SmallGrid, spacing);
 
