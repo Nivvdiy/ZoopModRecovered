@@ -63,7 +63,56 @@ internal static class ZoopPathPlanner
     return increasing ? minValue * safeSpacing : -(minValue * safeSpacing);
   }
 
-  public static bool GetIncreasingFromPreviousDirection(List<ZoopSegment> segments, ZoopSegment segment,
+  /// <summary>
+  /// Walks every direction-run in the planned path and invokes <paramref name="onDirection"/> once per run,
+  /// passing a <see cref="ZoopPathStep"/> that contains all traversal context. The walker owns
+  /// the segment/direction offsets; callers read them from <see cref="ZoopPathStep.BaseOffset"/>.
+  /// </summary>
+  public static void WalkSmallGridPath(
+    IReadOnlyList<Vector3> waypoints,
+    IReadOnlyList<ZoopSegment> segments,
+    bool isSmallGrid,
+    int spacing,
+    System.Action<ZoopPathStep> onDirection)
+  {
+    var totalSegmentCount = segments.Count;
+    for (var segmentIndex = 0; segmentIndex < totalSegmentCount; segmentIndex++)
+    {
+      var segment = segments[segmentIndex];
+      var totalDirectionCount = segment.DirectionCount;
+      var startPos = waypoints[segmentIndex];
+      float xOffset = 0, yOffset = 0, zOffset = 0;
+
+      for (var directionIndex = 0; directionIndex < totalDirectionCount; directionIndex++)
+      {
+        var direction = segment.GetDirection(directionIndex);
+        var axis = segment.GetAxis(direction);
+        var zoopCounter = GetPlacementCount(totalSegmentCount, segmentIndex, totalDirectionCount, directionIndex, axis.Count);
+        var value = GetDirectionalPlacementValue(axis.Increasing, isSmallGrid, spacing);
+
+        // Compute the next direction for lookahead (ZoopDirection.none when this is the global last).
+        ZoopDirection nextDirection;
+        if (directionIndex + 1 < totalDirectionCount)
+          nextDirection = segment.GetDirection(directionIndex + 1);
+        else if (segmentIndex + 1 < totalSegmentCount)
+          nextDirection = segments[segmentIndex + 1].GetDirection(0);
+        else
+          nextDirection = ZoopDirection.none;
+
+        onDirection(new ZoopPathStep(
+          segmentIndex, directionIndex,
+          totalSegmentCount, totalDirectionCount,
+          direction, axis,
+          zoopCounter, value,
+          startPos, new Vector3(xOffset, yOffset, zOffset),
+          nextDirection, segment));
+
+        SetDirectionalOffset(ref xOffset, ref yOffset, ref zOffset, direction, zoopCounter * value);
+      }
+    }
+  }
+
+  public static bool GetIncreasingFromPreviousDirection(IReadOnlyList<ZoopSegment> segments, ZoopSegment segment,
     int segmentIndex,
     int directionIndex, int placementIndex, ZoopDirection lastDirection)
   {

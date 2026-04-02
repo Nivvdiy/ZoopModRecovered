@@ -202,53 +202,29 @@ internal sealed class ZoopSmallGridCoordinator(ZoopPreviewValidator previewValid
     List<ZoopSegment> segments,
     int spacing)
   {
-    var cursor = InventoryManager.ConstructionCursor;
-    if (cursor == null) return null;
+    if (InventoryManager.ConstructionCursor == null) return null;
 
+    var isSmallGrid = InventoryManager.ConstructionCursor is SmallGrid;
     Dictionary<(int seg, int dir), HashSet<int>> occupied = null;
 
-    for (var segmentIndex = 0; segmentIndex < segments.Count; segmentIndex++)
+    ZoopPathPlanner.WalkSmallGridPath(draft.Waypoints, segments, isSmallGrid, spacing, step =>
     {
-      var segment = segments[segmentIndex];
-      var startPos = draft.Waypoints[segmentIndex];
-      float xOffset = 0, yOffset = 0, zOffset = 0;
-
-      for (var directionIndex = 0; directionIndex < segment.DirectionCount; directionIndex++)
+      for (var cellIndex = 0; cellIndex < step.ZoopCounter; cellIndex++)
       {
-        var zoopDirection = segment.GetDirection(directionIndex);
-        var axis = segment.GetAxis(zoopDirection);
-        var zoopCounter = ZoopPathPlanner.GetPlacementCount(
-          segments.Count, segmentIndex,
-          segment.DirectionCount, directionIndex,
-          axis.Count);
-        var value = ZoopPathPlanner.GetDirectionalPlacementValue(
-          axis.Increasing, cursor is SmallGrid, spacing);
+        if (!HasSmallGridStructureAt(step.GetCellPosition(cellIndex)))
+          continue;
 
-        for (var placementIndex = 0; placementIndex < zoopCounter; placementIndex++)
+        occupied ??= new Dictionary<(int seg, int dir), HashSet<int>>();
+        var key = (step.SegmentIndex, step.DirectionIndex);
+        if (!occupied.TryGetValue(key, out var cellSet))
         {
-          float cx = xOffset, cy = yOffset, cz = zOffset;
-          ZoopPathPlanner.SetDirectionalOffset(ref cx, ref cy, ref cz, zoopDirection,
-            placementIndex * value);
-          var cellPos = startPos + new Vector3(cx, cy, cz);
-
-          if (HasSmallGridStructureAt(cellPos))
-          {
-            occupied ??= new Dictionary<(int seg, int dir), HashSet<int>>();
-            var key = (segmentIndex, directionIndex);
-            if (!occupied.TryGetValue(key, out var cellSet))
-            {
-              cellSet = new HashSet<int>();
-              occupied[key] = cellSet;
-            }
-
-            cellSet.Add(placementIndex);
-          }
+          cellSet = new HashSet<int>();
+          occupied[key] = cellSet;
         }
 
-        ZoopPathPlanner.SetDirectionalOffset(ref xOffset, ref yOffset, ref zOffset, zoopDirection,
-          zoopCounter * value);
+        cellSet.Add(cellIndex);
       }
-    }
+    });
 
     return occupied;
   }
@@ -298,16 +274,10 @@ internal sealed class ZoopSmallGridCoordinator(ZoopPreviewValidator previewValid
     var corners = 0;
     var lastDirection = ZoopDirection.none;
     var canBuildNext = true;
-    var totalSegmentCount = segments.Count;
-    for (var segmentIndex = 0; segmentIndex < totalSegmentCount; segmentIndex++)
+    ZoopPathPlanner.WalkSmallGridPath(draft.Waypoints, segments, isSmallGrid: false, spacing: 1, step =>
     {
-      var segment = segments[segmentIndex];
-      var totalDirectionCount = segment.DirectionCount;
-      for (var directionIndex = 0; directionIndex < totalDirectionCount; directionIndex++)
-      {
-        var zoopDirection = segment.GetDirection(directionIndex);
-        var zoopCounter = ZoopPathPlanner.GetPlacementCount(totalSegmentCount, segmentIndex, totalDirectionCount,
-          directionIndex, segment.GetAxis(zoopDirection).Count);
+      var zoopDirection = step.Direction;
+      var zoopCounter = step.ZoopCounter;
 
         // Determine if the first placement in this direction is a corner turn.
         var willHaveCorner = supportsCornerVariant &&
@@ -326,23 +296,16 @@ internal sealed class ZoopSmallGridCoordinator(ZoopPreviewValidator previewValid
 
         if (straightInDir > 0 && hasLongVariants)
         {
-          var isGlobalFirst = segmentIndex == 0 && directionIndex == 0 && !willHaveCorner;
-          var isGlobalLast = segmentIndex == totalSegmentCount - 1 && directionIndex == totalDirectionCount - 1;
-          var isWaypointStart = segmentIndex > 0 && directionIndex == 0 && !willHaveCorner;
+          var isGlobalFirst = step.IsGlobalFirst && !willHaveCorner;
+          var isGlobalLast = step.IsGlobalLast;
+          var isWaypointStart = step.IsWaypointStart && !willHaveCorner;
 
           // Detect whether the next direction will be a corner turn.
-          var nextWillCorner = false;
-          if (supportsCornerVariant && !isGlobalLast)
-          {
-            ZoopDirection nextDir;
-            if (directionIndex + 1 < totalDirectionCount)
-              nextDir = segment.GetDirection(directionIndex + 1);
-            else if (segmentIndex + 1 < totalSegmentCount)
-              nextDir = segments[segmentIndex + 1].GetDirection(0);
-            else
-              nextDir = zoopDirection;
-            nextWillCorner = nextDir != zoopDirection;
-          }
+          // step.NextDirection is ZoopDirection.none when this is the global last, so no separate
+          // !isGlobalLast guard is needed.
+          var nextWillCorner = supportsCornerVariant &&
+                               step.NextDirection != ZoopDirection.none &&
+                               step.NextDirection != zoopDirection;
 
           // Build a unified separator set. Separators are always span-1 pieces that
           // act as section boundaries: start, end, corners, waypoints, and barriers.
@@ -354,7 +317,7 @@ internal sealed class ZoopSmallGridCoordinator(ZoopPreviewValidator previewValid
             separators.Add(straightInDir - 1);
 
           // Barrier cells from pass 1 (merge points with existing structures).
-          var dirKey = (segmentIndex, directionIndex);
+          var dirKey = (step.SegmentIndex, step.DirectionIndex);
           if (barrierCells != null && barrierCells.TryGetValue(dirKey, out var cellSet))
           {
             var cornerOffset = willHaveCorner ? 1 : 0;
@@ -369,7 +332,7 @@ internal sealed class ZoopSmallGridCoordinator(ZoopPreviewValidator previewValid
           {
             var sepStr = string.Join(",", separators);
             var planStr = string.Join(",", runPlan);
-            ZoopLog.Debug($"[Sections] seg={segmentIndex} dir={directionIndex} straightInDir={straightInDir} " +
+            ZoopLog.Debug($"[Sections] seg={step.SegmentIndex} dir={step.DirectionIndex} straightInDir={straightInDir} " +
                           $"separators=[{sepStr}] plan=[{planStr}]");
           }
 
@@ -456,7 +419,6 @@ internal sealed class ZoopSmallGridCoordinator(ZoopPreviewValidator previewValid
             lastDirection = zoopDirection;
           }
         }
-      }
-    }
+    });
   }
 }

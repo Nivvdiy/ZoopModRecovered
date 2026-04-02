@@ -72,55 +72,37 @@ internal static class ZoopPreviewLayoutCoordinator
     var lastDirection = ZoopDirection.none;
     OccupiedCells.Clear();
     var hasError = false;
-    blockedDirections = null;
-    errorCells = null;
+    // out params cannot be captured by lambdas; use locals and assign after the walk.
+    HashSet<(int seg, int dir)> localBlockedDirections = null;
+    Dictionary<(int seg, int dir), HashSet<int>> localErrorCells = null;
     var creativeFreedomEnabled = ZoopIntegrations.CreativeFreedomAvailable;
 
-    for (var segmentIndex = 0; segmentIndex < segments.Count; segmentIndex++)
+    ZoopPathPlanner.WalkSmallGridPath(draft.Waypoints, segments, InventoryManager.ConstructionCursor is SmallGrid, spacing, step =>
     {
-      var segment = segments[segmentIndex];
-      float xOffset = 0;
-      float yOffset = 0;
-      float zOffset = 0;
-      var startPos = draft.Waypoints[segmentIndex];
-      for (var directionIndex = 0; directionIndex < segment.DirectionCount; directionIndex++)
+      if (structureCounter == draft.PreviewCount) return;
+
+      var increasing = step.Axis.Increasing;
+
+      for (var placementIndex = 0; placementIndex < step.ZoopCounter;)
       {
-        if (structureCounter == draft.PreviewCount)
-        {
-          break;
-        }
-
-        var zoopDirection = segment.GetDirection(directionIndex);
-        var axis = segment.GetAxis(zoopDirection);
-        var increasing = axis.Increasing;
-        var zoopCounter = ZoopPathPlanner.GetPlacementCount(segments.Count, segmentIndex, segment.DirectionCount,
-          directionIndex, axis.Count);
-        var value = ZoopPathPlanner.GetDirectionalPlacementValue(increasing,
-          InventoryManager.ConstructionCursor is SmallGrid, spacing);
-
-        for (var placementIndex = 0; placementIndex < zoopCounter;)
-        {
-          if (structureCounter == draft.PreviewCount)
-          {
-            break;
-          }
+        if (structureCounter == draft.PreviewCount) break;
 
           var cellSpan = adapter.GetDraftCellSpan(structureCounter);
 
           // Apply rotation first so we can read the actual quaternion to determine
           // which direction the model's mesh extends in world space.
-          var increasingFrom = ZoopPathPlanner.GetIncreasingFromPreviousDirection(segments, segment, segmentIndex,
-            directionIndex, placementIndex, lastDirection);
+          var increasingFrom = ZoopPathPlanner.GetIncreasingFromPreviousDirection(segments, step.Segment, step.SegmentIndex,
+            step.DirectionIndex, placementIndex, lastDirection);
           adapter.ApplyRotation(new SmallGridRotationStep
           {
             StructureCounter = structureCounter,
             SupportsCornerVariant = supportsCornerVariant,
             IsSinglePlacement = isSinglePlacement,
-            SegmentIndex = segmentIndex,
-            DirectionIndex = directionIndex,
+            SegmentIndex = step.SegmentIndex,
+            DirectionIndex = step.DirectionIndex,
             PlacementIndex = placementIndex,
             LastDirection = lastDirection,
-            ZoopDirection = zoopDirection,
+            ZoopDirection = step.Direction,
             IncreasingFrom = increasingFrom,
             IncreasingTo = increasing
           });
@@ -135,8 +117,8 @@ internal static class ZoopPreviewLayoutCoordinator
           {
             var structure = adapter.GetDraftPreviewStructure(structureCounter);
             var rotation = structure.ThingTransformRotation;
-            var axisUnit = zoopDirection == ZoopDirection.x ? Vector3.right
-              : zoopDirection == ZoopDirection.y ? Vector3.up
+            var axisUnit = step.Direction == ZoopDirection.x ? Vector3.right
+              : step.Direction == ZoopDirection.y ? Vector3.up
               : Vector3.forward;
             var meshLocalDir = structure is Chute ? Vector3.left
               : structure is Cable ? Vector3.back
@@ -146,15 +128,16 @@ internal static class ZoopPreviewLayoutCoordinator
               placementOffset = placementIndex + cellSpan - 1;
           }
 
-          var pieceOffset = placementOffset * value;
+          var pieceOffset = placementOffset * step.Value;
 
-          ZoopPathPlanner.SetDirectionalOffset(ref xOffset, ref yOffset, ref zOffset, zoopDirection,
+          float xOffset = step.BaseOffset.x, yOffset = step.BaseOffset.y, zOffset = step.BaseOffset.z;
+          ZoopPathPlanner.SetDirectionalOffset(ref xOffset, ref yOffset, ref zOffset, step.Direction,
             pieceOffset);
 
-          lastDirection = zoopDirection;
+          lastDirection = step.Direction;
 
           var offset = new Vector3(xOffset, yOffset, zOffset);
-          var previewPosition = startPos + offset;
+          var previewPosition = step.StartPos + offset;
           var previewStructure = adapter.GetDraftPreviewStructure(structureCounter);
           previewStructure.GameObject.SetActive(true);
           previewStructure.ThingTransformPosition = previewPosition;
@@ -162,39 +145,37 @@ internal static class ZoopPreviewLayoutCoordinator
 
           // Track all cells this piece covers and check for overlaps/constructibility.
           var cellError = HasSmallGridCellError(creativeFreedomEnabled, adapter, inventoryManager,
-            OccupiedCells, startPos, xOffset, yOffset, zOffset, zoopDirection, value, placementIndex,
+            OccupiedCells, step.StartPos, xOffset, yOffset, zOffset, step.Direction, step.Value, placementIndex,
             cellSpan, previewStructure, structureCounter);
           hasError = hasError || cellError;
           if (cellError)
           {
             if (cellSpan > 1)
             {
-              blockedDirections ??= new HashSet<(int seg, int dir)>();
-              blockedDirections.Add((segmentIndex, directionIndex));
+              localBlockedDirections ??= new HashSet<(int seg, int dir)>();
+              localBlockedDirections.Add((step.SegmentIndex, step.DirectionIndex));
             }
 
             // Record every error cell so the rebuild pass can place barriers precisely.
-            var key = (segmentIndex, directionIndex);
-            errorCells ??= new Dictionary<(int seg, int dir), HashSet<int>>();
-            if (!errorCells.TryGetValue(key, out var cellSet))
+            var key = (step.SegmentIndex, step.DirectionIndex);
+            localErrorCells ??= new Dictionary<(int seg, int dir), HashSet<int>>();
+            if (!localErrorCells.TryGetValue(key, out var cellSet))
             {
               cellSet = new HashSet<int>();
-              errorCells[key] = cellSet;
+              localErrorCells[key] = cellSet;
             }
             for (var ec = 0; ec < cellSpan; ec++)
               cellSet.Add(placementIndex + ec);
-            ZoopLog.Debug($"[CellError] seg={segmentIndex} dir={directionIndex} pIdx={placementIndex} span={cellSpan}");
+            ZoopLog.Debug($"[CellError] seg={step.SegmentIndex} dir={step.DirectionIndex} pIdx={placementIndex} span={cellSpan}");
           }
 
           structureCounter++;
           placementIndex += cellSpan;
-        }
-
-        // Advance the offset past the last piece so the next direction starts at the correct position.
-        ZoopPathPlanner.SetDirectionalOffset(ref xOffset, ref yOffset, ref zOffset, zoopDirection, zoopCounter * value);
       }
-    }
+    });
 
+    blockedDirections = localBlockedDirections;
+    errorCells = localErrorCells;
     return hasError;
   }
 
