@@ -52,13 +52,10 @@ internal readonly struct ZoopPathStep(
     var y = BaseOffset.y;
     var z = BaseOffset.z;
 
-    var dirBase = segment.Direction switch
-    {
-      ZoopDirection.x => x,
-      ZoopDirection.y => y,
-      _ => z
-    };
-    ZoopPathPlanner.SetDirectionalOffset(ref x, ref y, ref z, segment.Direction, dirBase + placementIndex * CellStride);
+    var basedir = ZoopPathPlanner.GetDirectionalComponent(BaseOffset, segment.Direction);
+
+    ZoopPathPlanner.SetDirectionalOffset(ref x, ref y, ref z, segment.Direction,
+      basedir + placementIndex * CellStride);
     return segment.StartPos + new Vector3(x, y, z);
   }
 }

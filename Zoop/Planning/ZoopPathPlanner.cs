@@ -53,8 +53,7 @@ internal static class ZoopPathPlanner
     Action<ZoopPathStep> onSegment)
   {
     var totalCount = segments.Count;
-    var lastDirection = ZoopDirection.none;
-    var lastIncreasing = false;
+    var increasingFromPrevious = false;
     float xOffset = 0, yOffset = 0, zOffset = 0;
 
     for (var i = 0; i < totalCount; i++)
@@ -69,27 +68,28 @@ internal static class ZoopPathPlanner
 
       var zoopCounter = GetPlacementCount(i, totalCount, segment.Count);
       var cellStride = segment.Increasing ? SmallGridCellSpacing : -SmallGridCellSpacing;
-      var increasingFromPrevious = lastDirection != ZoopDirection.none && lastIncreasing;
 
       onSegment(new ZoopPathStep(i, segment, new Vector3(xOffset, yOffset, zOffset),
         zoopCounter, cellStride, increasingFromPrevious));
 
-      lastDirection = segment.Direction;
-      lastIncreasing = segment.Increasing;
-      var dirOffset =
-        segment.Direction switch
-        {
-          ZoopDirection.x => xOffset,
-          ZoopDirection.y => yOffset,
-          _ => zOffset
-        };
+      increasingFromPrevious = segment.Increasing;
 
-      SetDirectionalOffset(ref xOffset, ref yOffset, ref zOffset, segment.Direction, dirOffset + zoopCounter * cellStride);
+      var basedir = GetDirectionalComponent(new Vector3(xOffset, yOffset, zOffset), segment.Direction);
+      SetDirectionalOffset(ref xOffset, ref yOffset, ref zOffset, segment.Direction,
+        basedir + zoopCounter * cellStride);
     }
   }
 
   public static int GetPlacementCount(int segmentIndex, int totalSegmentCount, int zoopCount) =>
     segmentIndex < totalSegmentCount - 1 ? zoopCount - 1 : zoopCount;
+
+  public static float GetDirectionalComponent(Vector3 v, ZoopDirection direction) =>
+    direction switch
+    {
+      ZoopDirection.x => v.x,
+      ZoopDirection.y => v.y,
+      _ => v.z
+    };
 
   public static void SetDirectionalOffset(ref float xOffset, ref float yOffset, ref float zOffset,
     ZoopDirection direction,
@@ -113,16 +113,9 @@ internal static class ZoopPathPlanner
 
   private static void CalculateZoopPlane(Vector3 startPos, Vector3 endPos, ZoopPlane plane)
   {
-    var startX = startPos.x;
-    var startY = startPos.y;
-    var startZ = startPos.z;
-    var endX = endPos.x;
-    var endY = endPos.y;
-    var endZ = endPos.z;
-
-    var absX = Math.Abs(endX - startX) / 2;
-    var absY = Math.Abs(endY - startY) / 2;
-    var absZ = Math.Abs(endZ - startZ) / 2;
+    var absX = Math.Abs(endPos.x - startPos.x) / 2;
+    var absY = Math.Abs(endPos.y - startPos.y) / 2;
+    var absZ = Math.Abs(endPos.z - startPos.z) / 2;
 
     // Pick the two largest axes without allocating a list — only three candidates exist so
     // two comparisons are sufficient to identify the top-2 in descending order.
@@ -133,40 +126,40 @@ internal static class ZoopPathPlanner
     if (absX >= absY && absX >= absZ)
     {
       // X is largest
-      dir1 = ZoopDirection.x; cnt1 = 1 + (int)(Math.Abs(startX - endX) / 2); inc1 = startX < endX;
+      dir1 = ZoopDirection.x; cnt1 = 1 + (int)(Math.Abs(startPos.x - endPos.x) / 2); inc1 = startPos.x < endPos.x;
       if (absY >= absZ)
       {
-        dir2 = ZoopDirection.y; cnt2 = 1 + (int)(Math.Abs(startY - endY) / 2); inc2 = startY < endY;
+        dir2 = ZoopDirection.y; cnt2 = 1 + (int)(Math.Abs(startPos.y - endPos.y) / 2); inc2 = startPos.y < endPos.y;
       }
       else
       {
-        dir2 = ZoopDirection.z; cnt2 = 1 + (int)(Math.Abs(startZ - endZ) / 2); inc2 = startZ < endZ;
+        dir2 = ZoopDirection.z; cnt2 = 1 + (int)(Math.Abs(startPos.z - endPos.z) / 2); inc2 = startPos.z < endPos.z;
       }
     }
     else if (absY >= absX && absY >= absZ)
     {
       // Y is largest
-      dir1 = ZoopDirection.y; cnt1 = 1 + (int)(Math.Abs(startY - endY) / 2); inc1 = startY < endY;
+      dir1 = ZoopDirection.y; cnt1 = 1 + (int)(Math.Abs(startPos.y - endPos.y) / 2); inc1 = startPos.y < endPos.y;
       if (absX >= absZ)
       {
-        dir2 = ZoopDirection.x; cnt2 = 1 + (int)(Math.Abs(startX - endX) / 2); inc2 = startX < endX;
+        dir2 = ZoopDirection.x; cnt2 = 1 + (int)(Math.Abs(startPos.x - endPos.x) / 2); inc2 = startPos.x < endPos.x;
       }
       else
       {
-        dir2 = ZoopDirection.z; cnt2 = 1 + (int)(Math.Abs(startZ - endZ) / 2); inc2 = startZ < endZ;
+        dir2 = ZoopDirection.z; cnt2 = 1 + (int)(Math.Abs(startPos.z - endPos.z) / 2); inc2 = startPos.z < endPos.z;
       }
     }
     else
     {
       // Z is largest
-      dir1 = ZoopDirection.z; cnt1 = 1 + (int)(Math.Abs(startZ - endZ) / 2); inc1 = startZ < endZ;
+      dir1 = ZoopDirection.z; cnt1 = 1 + (int)(Math.Abs(startPos.z - endPos.z) / 2); inc1 = startPos.z < endPos.z;
       if (absX >= absY)
       {
-        dir2 = ZoopDirection.x; cnt2 = 1 + (int)(Math.Abs(startX - endX) / 2); inc2 = startX < endX;
+        dir2 = ZoopDirection.x; cnt2 = 1 + (int)(Math.Abs(startPos.x - endPos.x) / 2); inc2 = startPos.x < endPos.x;
       }
       else
       {
-        dir2 = ZoopDirection.y; cnt2 = 1 + (int)(Math.Abs(startY - endY) / 2); inc2 = startY < endY;
+        dir2 = ZoopDirection.y; cnt2 = 1 + (int)(Math.Abs(startPos.y - endPos.y) / 2); inc2 = startPos.y < endPos.y;
       }
     }
 

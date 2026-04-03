@@ -111,18 +111,13 @@ internal static class ZoopPreviewLayoutCoordinator
 
           var pieceOffset = placementOffset * step.CellStride;
 
+          var baseDir = ZoopPathPlanner.GetDirectionalComponent(step.BaseOffset, step.Segment.Direction);
           var xOffset = step.BaseOffset.x;
           var yOffset = step.BaseOffset.y;
           var zOffset = step.BaseOffset.z;
 
-          var dirBase = step.Segment.Direction switch
-          {
-            ZoopDirection.x => xOffset,
-            ZoopDirection.y => yOffset,
-            _ => zOffset
-          };
           ZoopPathPlanner.SetDirectionalOffset(ref xOffset, ref yOffset, ref zOffset, step.Segment.Direction,
-            dirBase + pieceOffset);
+            baseDir + pieceOffset);
 
           lastDirection = step.Segment.Direction;
 
@@ -139,14 +134,8 @@ internal static class ZoopPreviewLayoutCoordinator
           var cellY = step.BaseOffset.y;
           var cellZ = step.BaseOffset.z;
 
-          var cellDirBase = step.Segment.Direction switch
-          {
-            ZoopDirection.x => cellX,
-            ZoopDirection.y => cellY,
-            _ => cellZ
-          };
           ZoopPathPlanner.SetDirectionalOffset(ref cellX, ref cellY, ref cellZ, step.Segment.Direction,
-            cellDirBase + placementIndex * step.CellStride);
+            baseDir + placementIndex * step.CellStride);
 
           // Track all cells this piece covers and check for overlaps/constructibility.
           var cellError = HasSmallGridCellError(adapter, inventoryManager,
@@ -181,19 +170,13 @@ internal static class ZoopPreviewLayoutCoordinator
   {
     if (ZoopIntegrations.CreativeFreedomAvailable) return false;
 
+    var dirBase = ZoopPathPlanner.GetDirectionalComponent(cellOffset, step.Segment.Direction);
+    var cx = cellOffset.x;
+    var cy = cellOffset.y;
+    var cz = cellOffset.z;
     var hasOverlap = false;
     for (var c = 0; c < cellSpan; c++)
     {
-      var cx = cellOffset.x;
-      var cy = cellOffset.y;
-      var cz = cellOffset.z;
-      var dirBase = step.Segment.Direction switch
-      {
-        ZoopDirection.x => cx,
-        ZoopDirection.y => cy,
-        _ => cz
-      };
-
       ZoopPathPlanner.SetDirectionalOffset(ref cx, ref cy, ref cz, step.Segment.Direction, dirBase + c * step.CellStride);
       var cellPos = step.Segment.StartPos + new Vector3(cx, cy, cz);
       var cellKey = adapter.GetDraftCellKey(cellPos);
@@ -229,12 +212,13 @@ internal static class ZoopPreviewLayoutCoordinator
     float yOffset = 0;
     float zOffset = 0;
 
+    var zoopDirection1 = plane.Directions.direction1;
+    var zoopDirection2 = plane.Directions.direction2;
+    var value1 = plane.Increasing.direction1 ? BigGridCellSpacing : -BigGridCellSpacing;
+    var value2 = plane.Increasing.direction2 ? BigGridCellSpacing : -BigGridCellSpacing;
+
     for (var indexDirection2 = 0; indexDirection2 < plane.Count.direction2; indexDirection2++)
     {
-      var zoopDirection2 = plane.Directions.direction2;
-      var increasing2 = plane.Increasing.direction2;
-
-      var value2 = increasing2 ? BigGridCellSpacing : -BigGridCellSpacing;
       ZoopPathPlanner.SetDirectionalOffset(ref xOffset, ref yOffset, ref zOffset, zoopDirection2,
         indexDirection2 * value2);
 
@@ -245,10 +229,6 @@ internal static class ZoopPreviewLayoutCoordinator
           break;
         }
 
-        var zoopDirection1 = plane.Directions.direction1;
-        var increasing1 = plane.Increasing.direction1;
-
-        var value1 = increasing1 ? BigGridCellSpacing : -BigGridCellSpacing;
         ZoopPathPlanner.SetDirectionalOffset(ref xOffset, ref yOffset, ref zOffset, zoopDirection1,
           indexDirection1 * value1);
 
