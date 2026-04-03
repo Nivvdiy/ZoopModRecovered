@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Assets.Scripts.Inventory;
 using Assets.Scripts.Objects;
 using Assets.Scripts.Objects.Items;
@@ -298,13 +299,7 @@ internal sealed class ZoopSmallGridCoordinator(ZoopPreviewValidator previewValid
   {
     var colliders = Physics.OverlapBox(position, CellProbeHalfExtent, Quaternion.identity, ~0,
       QueryTriggerInteraction.Ignore);
-    for (var i = 0; i < colliders.Length; i++)
-    {
-      if (colliders[i].GetComponentInParent<SmallGrid>() != null)
-        return true;
-    }
-
-    return false;
+    return colliders.Any(t => t.GetComponentInParent<SmallGrid>() != null);
   }
 
   /// <summary>
