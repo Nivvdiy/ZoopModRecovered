@@ -48,14 +48,7 @@ internal readonly struct ZoopPathStep(
   /// </summary>
   public Vector3 GetCellPosition(int placementIndex)
   {
-    var x = BaseOffset.x;
-    var y = BaseOffset.y;
-    var z = BaseOffset.z;
-
-    var basedir = ZoopPathPlanner.GetDirectionalComponent(BaseOffset, segment.Direction);
-
-    ZoopPathPlanner.SetDirectionalOffset(ref x, ref y, ref z, segment.Direction,
-      basedir + placementIndex * CellStride);
-    return segment.StartPos + new Vector3(x, y, z);
+    var dirValue = ZoopPathPlanner.GetDirectionalComponent(BaseOffset, segment.Direction) + placementIndex * CellStride;
+    return segment.StartPos + ZoopPathPlanner.WithDirectionalOffset(BaseOffset, segment.Direction, dirValue);
   }
 }

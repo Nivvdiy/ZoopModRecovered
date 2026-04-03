@@ -110,19 +110,12 @@ internal static class ZoopPreviewLayoutCoordinator
           }
 
           var pieceOffset = placementOffset * step.CellStride;
-
           var baseDir = ZoopPathPlanner.GetDirectionalComponent(step.BaseOffset, step.Segment.Direction);
-          var xOffset = step.BaseOffset.x;
-          var yOffset = step.BaseOffset.y;
-          var zOffset = step.BaseOffset.z;
-
-          ZoopPathPlanner.SetDirectionalOffset(ref xOffset, ref yOffset, ref zOffset, step.Segment.Direction,
-            baseDir + pieceOffset);
 
           lastDirection = step.Segment.Direction;
 
-          var offset = new Vector3(xOffset, yOffset, zOffset);
-          var previewPosition = step.Segment.StartPos + offset;
+          var previewPosition = step.Segment.StartPos +
+            ZoopPathPlanner.WithDirectionalOffset(step.BaseOffset, step.Segment.Direction, baseDir + pieceOffset);
           var previewStructure = adapter.GetDraftPreviewStructure(structureCounter);
           previewStructure.GameObject.SetActive(true);
           previewStructure.ThingTransformPosition = previewPosition;
@@ -130,16 +123,12 @@ internal static class ZoopPreviewLayoutCoordinator
 
           // Cell tracking always starts from the near end (placementIndex), regardless of
           // which end the mesh origin is placed at.
-          var cellX = step.BaseOffset.x;
-          var cellY = step.BaseOffset.y;
-          var cellZ = step.BaseOffset.z;
-
-          ZoopPathPlanner.SetDirectionalOffset(ref cellX, ref cellY, ref cellZ, step.Segment.Direction,
+          var cellOffset = ZoopPathPlanner.WithDirectionalOffset(step.BaseOffset, step.Segment.Direction,
             baseDir + placementIndex * step.CellStride);
 
           // Track all cells this piece covers and check for overlaps/constructibility.
           var cellError = HasSmallGridCellError(adapter, inventoryManager,
-            step, new Vector3(cellX, cellY, cellZ), cellSpan, previewStructure, structureCounter);
+            step, cellOffset, cellSpan, previewStructure, structureCounter);
           hasError = hasError || cellError;
 
           if (cellError)

@@ -91,6 +91,14 @@ internal static class ZoopPathPlanner
       _ => v.z
     };
 
+  public static Vector3 WithDirectionalOffset(Vector3 v, ZoopDirection direction, float value) =>
+    direction switch
+    {
+      ZoopDirection.x => new Vector3(value, v.y, v.z),
+      ZoopDirection.y => new Vector3(v.x, value, v.z),
+      _ => new Vector3(v.x, v.y, value)
+    };
+
   public static void SetDirectionalOffset(ref float xOffset, ref float yOffset, ref float zOffset,
     ZoopDirection direction,
     float value)
@@ -117,54 +125,32 @@ internal static class ZoopPathPlanner
     var absY = Math.Abs(endPos.y - startPos.y) / 2;
     var absZ = Math.Abs(endPos.z - startPos.z) / 2;
 
-    // Pick the two largest axes without allocating a list — only three candidates exist so
-    // two comparisons are sufficient to identify the top-2 in descending order.
-    ZoopDirection dir1, dir2;
-    int cnt1, cnt2;
-    bool inc1, inc2;
+    // Pick the two largest axes without allocating a list.
+    // Represent each axis as a tuple so they can be reordered by displacement.
+    var ax = (dir: ZoopDirection.x, abs: absX, s: startPos.x, e: endPos.x);
+    var ay = (dir: ZoopDirection.y, abs: absY, s: startPos.y, e: endPos.y);
+    var az = (dir: ZoopDirection.z, abs: absZ, s: startPos.z, e: endPos.z);
 
-    if (absX >= absY && absX >= absZ)
-    {
-      // X is largest
-      dir1 = ZoopDirection.x; cnt1 = 1 + (int)(Math.Abs(startPos.x - endPos.x) / 2); inc1 = startPos.x < endPos.x;
-      if (absY >= absZ)
-      {
-        dir2 = ZoopDirection.y; cnt2 = 1 + (int)(Math.Abs(startPos.y - endPos.y) / 2); inc2 = startPos.y < endPos.y;
-      }
-      else
-      {
-        dir2 = ZoopDirection.z; cnt2 = 1 + (int)(Math.Abs(startPos.z - endPos.z) / 2); inc2 = startPos.z < endPos.z;
-      }
-    }
-    else if (absY >= absX && absY >= absZ)
-    {
-      // Y is largest
-      dir1 = ZoopDirection.y; cnt1 = 1 + (int)(Math.Abs(startPos.y - endPos.y) / 2); inc1 = startPos.y < endPos.y;
-      if (absX >= absZ)
-      {
-        dir2 = ZoopDirection.x; cnt2 = 1 + (int)(Math.Abs(startPos.x - endPos.x) / 2); inc2 = startPos.x < endPos.x;
-      }
-      else
-      {
-        dir2 = ZoopDirection.z; cnt2 = 1 + (int)(Math.Abs(startPos.z - endPos.z) / 2); inc2 = startPos.z < endPos.z;
-      }
-    }
-    else
-    {
-      // Z is largest
-      dir1 = ZoopDirection.z; cnt1 = 1 + (int)(Math.Abs(startPos.z - endPos.z) / 2); inc1 = startPos.z < endPos.z;
-      if (absX >= absY)
-      {
-        dir2 = ZoopDirection.x; cnt2 = 1 + (int)(Math.Abs(startPos.x - endPos.x) / 2); inc2 = startPos.x < endPos.x;
-      }
-      else
-      {
-        dir2 = ZoopDirection.y; cnt2 = 1 + (int)(Math.Abs(startPos.y - endPos.y) / 2); inc2 = startPos.y < endPos.y;
-      }
-    }
+    // Sort descending — 2 comparisons suffice to find the top-2 of 3 elements.
+    // After sorting, ax is the longest axis (primary) and ay is the second longest (secondary).
+    if (ay.abs > ax.abs) (ax, ay) = (ay, ax);
+    if (az.abs > ax.abs) (ax, az) = (az, ax);
+    if (az.abs > ay.abs) (ay, _) = (az, ay);
 
-    plane.Directions = (direction1: dir1, direction2: dir2);
+    var (cnt1, inc1) = AxisMetrics(ax.s, ax.e);
+    var (cnt2, inc2) = AxisMetrics(ay.s, ay.e);
+
+    plane.Directions = (direction1: ax.dir, direction2: ay.dir);
     plane.Count = (direction1: cnt1, direction2: cnt2);
     plane.Increasing = (direction1: inc1, direction2: inc2);
+  }
+
+
+  // Returns the cell count and travel direction for a single axis given start/end coordinates.
+  // cnt = number of small-grid cells covering the distance (cell spacing is 0.5, so distance / 0.5 = distance * 2).
+  // inc = true when the axis travels in the positive direction.
+  private static (int cnt, bool inc) AxisMetrics(float s, float e)
+  {
+    return (1 + (int)(Math.Abs(s - e) / 2), s < e);
   }
 }
