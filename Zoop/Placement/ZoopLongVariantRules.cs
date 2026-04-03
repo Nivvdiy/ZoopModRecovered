@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Assets.Scripts.Objects;
 
 namespace ZoopMod.Zoop.Placement;
@@ -79,22 +80,26 @@ internal static class ZoopLongVariantRules
     while (remaining > 0)
     {
       var placed = false;
-      for (var v = 0; v < longVariants.Count; v++)
+      foreach (var t in longVariants)
       {
-        if (longVariants[v].CellSpan <= remaining)
+        if (t.CellSpan > remaining)
         {
-          result.Add(longVariants[v].CellSpan);
-          remaining -= longVariants[v].CellSpan;
-          placed = true;
-          break;
+          continue;
         }
+
+        result.Add(t.CellSpan);
+        remaining -= t.CellSpan;
+        placed = true;
+        break;
       }
 
-      if (!placed)
+      if (placed)
       {
-        result.Add(1);
-        remaining--;
+        continue;
       }
+
+      result.Add(1);
+      remaining--;
     }
   }
 
@@ -103,39 +108,10 @@ internal static class ZoopLongVariantRules
   /// </summary>
   public static int GetBuildIndexForSpan(List<LongVariant> longVariants, int cellSpan)
   {
-    for (var i = 0; i < longVariants.Count; i++)
-    {
-      if (longVariants[i].CellSpan == cellSpan) return longVariants[i].BuildIndex;
-    }
-
-    return -1;
-  }
-
-  /// <summary>
-  /// Extracts the cell span from a structure's prefab name by comparing against the base straight piece name.
-  /// Returns 1 for normal (non-long) pieces.
-  /// </summary>
-  public static int DetectCellSpan(Structure structure, string basePrefabName)
-  {
-    if (structure == null || string.IsNullOrEmpty(basePrefabName)) return 1;
-    var prefabName = structure.GetPrefabName();
-    if (string.IsNullOrEmpty(prefabName)) return 1;
-    if (prefabName.Length <= basePrefabName.Length) return 1;
-    if (!prefabName.StartsWith(basePrefabName, StringComparison.Ordinal)) return 1;
-
-    var spanValue = 0;
-    for (var i = basePrefabName.Length; i < prefabName.Length; i++)
-    {
-      if (char.IsDigit(prefabName[i]))
-      {
-        spanValue = spanValue * 10 + (prefabName[i] - '0');
-      }
-      else
-      {
-        return 1;
-      }
-    }
-
-    return spanValue > 1 ? spanValue : 1;
+    return longVariants
+      .Where(t => t.CellSpan == cellSpan)
+      .Select(t => t.BuildIndex)
+      .DefaultIfEmpty(-1)
+      .First();
   }
 }
