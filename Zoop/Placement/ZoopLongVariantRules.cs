@@ -38,33 +38,28 @@ internal static class ZoopLongVariantRules
       var prefabName = structure.GetPrefabName();
       if (string.IsNullOrEmpty(prefabName)) continue;
 
-      // Must start with the base name and have trailing digits only.
-      if (prefabName.Length <= baseName.Length) continue;
-      if (!prefabName.StartsWith(baseName, StringComparison.Ordinal)) continue;
-
-      var spanValue = 0;
-      var allDigits = true;
-      for (var c = baseName.Length; c < prefabName.Length; c++)
-      {
-        if (char.IsDigit(prefabName[c]))
-        {
-          spanValue = spanValue * 10 + (prefabName[c] - '0');
-        }
-        else
-        {
-          allDigits = false;
-          break;
-        }
-      }
-
-      if (allDigits && spanValue > 1)
-      {
+      if (TryParseTrailingSpan(prefabName, baseName, out var spanValue))
         variants.Add(new LongVariant(i, spanValue));
-      }
     }
 
     variants.Sort((a, b) => b.CellSpan.CompareTo(a.CellSpan));
     return variants;
+  }
+
+  // Returns true when prefabName is baseName followed by an integer > 1 (e.g. "BaseStraight5").
+  private static bool TryParseTrailingSpan(string prefabName, string baseName, out int spanValue)
+  {
+    spanValue = 0;
+    if (prefabName.Length <= baseName.Length) return false;
+    if (!prefabName.StartsWith(baseName, StringComparison.Ordinal)) return false;
+
+    for (var c = baseName.Length; c < prefabName.Length; c++)
+    {
+      if (!char.IsDigit(prefabName[c])) return false;
+      spanValue = spanValue * 10 + (prefabName[c] - '0');
+    }
+
+    return spanValue > 1;
   }
 
   /// <summary>

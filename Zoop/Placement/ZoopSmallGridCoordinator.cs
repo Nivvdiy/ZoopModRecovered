@@ -18,6 +18,8 @@ namespace ZoopMod.Zoop.Placement;
 /// </summary>
 internal sealed class ZoopSmallGridCoordinator(ZoopPreviewValidator previewValidator)
 {
+  private readonly Dictionary<Structure, List<LongVariant>> _longVariantsByBasePiece = [];
+
   private sealed class SmallGridPreviewLayoutAdapter(ZoopPreviewValidator previewValidator)
     : ISmallGridPreviewLayoutAdapter
   {
@@ -303,7 +305,7 @@ internal sealed class ZoopSmallGridCoordinator(ZoopPreviewValidator previewValid
   /// pieces in a direction are packed with the longest fitting variant first.
   /// First piece, last piece, and waypoint pieces are always single-cell.
   /// </summary>
-  private static void BuildSmallStructureList(ZoopDraft draft, ZoopPreviewCache previewCache,
+  private void BuildSmallStructureList(ZoopDraft draft, ZoopPreviewCache previewCache,
     InventoryManager inventoryManager,
     IReadOnlyList<ZoopSegment> segments,
     bool supportsCornerVariant)
@@ -315,7 +317,13 @@ internal sealed class ZoopSmallGridCoordinator(ZoopPreviewValidator previewValid
     bool AddPiece(bool isCorner, int index, int secondaryCount, bool currentCanBuildNext) =>
       ZoopPreviewFactory.AddStructure(context, isCorner, index, secondaryCount, currentCanBuildNext);
 
-    var longVariants = ZoopLongVariantRules.FindLongVariants(constructables);
+    var basePiece = constructables.Count > 0 ? constructables[0] : null;
+    if (basePiece == null || !_longVariantsByBasePiece.TryGetValue(basePiece, out var longVariants))
+    {
+      longVariants = ZoopLongVariantRules.FindLongVariants(constructables);
+      if (basePiece != null)
+        _longVariantsByBasePiece[basePiece] = longVariants;
+    }
     var hasLongVariants = longVariants.Count > 0;
     var runPlan = new List<int>();
     var longCounts = new Dictionary<int, int>();
