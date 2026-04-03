@@ -14,13 +14,14 @@ internal static class ZoopPathPlanner
   public static IReadOnlyList<ZoopSegment> BuildSmallGridPlan(IReadOnlyList<Vector3> waypoints, Vector3 currentPos)
   {
     _segments.Clear();
+    var prevDirection = ZoopDirection.none;
 
     for (var wpIndex = 0; wpIndex < waypoints.Count; wpIndex++)
     {
       var startPos = waypoints[wpIndex];
       var endPos = wpIndex < waypoints.Count - 1 ? waypoints[wpIndex + 1] : currentPos;
-
-      ZoopSegment.AppendRuns(_segments, startPos, endPos, isFirstWaypoint: wpIndex == 0);
+      ZoopSegment.AppendBoundarySegments(_segments, startPos, endPos, wpIndex == 0, wpIndex == waypoints.Count - 1, prevDirection);
+      prevDirection = _segments[_segments.Count - 1].Direction;
     }
 
     return _segments;
@@ -75,7 +76,15 @@ internal static class ZoopPathPlanner
 
       lastDirection = segment.Direction;
       lastIncreasing = segment.Increasing;
-      SetDirectionalOffset(ref xOffset, ref yOffset, ref zOffset, segment.Direction, zoopCounter * cellStride);
+      var dirOffset =
+        segment.Direction switch
+        {
+          ZoopDirection.x => xOffset,
+          ZoopDirection.y => yOffset,
+          _ => zOffset
+        };
+
+      SetDirectionalOffset(ref xOffset, ref yOffset, ref zOffset, segment.Direction, dirOffset + zoopCounter * cellStride);
     }
   }
 

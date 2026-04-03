@@ -8,7 +8,6 @@ using Assets.Scripts.Util;
 using Cysharp.Threading.Tasks;
 using UnityEngine;
 using ZoopMod.Zoop.Core;
-using ZoopMod.Zoop.Logging;
 using ZoopMod.Zoop.Planning;
 using ZoopMod.Zoop.Preview;
 
@@ -51,14 +50,14 @@ internal sealed class ZoopSmallGridCoordinator(ZoopPreviewValidator previewValid
       var isSegmentTurnStart = !step.IsGlobalFirst && placementIndex == 0;
       if (isSegmentTurnStart)
       {
-        if (lastDirection == step.Direction)
+        if (lastDirection == step.Segment.Direction)
         {
-          SetStraightRotation(GetAdapterPreviewStructure(structureCounter), step.Direction);
+          SetStraightRotation(GetAdapterPreviewStructure(structureCounter), step.Segment.Direction);
         }
         else
         {
           SetCornerRotation(GetAdapterPreviewStructure(structureCounter), lastDirection, increasingFrom,
-            step.Direction, step.Increasing);
+            step.Segment.Direction, step.Segment.Increasing);
         }
 
         return;
@@ -66,7 +65,7 @@ internal sealed class ZoopSmallGridCoordinator(ZoopPreviewValidator previewValid
 
       if (!isSinglePlacement)
       {
-        SetStraightRotation(GetAdapterPreviewStructure(structureCounter), step.Direction);
+        SetStraightRotation(GetAdapterPreviewStructure(structureCounter), step.Segment.Direction);
       }
     }
 
@@ -158,20 +157,20 @@ internal sealed class ZoopSmallGridCoordinator(ZoopPreviewValidator previewValid
   public async UniTask UpdatePreview(ZoopDraft draft, ZoopPreviewCache previewCache, InventoryManager inventoryManager,
     Vector3 currentPos)
   {
-    var segments = ZoopPathPlanner.BuildSmallGridPlan(draft.Waypoints, currentPos);
+    var rawSegments = ZoopPathPlanner.BuildSmallGridPlan(draft.Waypoints, currentPos);
 
     await UniTask.SwitchToMainThread(); // Switch to main thread for Unity API calls
+
+    // Pre-scan every cell along the path for existing structures. Occupied cells
+    // become single-cell segments in the path so long variants never straddle an obstacle.
+    var segments = ScanAndSplitAtBarriers(rawSegments);
 
     var constructables = inventoryManager.ConstructionPanel.Parent.Constructables;
     var supportsCornerVariant =
       ZoopConstructableRules.SupportsCornerVariant(constructables,
         inventoryManager.ConstructionPanel.Parent.LastSelectedIndex);
 
-    // Pre-scan every cell along the path for existing structures. Occupied cells
-    // become separators so long variants never straddle an obstacle.
-    var occupiedCells = ScanOccupiedCells(segments);
-
-    BuildSmallStructureList(draft, previewCache, inventoryManager, segments, supportsCornerVariant, occupiedCells);
+    BuildSmallStructureList(draft, previewCache, inventoryManager, segments, supportsCornerVariant);
 
     if (draft.PreviewCount <= 0)
     {
@@ -179,14 +178,14 @@ internal sealed class ZoopSmallGridCoordinator(ZoopPreviewValidator previewValid
     }
 
     layoutAdapter.Draft = draft;
-    draft.HasError = draft.HasError || ZoopPreviewLayoutCoordinator.PositionSmallGridStructures(
+    ZoopPreviewLayoutCoordinator.PositionSmallGridStructures(
       layoutAdapter,
       inventoryManager,
       segments,
       supportsCornerVariant,
       isSinglePlacement: segments.Count == 0,
-      out _,
-      out _);
+      out var hasPlacementError);
+    draft.HasError = draft.HasError || hasPlacementError;
   }
 
   // Half-extent for the Physics overlap check. Small grid cells are 0.5 units apart;
@@ -194,17 +193,16 @@ internal sealed class ZoopSmallGridCoordinator(ZoopPreviewValidator previewValid
   private static readonly Vector3 CellProbeHalfExtent = Vector3.one * 0.05f;
 
   /// <summary>
-  /// Walks every cell position along the planned path and uses a Physics overlap check to detect
-  /// existing small-grid structures. <c>CanConstruct</c> cannot be used here because it returns
-  /// true for cells with perpendicular pipes (T-junctions are valid placements for span-1 pieces).
-  /// Long pieces cannot merge, so any occupied cell must become a separator.
+  /// Walks every cell position along the planned path using a Physics overlap check to find
+  /// existing small-grid structures, then splits each affected segment so that each occupied
+  /// cell becomes its own 1-cell sub-segment. Long-piece planning will never span a sub-segment
+  /// boundary, so occupied cells are naturally forced to span-1 without a separate barrier pass.
   /// Preview structures have their colliders disabled and the construction cursor is deactivated,
   /// so the overlap only finds actual world structures.
   /// </summary>
-  private static Dictionary<int, HashSet<int>> ScanOccupiedCells(
-    IReadOnlyList<ZoopSegment> segments)
+  private static IReadOnlyList<ZoopSegment> ScanAndSplitAtBarriers(IReadOnlyList<ZoopSegment> segments)
   {
-    if (InventoryManager.ConstructionCursor == null) return null;
+    if (InventoryManager.ConstructionCursor == null) return segments;
 
     Dictionary<int, HashSet<int>> occupied = null;
 
@@ -216,18 +214,75 @@ internal sealed class ZoopSmallGridCoordinator(ZoopPreviewValidator previewValid
           continue;
 
         occupied ??= [];
-        var key = step.SegmentIndex;
-        if (!occupied.TryGetValue(key, out var cellSet))
+        if (!occupied.TryGetValue(step.SegmentIndex, out var cellSet))
         {
           cellSet = [];
-          occupied[key] = cellSet;
+          occupied[step.SegmentIndex] = cellSet;
         }
 
         cellSet.Add(cellIndex);
       }
     });
 
-    return occupied;
+    return occupied == null ? segments : SplitAtBarriers(segments, occupied);
+  }
+
+  /// <summary>
+  /// Returns a new segment list where each cell index listed in <paramref name="barriers"/> has been
+  /// extracted into its own 1-cell <see cref="ZoopSegment"/>.
+  /// The surrounding cells become their own sub-segments sharing the same direction and start
+  /// position as the original. The walker's offset accumulation stays correct because sub-segments
+  /// within the same waypoint span are not marked as waypoint starts (except when the original was).
+  /// </summary>
+  private static IReadOnlyList<ZoopSegment> SplitAtBarriers(
+    IReadOnlyList<ZoopSegment> segments,
+    Dictionary<int, HashSet<int>> barriers)
+  {
+    var result = new List<ZoopSegment>(segments.Count);
+
+    for (var i = 0; i < segments.Count; i++)
+    {
+      var seg = segments[i];
+      if (!barriers.TryGetValue(i, out var barrierCells))
+      {
+        result.Add(seg);
+        continue;
+      }
+
+      var zoopCounter = ZoopPathPlanner.GetPlacementCount(i, segments.Count, seg.Count);
+
+      var sorted = new List<int>(barrierCells);
+      sorted.Sort();
+
+      // Collect cell-counts for each sub-segment in order.
+      var subCellCounts = new List<int>();
+      var prevStart = 0;
+      foreach (var b in sorted)
+      {
+        if (b >= zoopCounter) break;
+        if (b > prevStart)
+          subCellCounts.Add(b - prevStart);
+        subCellCounts.Add(1); // isolated barrier cell
+        prevStart = b + 1;
+      }
+      if (prevStart < zoopCounter)
+        subCellCounts.Add(zoopCounter - prevStart);
+
+      var isLastOriginal = i == segments.Count - 1;
+      for (var s = 0; s < subCellCounts.Count; s++)
+      {
+        var cells = subCellCounts[s];
+        // Non-last segments use count = cells + 1 so the walker deduplicates the shared
+        // endpoint (GetPlacementCount returns count - 1 for non-last). The last sub-segment
+        // of the globally last original segment needs count = cells (no deduplication).
+        var isLastSub = isLastOriginal && s == subCellCounts.Count - 1;
+        var count = isLastSub ? cells : cells + 1;
+        var isWaypointStart = s == 0 && seg.IsWaypointStart;
+        result.Add(new ZoopSegment(seg.Direction, count, seg.Increasing, isWaypointStart, seg.StartPos));
+      }
+    }
+
+    return result;
   }
 
   /// <summary>
@@ -256,8 +311,7 @@ internal sealed class ZoopSmallGridCoordinator(ZoopPreviewValidator previewValid
   private static void BuildSmallStructureList(ZoopDraft draft, ZoopPreviewCache previewCache,
     InventoryManager inventoryManager,
     IReadOnlyList<ZoopSegment> segments,
-    bool supportsCornerVariant,
-    Dictionary<int, HashSet<int>> barrierCells)
+    bool supportsCornerVariant)
   {
     ZoopPreviewFactory.ResetSmallGridPreviewList(draft, previewCache);
     var constructables = inventoryManager.ConstructionPanel.Parent.Constructables;
@@ -273,61 +327,22 @@ internal sealed class ZoopSmallGridCoordinator(ZoopPreviewValidator previewValid
 
     var straight = 0;
     var corners = 0;
-    var lastDirection = ZoopDirection.none;
     var canBuildNext = true;
     ZoopPathPlanner.WalkSmallGridPath(segments, step =>
     {
-      var zoopDirection = step.Direction;
-      var zoopCounter = step.ZoopCounter;
+      if (step.Segment.IsCorner && supportsCornerVariant && draft.PreviewCount > 0)
+      {
+        canBuildNext = AddPiece(isCorner: true, index: corners, secondaryCount: straight,
+          currentCanBuildNext: canBuildNext);
+        corners++;
+        return;
+      }
 
-        // Determine if the first placement in this direction is a corner turn.
-        var willHaveCorner = supportsCornerVariant &&
-                             draft.PreviewCount > 0 &&
-                             zoopDirection != lastDirection;
+      var straightInDir = step.ZoopCounter;
 
-        if (willHaveCorner && zoopCounter > 0)
-        {
-          canBuildNext = AddPiece(isCorner: true, index: corners, secondaryCount: straight,
-            currentCanBuildNext: canBuildNext);
-          corners++;
-          lastDirection = zoopDirection;
-        }
-
-        var straightInDir = willHaveCorner ? zoopCounter - 1 : zoopCounter;
-
-        if (straightInDir > 0 && hasLongVariants)
-        {
-          var isGlobalFirst = step.IsGlobalFirst && !willHaveCorner;
-          var isGlobalLast = step.IsGlobalLast;
-          var isWaypointStart = step.IsWaypointStart && !willHaveCorner;
-
-          // Build a unified separator set. Separators are always span-1 pieces that
-          // act as section boundaries: start, end, corners, waypoints, and barriers.
-          var separators = new HashSet<int>();
-
-          if (isGlobalFirst || isWaypointStart)
-            separators.Add(0);
-          if (isGlobalLast)
-            separators.Add(straightInDir - 1);
-
-          // Barrier cells from pass 1 (merge points with existing structures).
-          if (barrierCells != null && barrierCells.TryGetValue(step.SegmentIndex, out var cellSet))
-          {
-            var cornerOffset = willHaveCorner ? 1 : 0;
-            foreach (var cell in cellSet)
-              separators.Add(cell - cornerOffset);
-          }
-
-          ZoopLongVariantRules.PlanSections(straightInDir, longVariants,
-            separators.Count > 0 ? separators : null, runPlan);
-
-          if (separators.Count > 0)
-          {
-            var sepStr = string.Join(",", separators);
-            var planStr = string.Join(",", runPlan);
-            ZoopLog.Debug($"[Sections] segment={step.SegmentIndex} straightInDir={straightInDir} " +
-                          $"separators=[{sepStr}] plan=[{planStr}]");
-          }
+      if (straightInDir > 0 && hasLongVariants)
+      {
+        ZoopLongVariantRules.PlanSections(straightInDir, longVariants, null, runPlan);
 
           for (var planIdx = 0; planIdx < runPlan.Count; planIdx++)
           {
@@ -398,20 +413,17 @@ internal sealed class ZoopSmallGridCoordinator(ZoopPreviewValidator previewValid
                 currentCanBuildNext: canBuildNext);
               straight++;
             }
-
-            lastDirection = zoopDirection;
           }
-        }
-        else
+      }
+      else
+      {
+        for (var i = 0; i < straightInDir; i++)
         {
-          for (var i = 0; i < straightInDir; i++)
-          {
-            canBuildNext = AddPiece(isCorner: false, index: straight, secondaryCount: corners,
-              currentCanBuildNext: canBuildNext);
-            straight++;
-            lastDirection = zoopDirection;
-          }
+          canBuildNext = AddPiece(isCorner: false, index: straight, secondaryCount: corners,
+            currentCanBuildNext: canBuildNext);
+          straight++;
         }
+      }
     });
   }
 }
