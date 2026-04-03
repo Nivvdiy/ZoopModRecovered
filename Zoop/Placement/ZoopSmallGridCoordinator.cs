@@ -171,8 +171,7 @@ internal sealed class ZoopSmallGridCoordinator(ZoopPreviewValidator previewValid
     // become separators so long variants never straddle an obstacle.
     var occupiedCells = ScanOccupiedCells(segments);
 
-    BuildSmallStructureList(draft, previewCache, inventoryManager, segments, supportsCornerVariant,
-      barrierCells: occupiedCells);
+    BuildSmallStructureList(draft, previewCache, inventoryManager, segments, supportsCornerVariant, occupiedCells);
 
     if (draft.PreviewCount <= 0)
     {
@@ -217,7 +216,7 @@ internal sealed class ZoopSmallGridCoordinator(ZoopPreviewValidator previewValid
           continue;
 
         occupied ??= [];
-        var key = step.RunIndex;
+        var key = step.SegmentIndex;
         if (!occupied.TryGetValue(key, out var cellSet))
         {
           cellSet = [];
@@ -312,8 +311,7 @@ internal sealed class ZoopSmallGridCoordinator(ZoopPreviewValidator previewValid
             separators.Add(straightInDir - 1);
 
           // Barrier cells from pass 1 (merge points with existing structures).
-          var dirKey = step.RunIndex;
-          if (barrierCells != null && barrierCells.TryGetValue(dirKey, out var cellSet))
+          if (barrierCells != null && barrierCells.TryGetValue(step.SegmentIndex, out var cellSet))
           {
             var cornerOffset = willHaveCorner ? 1 : 0;
             foreach (var cell in cellSet)
@@ -327,7 +325,7 @@ internal sealed class ZoopSmallGridCoordinator(ZoopPreviewValidator previewValid
           {
             var sepStr = string.Join(",", separators);
             var planStr = string.Join(",", runPlan);
-            ZoopLog.Debug($"[Sections] run={step.RunIndex} straightInDir={straightInDir} " +
+            ZoopLog.Debug($"[Sections] segment={step.SegmentIndex} straightInDir={straightInDir} " +
                           $"separators=[{sepStr}] plan=[{planStr}]");
           }
 

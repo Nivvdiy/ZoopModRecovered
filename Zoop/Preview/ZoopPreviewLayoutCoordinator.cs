@@ -134,11 +134,11 @@ internal static class ZoopPreviewLayoutCoordinator
             if (cellSpan > 1)
             {
               localBlockedDirections ??= new HashSet<int>();
-              localBlockedDirections.Add(step.RunIndex);
+              localBlockedDirections.Add(step.SegmentIndex);
             }
 
             // Record every error cell so the rebuild pass can place barriers precisely.
-            var key = step.RunIndex;
+            var key = step.SegmentIndex;
             localErrorCells ??= new Dictionary<int, HashSet<int>>();
             if (!localErrorCells.TryGetValue(key, out var cellSet))
             {
@@ -147,7 +147,7 @@ internal static class ZoopPreviewLayoutCoordinator
             }
             for (var ec = 0; ec < cellSpan; ec++)
               cellSet.Add(placementIndex + ec);
-            ZoopLog.Debug($"[CellError] run={step.RunIndex} pIdx={placementIndex} span={cellSpan}");
+            ZoopLog.Debug($"[CellError] segment={step.SegmentIndex} pIdx={placementIndex} span={cellSpan}");
           }
 
           structureCounter++;

@@ -3,58 +3,61 @@ using UnityEngine;
 namespace ZoopMod.Zoop.Planning;
 
 /// <summary>
-/// Per-run context emitted by <see cref="ZoopPathPlanner.WalkSmallGridPath"/> for each
-/// direction-run in the planned path. Contains every value needed to drive the inner cell loop
+/// Per-segment context emitted by <see cref="ZoopPathPlanner.WalkSmallGridPath"/> for each
+/// direction segment in the planned path. Contains every value needed to drive the inner cell loop
 /// so callers never repeat traversal bookkeeping.
 /// </summary>
 internal readonly struct ZoopPathStep(
-  int runIndex, int totalRunCount,
-  ZoopSegment run, Vector3 baseOffset,
-  int zoopCounter, float cellStride,
+  int segmentIndex,
+  int totalSegmentCount,
+  ZoopSegment segment,
+  Vector3 baseOffset,
+  int zoopCounter,
+  float cellStride,
   bool increasingFromPrevious)
 {
-  /// <summary>Flat index of this run in the path.</summary>
-  public int RunIndex { get; } = runIndex;
+  /// <summary>Flat index of this segment in the path.</summary>
+  public int SegmentIndex { get; } = segmentIndex;
 
-  /// <summary>Total number of runs in the path.</summary>
-  public int TotalRunCount { get; } = totalRunCount;
+  /// <summary>Total number of segments in the path.</summary>
+  public int TotalSegmentCount { get; } = totalSegmentCount;
 
-  /// <summary>World axis being traversed in this run.</summary>
-  public ZoopDirection Direction { get; } = run.Direction;
+  /// <summary>World axis being traversed in this segment.</summary>
+  public ZoopDirection Direction { get; } = segment.Direction;
 
-  /// <summary>Whether this run travels in the positive axis direction.</summary>
-  public bool Increasing { get; } = run.Increasing;
+  /// <summary>Whether this segment travels in the positive axis direction.</summary>
+  public bool Increasing { get; } = segment.Increasing;
 
-  /// <summary>Number of cell positions in this run after endpoint deduplication.</summary>
+  /// <summary>Number of cell positions in this segment after endpoint deduplication.</summary>
   public int ZoopCounter { get; } = zoopCounter;
 
   /// <summary>World-space step size (positive or negative) per cell along <see cref="Direction"/>.</summary>
   public float CellStride { get; } = cellStride;
 
-  /// <summary>World-space position of the start of the parent segment (the waypoint origin).</summary>
-  public Vector3 StartPos { get; } = run.StartPos;
+  /// <summary>World-space position of the start of the parent waypoint span.</summary>
+  public Vector3 StartPos { get; } = segment.StartPos;
 
   /// <summary>
-  /// Cumulative world-space offset at the start of this direction run.
-  /// Only the component for the axis traversed by an earlier run in the same segment is non-zero;
-  /// the travel axis for this run will be zero until the caller applies a per-cell offset.
+  /// Cumulative world-space offset at the start of this segment.
+  /// Only the component for the axis traversed by an earlier segment in the same waypoint span is non-zero;
+  /// the travel axis for this segment will be zero until the caller applies a per-cell offset.
   /// </summary>
   public Vector3 BaseOffset { get; } = baseOffset;
 
   /// <summary>
-  /// The <c>increasing</c> flag of the previous direction run. Used for corner rotation.
+  /// The <c>increasing</c> flag of the previous segment. Used for corner rotation.
   /// Precomputed by the walker so callers never need to look back themselves.
   /// </summary>
   public bool IncreasingFromPrevious { get; } = increasingFromPrevious;
 
-  /// <summary>Returns true if this is the first run of a non-first waypoint segment.</summary>
-  public bool IsWaypointStart { get; } = run.IsWaypointStart;
+  /// <summary>Returns true if this is the first segment of a non-first waypoint span.</summary>
+  public bool IsWaypointStart { get; } = segment.IsWaypointStart;
 
-  /// <summary>Returns true if this is the very first run in the path.</summary>
-  public bool IsGlobalFirst => RunIndex == 0;
+  /// <summary>Returns true if this is the very first segment in the path.</summary>
+  public bool IsGlobalFirst => SegmentIndex == 0;
 
-  /// <summary>Returns true if this is the very last run in the path.</summary>
-  public bool IsGlobalLast => RunIndex == TotalRunCount - 1;
+  /// <summary>Returns true if this is the very last segment in the path.</summary>
+  public bool IsGlobalLast => SegmentIndex == TotalSegmentCount - 1;
 
   /// <summary>
   /// Computes the world-space position at <paramref name="placementIndex"/> cells along this direction.

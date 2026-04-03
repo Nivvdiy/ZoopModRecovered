@@ -44,12 +44,12 @@ internal static class ZoopPathPlanner
   }
 
   /// <summary>
-  /// Walks every run in the flat <paramref name="segments"/> list and invokes
-  /// <paramref name="onRun"/> once per run with full traversal context.
+  /// Walks every segment in the flat <paramref name="segments"/> list and invokes
+  /// <paramref name="onSegment"/> once per segment with full traversal context.
   /// </summary>
   public static void WalkSmallGridPath(
     IReadOnlyList<ZoopSegment> segments,
-    Action<ZoopPathStep> onRun)
+    Action<ZoopPathStep> onSegment)
   {
     var totalCount = segments.Count;
     var lastDirection = ZoopDirection.none;
@@ -58,29 +58,29 @@ internal static class ZoopPathPlanner
 
     for (var i = 0; i < totalCount; i++)
     {
-      var run = segments[i];
+      var segment = segments[i];
 
-      // Reset the accumulated offset at the start of each new waypoint segment.
-      if (i == 0 || run.IsWaypointStart)
+      // Reset the accumulated offset at the start of each new waypoint span.
+      if (i == 0 || segment.IsWaypointStart)
       {
         xOffset = 0; yOffset = 0; zOffset = 0;
       }
 
-      var zoopCounter = GetPlacementCount(i, totalCount, run.Count);
-      var cellStride = run.Increasing ? SmallGridCellSpacing : -SmallGridCellSpacing;
+      var zoopCounter = GetPlacementCount(i, totalCount, segment.Count);
+      var cellStride = segment.Increasing ? SmallGridCellSpacing : -SmallGridCellSpacing;
       var increasingFromPrevious = lastDirection != ZoopDirection.none && lastIncreasing;
 
-      onRun(new ZoopPathStep(i, totalCount, run, new Vector3(xOffset, yOffset, zOffset),
+      onSegment(new ZoopPathStep(i, totalCount, segment, new Vector3(xOffset, yOffset, zOffset),
         zoopCounter, cellStride, increasingFromPrevious));
 
-      lastDirection = run.Direction;
-      lastIncreasing = run.Increasing;
-      SetDirectionalOffset(ref xOffset, ref yOffset, ref zOffset, run.Direction, zoopCounter * cellStride);
+      lastDirection = segment.Direction;
+      lastIncreasing = segment.Increasing;
+      SetDirectionalOffset(ref xOffset, ref yOffset, ref zOffset, segment.Direction, zoopCounter * cellStride);
     }
   }
 
-  public static int GetPlacementCount(int runIndex, int totalRunCount, int zoopCount) =>
-    runIndex < totalRunCount - 1 ? zoopCount - 1 : zoopCount;
+  public static int GetPlacementCount(int segmentIndex, int totalSegmentCount, int zoopCount) =>
+    segmentIndex < totalSegmentCount - 1 ? zoopCount - 1 : zoopCount;
 
   public static void SetDirectionalOffset(ref float xOffset, ref float yOffset, ref float zOffset,
     ZoopDirection direction,
