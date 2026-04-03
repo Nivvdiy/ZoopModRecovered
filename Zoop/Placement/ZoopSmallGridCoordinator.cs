@@ -342,7 +342,7 @@ internal sealed class ZoopSmallGridCoordinator(ZoopPreviewValidator previewValid
 
       if (straightInDir > 0 && hasLongVariants)
       {
-        ZoopLongVariantRules.PlanSections(straightInDir, longVariants, null, runPlan);
+        ZoopLongVariantRules.PlanRun(straightInDir, longVariants, runPlan);
 
           for (var planIdx = 0; planIdx < runPlan.Count; planIdx++)
           {

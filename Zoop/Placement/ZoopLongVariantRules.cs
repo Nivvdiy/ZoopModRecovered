@@ -104,51 +104,6 @@ internal static class ZoopLongVariantRules
   }
 
   /// <summary>
-  /// Plans a run by splitting it into sections around separator cells.
-  /// Separators (start point, end point, corners, waypoints, barrier/merge cells) are always span-1.
-  /// Contiguous non-separator cells form sections that are independently packed with long variants.
-  /// </summary>
-  public static void PlanSections(
-    int cellCount,
-    List<LongVariant> longVariants,
-    HashSet<int> separators,
-    List<int> result)
-  {
-    result.Clear();
-    if (cellCount <= 0) return;
-
-    if (separators == null || separators.Count == 0)
-    {
-      PlanRun(cellCount, longVariants, result);
-      return;
-    }
-
-    var subResult = new List<int>();
-    var sectionStart = 0;
-
-    for (var i = 0; i <= cellCount; i++)
-    {
-      var isSeparator = i < cellCount && separators.Contains(i);
-
-      if (isSeparator || i == cellCount)
-      {
-        var sectionLength = i - sectionStart;
-        if (sectionLength > 0)
-        {
-          PlanRun(sectionLength, longVariants, subResult);
-          result.AddRange(subResult);
-        }
-
-        if (isSeparator)
-        {
-          result.Add(1);
-          sectionStart = i + 1;
-        }
-      }
-    }
-  }
-
-  /// <summary>
   /// Returns the build index of the long variant with the given cell span, or -1 if not found.
   /// </summary>
   public static int GetBuildIndexForSpan(List<LongVariant> longVariants, int cellSpan)
