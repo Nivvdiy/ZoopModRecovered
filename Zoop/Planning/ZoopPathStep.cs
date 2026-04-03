@@ -11,7 +11,6 @@ internal readonly struct ZoopPathStep(
   int runIndex, int totalRunCount,
   ZoopSegment run, Vector3 baseOffset,
   int zoopCounter, float value,
-  ZoopDirection nextDirection,
   bool increasingFromPrevious)
 {
   /// <summary>Flat index of this run in the path.</summary>
@@ -41,12 +40,6 @@ internal readonly struct ZoopPathStep(
   /// the travel axis for this run will be zero until the caller applies a per-cell offset.
   /// </summary>
   public Vector3 BaseOffset { get; } = baseOffset;
-
-  /// <summary>
-  /// The next direction after this run, or <see cref="ZoopDirection.none"/> if this is the
-  /// last run in the entire path. Eliminates the need for manual next-segment lookahead.
-  /// </summary>
-  public ZoopDirection NextDirection { get; } = nextDirection;
 
   /// <summary>
   /// The <c>increasing</c> flag of the previous direction run. Used for corner rotation.

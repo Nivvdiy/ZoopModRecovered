@@ -69,11 +69,10 @@ internal static class ZoopPathPlanner
 
       var zoopCounter = GetPlacementCount(i, totalCount, run.Count);
       var value = GetDirectionalPlacementValue(run.Increasing);
-      var nextDirection = i + 1 < totalCount ? segments[i + 1].Direction : ZoopDirection.none;
       var increasingFromPrevious = lastDirection != ZoopDirection.none && lastIncreasing;
 
       onRun(new ZoopPathStep(i, totalCount, run, new Vector3(xOffset, yOffset, zOffset),
-        zoopCounter, value, nextDirection, increasingFromPrevious));
+        zoopCounter, value, increasingFromPrevious));
 
       lastDirection = run.Direction;
       lastIncreasing = run.Increasing;
