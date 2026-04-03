@@ -50,14 +50,14 @@ internal static class ZoopPreviewFactory
 
         if (canMakeItem && canBuildNext)
         {
-          MakeItem(context.Draft, context.PreviewCache, constructables, index, buildIndex, supportsCornerVariant);
+          PreparePreviewPiece(context.Draft, context.PreviewCache, constructables, index, buildIndex, supportsCornerVariant);
           return true;
         }
 
         return false;
 
       case AuthoringTool:
-        MakeItem(context.Draft, context.PreviewCache, constructables, index, buildIndex, supportsCornerVariant);
+        PreparePreviewPiece(context.Draft, context.PreviewCache, constructables, index, buildIndex, supportsCornerVariant);
         return true;
 
       default:
@@ -107,7 +107,7 @@ internal static class ZoopPreviewFactory
     previewCache.StraightCache.ForEach(e => e.Instance.GameObject.SetActive(false));
   }
 
-  private static void MakeItem(ZoopDraft draft, ZoopPreviewCache previewCache, List<Structure> constructables,
+  private static void PreparePreviewPiece(ZoopDraft draft, ZoopPreviewCache previewCache, List<Structure> constructables,
     int index, int selectedIndex,
     bool supportsCornerVariant)
   {
@@ -136,39 +136,12 @@ internal static class ZoopPreviewFactory
             return;
           }
 
-          var structureNew = UnityObject.Instantiate(InventoryManager.GetStructureCursor(structure.PrefabName));
+          var structureNew = InstantiatePreviewClone(structure);
           if (structureNew == null)
           {
             return;
           }
 
-          // Deactivate the clone so OnDisable fires on all components and deregisters
-          // them from the game's global tick lists (Thing.AllThings, network registries, etc.).
-          structureNew.gameObject.SetActive(false);
-
-          // Disable game-logic MonoBehaviours (Thing and its derivatives: Structure, SmallGrid, Wall, etc.)
-          // to prevent their OnEnable from re-registering in global tick lists when we reactivate.
-          foreach (var thing in structureNew.GetComponentsInChildren<Thing>(true))
-          {
-            thing.enabled = false;
-          }
-
-          // Disable colliders to remove them from the physics broadphase.
-          foreach (var col in structureNew.GetComponentsInChildren<Collider>(true))
-          {
-            col.enabled = false;
-          }
-
-          // Reactivate so visual components (Wireframe, etc.) run their OnEnable and set up
-          // blueprint materials, renderer states, and child object visibility correctly.
-          structureNew.gameObject.SetActive(true);
-
-          // Now disable all remaining MonoBehaviours to stop per-frame Update/LateUpdate
-          // calls. The visual state is already initialized from OnEnable above.
-          foreach (var mb in structureNew.GetComponentsInChildren<MonoBehaviour>(true))
-          {
-            mb.enabled = false;
-          }
           if (!supportsCornerVariant)
           {
             ApplyCursorRotation(draft, structureNew);
@@ -187,6 +160,25 @@ internal static class ZoopPreviewFactory
           break;
         }
     }
+  }
+
+  // Instantiates a disabled preview clone of structure's cursor prefab, strips game-logic
+  // components, and re-enables only visuals. Returns null when the prefab cannot be found.
+  // Detail: deactivate first so OnDisable fires and deregisters from Thing.AllThings etc.,
+  // disable Things + Colliders, reactivate so visual OnEnable runs (blueprint materials etc.),
+  // then disable all remaining MonoBehaviours to suppress per-frame Update calls.
+  private static Structure InstantiatePreviewClone(Structure structure)
+  {
+    var clone = UnityObject.Instantiate(InventoryManager.GetStructureCursor(structure.PrefabName));
+    if (clone == null) return null;
+
+    clone.gameObject.SetActive(false);
+    foreach (var thing in clone.GetComponentsInChildren<Thing>(true)) thing.enabled = false;
+    foreach (var col in clone.GetComponentsInChildren<Collider>(true)) col.enabled = false;
+    clone.gameObject.SetActive(true);
+    foreach (var mb in clone.GetComponentsInChildren<MonoBehaviour>(true)) mb.enabled = false;
+
+    return clone;
   }
 
   private static void ApplyCursorRotation(ZoopDraft draft, Structure structure)
@@ -229,7 +221,7 @@ internal static class ZoopPreviewFactory
         var nextLongCost = GetEntryQuantity(activeItem);
         if (constructor.Quantity > draft.TotalResourceCost + nextLongCost - 1 && canBuildNext)
         {
-          MakeLongItem(draft, context.PreviewCache, constructables, longIndex, longBuildIndex, cellSpan,
+          PrepareLongPreviewPiece(draft, context.PreviewCache, constructables, longIndex, longBuildIndex, cellSpan,
             context.SupportsCornerVariant);
           return true;
         }
@@ -237,7 +229,7 @@ internal static class ZoopPreviewFactory
         return false;
 
       case AuthoringTool:
-        MakeLongItem(draft, context.PreviewCache, constructables, longIndex, longBuildIndex, cellSpan,
+        PrepareLongPreviewPiece(draft, context.PreviewCache, constructables, longIndex, longBuildIndex, cellSpan,
           context.SupportsCornerVariant);
         return true;
 
@@ -246,7 +238,7 @@ internal static class ZoopPreviewFactory
     }
   }
 
-  private static void MakeLongItem(ZoopDraft draft, ZoopPreviewCache previewCache,
+  private static void PrepareLongPreviewPiece(ZoopDraft draft, ZoopPreviewCache previewCache,
     List<Structure> constructables, int longIndex, int buildIndex, int cellSpan,
     bool supportsCornerVariant)
   {
@@ -271,27 +263,10 @@ internal static class ZoopPreviewFactory
       return;
     }
 
-    var structureNew = UnityObject.Instantiate(InventoryManager.GetStructureCursor(structure.PrefabName));
+    var structureNew = InstantiatePreviewClone(structure);
     if (structureNew == null)
     {
       return;
-    }
-
-    structureNew.gameObject.SetActive(false);
-    foreach (var thing in structureNew.GetComponentsInChildren<Thing>(true))
-    {
-      thing.enabled = false;
-    }
-
-    foreach (var col in structureNew.GetComponentsInChildren<Collider>(true))
-    {
-      col.enabled = false;
-    }
-
-    structureNew.gameObject.SetActive(true);
-    foreach (var mb in structureNew.GetComponentsInChildren<MonoBehaviour>(true))
-    {
-      mb.enabled = false;
     }
 
     if (!supportsCornerVariant)
