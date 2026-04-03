@@ -90,23 +90,7 @@ internal static class ZoopPreviewLayoutCoordinator
           if (cellSpan > 1)
           {
             var structure = adapter.GetDraftPreviewStructure(structureCounter);
-            var rotation = structure.ThingTransformRotation;
-            var axisUnit = step.Segment.Direction switch
-            {
-              ZoopDirection.x => Vector3.right,
-              ZoopDirection.y => Vector3.up,
-              _ => Vector3.forward
-            };
-
-            var meshLocalDir = structure switch
-            {
-              Chute => Vector3.left,
-              Cable => Vector3.back,
-              _ => Vector3.forward
-            };
-            var meshAlongTravel = Vector3.Dot(rotation * meshLocalDir, axisUnit);
-            if ((meshAlongTravel > 0) != increasing)
-              placementOffset = placementIndex + cellSpan - 1;
+            placementOffset = ComputePlacementOffset(step, structure, increasing, placementIndex, cellSpan);
           }
 
           var pieceOffset = placementOffset * step.CellStride;
@@ -175,6 +159,30 @@ internal static class ZoopPreviewLayoutCoordinator
 
     return hasOverlap ||
            !adapter.CanConstructSmallCell(inventoryManager, previewStructure, structureCounter);
+  }
+
+  // For a long piece, determines whether the mesh origin should be placed at the far end
+  // (placementIndex + cellSpan - 1) rather than the near end, based on the structure's
+  // local mesh direction relative to the travel direction after rotation.
+  private static int ComputePlacementOffset(ZoopPathStep step, Structure structure,
+    bool increasing, int placementIndex, int cellSpan)
+  {
+    var axisUnit = step.Segment.Direction switch
+    {
+      ZoopDirection.x => Vector3.right,
+      ZoopDirection.y => Vector3.up,
+      _ => Vector3.forward
+    };
+    var meshLocalDir = structure switch
+    {
+      Chute => Vector3.left,
+      Cable => Vector3.back,
+      _ => Vector3.forward
+    };
+    var meshAlongTravel = Vector3.Dot(structure.ThingTransformRotation * meshLocalDir, axisUnit);
+    return (meshAlongTravel > 0) != increasing
+      ? placementIndex + cellSpan - 1
+      : placementIndex;
   }
 
   /// <summary>

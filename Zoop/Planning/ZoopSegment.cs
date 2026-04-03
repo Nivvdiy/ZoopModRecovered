@@ -46,17 +46,34 @@ internal readonly struct ZoopSegment(
     var hasY = Math.Abs(end.y - start.y) > float.Epsilon;
     var hasZ = Math.Abs(end.z - start.z) > float.Epsilon;
 
-    var isFirstSegment = true;
-    var axisCount = (hasX ? 1 : 0) + (hasY ? 1 : 0) + (hasZ ? 1 : 0);
-    var axisIdx = 0;
+    var b = new SegmentBuilder(segments, start, isFirstWaypoint, isLastWaypoint, prevDirection);
 
-    void AddSegment(ZoopDirection dir, int count, bool increasing)
+    if (!hasX && !hasY && !hasZ) { b.Add(ZoopDirection.x, 1, start.x < end.x, isLastAxis: true); return; }
+
+    if (hasX) b.Add(ZoopDirection.x, 1 + (int)(Math.Abs(start.x - end.x) * 2), start.x < end.x, !hasY && !hasZ);
+    if (hasY) b.Add(ZoopDirection.y, 1 + (int)(Math.Abs(start.y - end.y) * 2), start.y < end.y, !hasZ);
+    if (hasZ) b.Add(ZoopDirection.z, 1 + (int)(Math.Abs(start.z - end.z) * 2), start.z < end.z, true);
+  }
+
+  private ref struct SegmentBuilder(
+    List<ZoopSegment> segments, Vector3 start,
+    bool isFirstWaypoint, bool isLastWaypoint, ZoopDirection prevDirection)
+  {
+    private bool _isFirstSegment = true;
+
+    public void Add(ZoopDirection dir, int count, bool increasing, bool isLastAxis)
     {
-      var waypointStart = !isFirstWaypoint && isFirstSegment;
+      var waypointStart = !isFirstWaypoint && _isFirstSegment;
       var corner = prevDirection != ZoopDirection.none && dir != prevDirection;
       var needsBoundary = segments.Count == 0 || waypointStart || corner;
-      var isolateEnd = isLastWaypoint && ++axisIdx == axisCount;
+      EmitAxisRun(dir, count, increasing, needsBoundary, isLastAxis && isLastWaypoint, waypointStart, corner);
+      prevDirection = dir;
+      _isFirstSegment = false;
+    }
 
+    private readonly void EmitAxisRun(ZoopDirection dir, int count, bool increasing,
+      bool needsBoundary, bool isolateEnd, bool waypointStart, bool corner)
+    {
       if (needsBoundary && isolateEnd && count > 2)
       {
         segments.Add(new ZoopSegment(dir, 2, increasing, waypointStart, start, corner));
@@ -80,19 +97,6 @@ internal readonly struct ZoopSegment(
       {
         segments.Add(new ZoopSegment(dir, count, increasing, waypointStart, start, corner));
       }
-
-      prevDirection = dir;
-      isFirstSegment = false;
     }
-
-    if (!hasX && !hasY && !hasZ)
-    {
-      AddSegment(ZoopDirection.x, 1, start.x < end.x);
-      return;
-    }
-
-    if (hasX) AddSegment(ZoopDirection.x, 1 + (int)(Math.Abs(start.x - end.x) * 2), start.x < end.x);
-    if (hasY) AddSegment(ZoopDirection.y, 1 + (int)(Math.Abs(start.y - end.y) * 2), start.y < end.y);
-    if (hasZ) AddSegment(ZoopDirection.z, 1 + (int)(Math.Abs(start.z - end.z) * 2), start.z < end.z);
   }
 }
