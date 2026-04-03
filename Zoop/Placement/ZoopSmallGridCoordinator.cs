@@ -48,8 +48,7 @@ internal sealed class ZoopSmallGridCoordinator(ZoopPreviewValidator previewValid
         return;
       }
 
-      var isSegmentTurnStart =
-        (step.DirectionIndex > 0 || (step.SegmentIndex > 0 && step.DirectionIndex == 0)) && placementIndex == 0;
+      var isSegmentTurnStart = !step.IsGlobalFirst && placementIndex == 0;
       if (isSegmentTurnStart)
       {
         if (lastDirection == step.Direction)
@@ -59,7 +58,7 @@ internal sealed class ZoopSmallGridCoordinator(ZoopPreviewValidator previewValid
         else
         {
           SetCornerRotation(GetAdapterPreviewStructure(structureCounter), lastDirection, increasingFrom,
-            step.Direction, step.Axis.Increasing);
+            step.Direction, step.Increasing);
         }
 
         return;
@@ -204,7 +203,7 @@ internal sealed class ZoopSmallGridCoordinator(ZoopPreviewValidator previewValid
   /// Preview structures have their colliders disabled and the construction cursor is deactivated,
   /// so the overlap only finds actual world structures.
   /// </summary>
-  private static Dictionary<(int seg, int dir), HashSet<int>> ScanOccupiedCells(
+  private static Dictionary<int, HashSet<int>> ScanOccupiedCells(
     ZoopDraft draft,
     List<ZoopSegment> segments,
     int spacing)
@@ -212,17 +211,17 @@ internal sealed class ZoopSmallGridCoordinator(ZoopPreviewValidator previewValid
     if (InventoryManager.ConstructionCursor == null) return null;
 
     var isSmallGrid = InventoryManager.ConstructionCursor is SmallGrid;
-    Dictionary<(int seg, int dir), HashSet<int>> occupied = null;
+    Dictionary<int, HashSet<int>> occupied = null;
 
-    ZoopPathPlanner.WalkSmallGridPath(draft.Waypoints, segments, isSmallGrid, spacing, step =>
+    ZoopPathPlanner.WalkSmallGridPath(segments, isSmallGrid, spacing, step =>
     {
       for (var cellIndex = 0; cellIndex < step.ZoopCounter; cellIndex++)
       {
         if (!HasSmallGridStructureAt(step.GetCellPosition(cellIndex)))
           continue;
 
-        occupied ??= new Dictionary<(int seg, int dir), HashSet<int>>();
-        var key = (step.SegmentIndex, step.DirectionIndex);
+        occupied ??= new Dictionary<int, HashSet<int>>();
+        var key = step.RunIndex;
         if (!occupied.TryGetValue(key, out var cellSet))
         {
           cellSet = new HashSet<int>();
@@ -263,7 +262,7 @@ internal sealed class ZoopSmallGridCoordinator(ZoopPreviewValidator previewValid
     InventoryManager inventoryManager,
     List<ZoopSegment> segments,
     bool supportsCornerVariant,
-    Dictionary<(int seg, int dir), HashSet<int>> barrierCells)
+    Dictionary<int, HashSet<int>> barrierCells)
   {
     ZoopPreviewFactory.ResetSmallGridPreviewList(draft, previewCache);
     var constructables = inventoryManager.ConstructionPanel.Parent.Constructables;
@@ -281,7 +280,7 @@ internal sealed class ZoopSmallGridCoordinator(ZoopPreviewValidator previewValid
     var corners = 0;
     var lastDirection = ZoopDirection.none;
     var canBuildNext = true;
-    ZoopPathPlanner.WalkSmallGridPath(draft.Waypoints, segments, isSmallGrid: false, spacing: 1, step =>
+    ZoopPathPlanner.WalkSmallGridPath(segments, isSmallGrid: false, spacing: 1, step =>
     {
       var zoopDirection = step.Direction;
       var zoopCounter = step.ZoopCounter;
@@ -307,24 +306,17 @@ internal sealed class ZoopSmallGridCoordinator(ZoopPreviewValidator previewValid
           var isGlobalLast = step.IsGlobalLast;
           var isWaypointStart = step.IsWaypointStart && !willHaveCorner;
 
-          // Detect whether the next direction will be a corner turn.
-          // step.NextDirection is ZoopDirection.none when this is the global last, so no separate
-          // !isGlobalLast guard is needed.
-          var nextWillCorner = supportsCornerVariant &&
-                               step.NextDirection != ZoopDirection.none &&
-                               step.NextDirection != zoopDirection;
-
           // Build a unified separator set. Separators are always span-1 pieces that
           // act as section boundaries: start, end, corners, waypoints, and barriers.
           var separators = new HashSet<int>();
 
           if (isGlobalFirst || isWaypointStart)
             separators.Add(0);
-          if (isGlobalLast || nextWillCorner)
+          if (isGlobalLast)
             separators.Add(straightInDir - 1);
 
           // Barrier cells from pass 1 (merge points with existing structures).
-          var dirKey = (step.SegmentIndex, step.DirectionIndex);
+          var dirKey = step.RunIndex;
           if (barrierCells != null && barrierCells.TryGetValue(dirKey, out var cellSet))
           {
             var cornerOffset = willHaveCorner ? 1 : 0;
@@ -339,7 +331,7 @@ internal sealed class ZoopSmallGridCoordinator(ZoopPreviewValidator previewValid
           {
             var sepStr = string.Join(",", separators);
             var planStr = string.Join(",", runPlan);
-            ZoopLog.Debug($"[Sections] seg={step.SegmentIndex} dir={step.DirectionIndex} straightInDir={straightInDir} " +
+            ZoopLog.Debug($"[Sections] run={step.RunIndex} straightInDir={straightInDir} " +
                           $"separators=[{sepStr}] plan=[{planStr}]");
           }
 

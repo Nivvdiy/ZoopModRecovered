@@ -23,13 +23,8 @@ internal static class ZoopPathPlanner
       var startPos = waypoints[wpIndex];
       var endPos = wpIndex < waypoints.Count - 1 ? waypoints[wpIndex + 1] : currentPos;
 
-      var segment = ZoopSegment.FromEndpoints(startPos, endPos);
-
       isSinglePlacement = ZoopPositionUtility.IsSameZoopPosition(startPos, endPos);
-      if (isSinglePlacement)
-        segment = ZoopSegment.SinglePlacement(startPos.x, endPos.x);
-
-      segments.Add(segment);
+      ZoopSegment.AppendRuns(segments, startPos, endPos, isFirstWaypoint: wpIndex == 0);
     }
 
     return isSinglePlacement;
@@ -60,85 +55,46 @@ internal static class ZoopPathPlanner
   }
 
   /// <summary>
-  /// Walks every direction-run in the planned path and invokes <paramref name="onDirection"/> once per run,
-  /// passing a <see cref="ZoopPathStep"/> that contains all traversal context. The walker owns
-  /// the segment/direction offsets; callers read them from <see cref="ZoopPathStep.BaseOffset"/>.
+  /// Walks every run in the flat <paramref name="segments"/> list and invokes
+  /// <paramref name="onRun"/> once per run with full traversal context.
   /// </summary>
   public static void WalkSmallGridPath(
-    IReadOnlyList<Vector3> waypoints,
     IReadOnlyList<ZoopSegment> segments,
     bool isSmallGrid,
     int spacing,
-    System.Action<ZoopPathStep> onDirection)
+    Action<ZoopPathStep> onRun)
   {
-    var totalSegmentCount = segments.Count;
-    ZoopDirection lastDirection = ZoopDirection.none;
-    bool lastIncreasing = false;
-    for (var segmentIndex = 0; segmentIndex < totalSegmentCount; segmentIndex++)
-    {
-      var segment = segments[segmentIndex];
-      var directionCount = segment.Count;
-      var startPos = waypoints[segmentIndex];
-      float xOffset = 0, yOffset = 0, zOffset = 0;
+    var totalCount = segments.Count;
+    var lastDirection = ZoopDirection.none;
+    var lastIncreasing = false;
+    float xOffset = 0, yOffset = 0, zOffset = 0;
 
-      for (var directionIndex = 0; directionIndex < directionCount; directionIndex++)
+    for (var i = 0; i < totalCount; i++)
+    {
+      var run = segments[i];
+
+      // Reset the accumulated offset at the start of each new waypoint segment.
+      if (i == 0 || run.IsWaypointStart)
       {
-        var run = segment[directionIndex];
-        var zoopCounter = GetPlacementCount(totalSegmentCount, segmentIndex, directionCount, directionIndex, run.Count);
-        var value = GetDirectionalPlacementValue(run.Increasing, isSmallGrid, spacing);
-
-        // Compute the next direction for lookahead (ZoopDirection.none when this is the global last).
-        ZoopDirection nextDirection;
-        if (directionIndex + 1 < directionCount)
-          nextDirection = segment[directionIndex + 1].Direction;
-        else if (segmentIndex + 1 < totalSegmentCount)
-          nextDirection = segments[segmentIndex + 1][0].Direction;
-        else
-          nextDirection = ZoopDirection.none;
-
-        // Precompute the increasing flag of the previous direction run for corner rotation.
-        // When crossing a segment boundary (directionIndex==0 on a non-first segment), read
-        // from the last direction of the previous segment.
-        bool increasingFromPrevious;
-        if (lastDirection == ZoopDirection.none)
-        {
-          increasingFromPrevious = false;
-        }
-        else if (directionIndex == 0 && segmentIndex > 0)
-        {
-          increasingFromPrevious = segments[segmentIndex - 1].LastRun.Increasing;
-        }
-        else
-        {
-          increasingFromPrevious = lastIncreasing;
-        }
-
-        onDirection(new ZoopPathStep(
-          segmentIndex, directionIndex,
-          totalSegmentCount, directionCount,
-          run,
-          zoopCounter, value,
-          startPos, new Vector3(xOffset, yOffset, zOffset),
-          nextDirection, increasingFromPrevious));
-
-        lastDirection = run.Direction;
-        lastIncreasing = run.Increasing;
-        SetDirectionalOffset(ref xOffset, ref yOffset, ref zOffset, run.Direction, zoopCounter * value);
+        xOffset = 0; yOffset = 0; zOffset = 0;
       }
+
+      var zoopCounter = GetPlacementCount(i, totalCount, run.Count);
+      var value = GetDirectionalPlacementValue(run.Increasing, isSmallGrid, spacing);
+      var nextDirection = i + 1 < totalCount ? segments[i + 1].Direction : ZoopDirection.none;
+      var increasingFromPrevious = lastDirection != ZoopDirection.none && lastIncreasing;
+
+      onRun(new ZoopPathStep(i, totalCount, run, new Vector3(xOffset, yOffset, zOffset),
+        zoopCounter, value, nextDirection, increasingFromPrevious));
+
+      lastDirection = run.Direction;
+      lastIncreasing = run.Increasing;
+      SetDirectionalOffset(ref xOffset, ref yOffset, ref zOffset, run.Direction, zoopCounter * value);
     }
   }
 
-  public static int GetPlacementCount(int segmentCount, int segmentIndex, int directionCount, int directionIndex,
-    int zoopCount)
-  {
-    if ((segmentIndex < segmentCount - 1 && directionIndex == directionCount - 1) ||
-        directionIndex < directionCount - 1)
-    {
-      return zoopCount - 1;
-    }
-
-    return zoopCount;
-  }
+  public static int GetPlacementCount(int runIndex, int totalRunCount, int zoopCount) =>
+    runIndex < totalRunCount - 1 ? zoopCount - 1 : zoopCount;
 
   public static void SetDirectionalOffset(ref float xOffset, ref float yOffset, ref float zOffset,
     ZoopDirection direction,

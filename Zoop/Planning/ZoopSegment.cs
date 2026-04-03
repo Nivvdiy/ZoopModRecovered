@@ -1,83 +1,80 @@
 using System;
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace ZoopMod.Zoop.Planning;
 
 /// <summary>
-/// One ordered direction-run within a <see cref="ZoopSegment"/>: combines the axis, cell count,
-/// and travel direction so both lookups previously needed (GetDirection + GetAxis) collapse to one.
+/// One direction-run in a planned zoop path.
+/// A <c>List&lt;ZoopSegment&gt;</c> is the complete flat path — no nested enumeration needed.
+/// Constructed by <see cref="ZoopSegment.AppendRuns"/>.
 /// </summary>
-internal readonly struct ZoopSegmentDirection(ZoopDirection direction, int count, bool increasing)
+internal readonly struct ZoopSegment(
+  ZoopDirection direction, int count, bool increasing,
+  bool isWaypointStart, Vector3 startPos)
 {
+  /// <summary>World axis being traversed in this run.</summary>
   public ZoopDirection Direction { get; } = direction;
+
+  /// <summary>Total cell count from the path plan (before endpoint deduplication).</summary>
   public int Count { get; } = count;
+
+  /// <summary>Whether the run travels in the positive axis direction.</summary>
   public bool Increasing { get; } = increasing;
-}
 
-/// <summary>
-/// One segment of a planned zoop path between two waypoints.
-/// Iterate over all direction-runs with <c>foreach (var run in segment)</c>.
-/// Constructed via <see cref="FromEndpoints"/> or <see cref="SinglePlacement"/>.
-/// </summary>
-internal readonly struct ZoopSegment
-{
-  private readonly ZoopSegmentDirection[] _runs;
+  /// <summary>True when this is the first run of a non-first waypoint segment.</summary>
+  public bool IsWaypointStart { get; } = isWaypointStart;
 
-  private ZoopSegment(ZoopSegmentDirection[] runs) => _runs = runs;
-
-  /// <summary>Number of direction-runs in this segment.</summary>
-  public int Count => _runs?.Length ?? 0;
-
-  /// <summary>Returns the run at <paramref name="index"/>.</summary>
-  public ZoopSegmentDirection this[int index] => _runs[index];
-
-  /// <summary>The last run, or a default value if the segment is empty.</summary>
-  public ZoopSegmentDirection LastRun => _runs is { Length: > 0 } r ? r[r.Length - 1] : default;
-
-  /// <summary>Returns an enumerator so <c>foreach (var run in segment)</c> works without allocation.</summary>
-  public Enumerator GetEnumerator() => new(_runs);
-
-  /// <summary>Struct enumerator for <see cref="ZoopSegment"/> — no heap allocation on foreach.</summary>
-  public struct Enumerator
-  {
-    private readonly ZoopSegmentDirection[] _runs;
-    private int _index;
-
-    internal Enumerator(ZoopSegmentDirection[] runs)
-    {
-      _runs = runs ?? Array.Empty<ZoopSegmentDirection>();
-      _index = -1;
-    }
-
-    public bool MoveNext() => ++_index < _runs.Length;
-    public ZoopSegmentDirection Current => _runs[_index];
-  }
+  /// <summary>World-space position of the waypoint that starts this run's parent segment.</summary>
+  public Vector3 StartPos { get; } = startPos;
 
   /// <summary>
-  /// Calculates a segment from two waypoint positions.
-  /// Each axis with non-trivial displacement becomes one direction-run, in X→Y→Z order.
+  /// Appends one <see cref="ZoopSegment"/> per active axis (X→Y→Z order) derived from the
+  /// displacement between <paramref name="start"/> and <paramref name="end"/>.
+  /// The first run of a non-first waypoint gets <see cref="IsWaypointStart"/> = <see langword="true"/>.
+  /// If there is no displacement, a single default x-axis run is added (single-placement fallback).
   /// </summary>
-  public static ZoopSegment FromEndpoints(Vector3 start, Vector3 end)
+  public static void AppendRuns(List<ZoopSegment> runs, Vector3 start, Vector3 end, bool isFirstWaypoint)
   {
     var hasX = Math.Abs(end.x - start.x) > float.Epsilon;
     var hasY = Math.Abs(end.y - start.y) > float.Epsilon;
     var hasZ = Math.Abs(end.z - start.z) > float.Epsilon;
-    var count = (hasX ? 1 : 0) + (hasY ? 1 : 0) + (hasZ ? 1 : 0);
 
-    if (count == 0)
-      return SinglePlacement(start.x, end.x);
+    if (!hasX && !hasY && !hasZ)
+    {
+      // Single-placement: add one x-axis run so there is always at least one entry.
+      runs.Add(new ZoopSegment(ZoopDirection.x,
+        1 + (int)(Math.Abs(start.x - end.x) * 2), start.x < end.x,
+        isWaypointStart: !isFirstWaypoint, start));
+      return;
+    }
 
-    var runs = new ZoopSegmentDirection[count];
-    var i = 0;
-    if (hasX) runs[i++] = new ZoopSegmentDirection(ZoopDirection.x, 1 + (int)(Math.Abs(start.x - end.x) * 2), start.x < end.x);
-    if (hasY) runs[i++] = new ZoopSegmentDirection(ZoopDirection.y, 1 + (int)(Math.Abs(start.y - end.y) * 2), start.y < end.y);
-    if (hasZ) runs[i++] = new ZoopSegmentDirection(ZoopDirection.z, 1 + (int)(Math.Abs(start.z - end.z) * 2), start.z < end.z);
-    return new ZoopSegment(runs);
+    var firstRun = true;
+
+    if (hasX)
+    {
+      var count = 1 + (int)(Math.Abs(start.x - end.x) * 2);
+      var inc = start.x < end.x;
+      runs.Add(new ZoopSegment(ZoopDirection.x, count, inc,
+        isWaypointStart: !isFirstWaypoint && firstRun, start));
+      firstRun = false;
+    }
+
+    if (hasY)
+    {
+      var count = 1 + (int)(Math.Abs(start.y - end.y) * 2);
+      var inc = start.y < end.y;
+      runs.Add(new ZoopSegment(ZoopDirection.y, count, inc,
+        isWaypointStart: !isFirstWaypoint && firstRun, start));
+      firstRun = false;
+    }
+
+    if (hasZ)
+    {
+      var count = 1 + (int)(Math.Abs(start.z - end.z) * 2);
+      var inc = start.z < end.z;
+      runs.Add(new ZoopSegment(ZoopDirection.z, count, inc,
+        isWaypointStart: !isFirstWaypoint && firstRun, start));
+    }
   }
-
-  /// <summary>
-  /// Returns a single-cell segment used when start and end are the same position.
-  /// </summary>
-  public static ZoopSegment SinglePlacement(float startX, float endX) =>
-    new(new[] { new ZoopSegmentDirection(ZoopDirection.x, 1 + (int)(Math.Abs(startX - endX) * 2), startX < endX) });
 }

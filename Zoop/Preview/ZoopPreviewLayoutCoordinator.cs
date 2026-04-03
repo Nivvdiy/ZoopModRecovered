@@ -57,8 +57,8 @@ internal static class ZoopPreviewLayoutCoordinator
     bool supportsCornerVariant,
     int spacing,
     bool isSinglePlacement,
-    out HashSet<(int seg, int dir)> blockedDirections,
-    out Dictionary<(int seg, int dir), HashSet<int>> errorCells)
+    out HashSet<int> blockedDirections,
+    out Dictionary<int, HashSet<int>> errorCells)
   {
     var draft = adapter.Draft;
     var structureCounter = 0;
@@ -66,15 +66,15 @@ internal static class ZoopPreviewLayoutCoordinator
     OccupiedCells.Clear();
     var hasError = false;
     // out params cannot be captured by lambdas; use locals and assign after the walk.
-    HashSet<(int seg, int dir)> localBlockedDirections = null;
-    Dictionary<(int seg, int dir), HashSet<int>> localErrorCells = null;
+    HashSet<int> localBlockedDirections = null;
+    Dictionary<int, HashSet<int>> localErrorCells = null;
     var creativeFreedomEnabled = ZoopIntegrations.CreativeFreedomAvailable;
 
-    ZoopPathPlanner.WalkSmallGridPath(draft.Waypoints, segments, InventoryManager.ConstructionCursor is SmallGrid, spacing, step =>
+    ZoopPathPlanner.WalkSmallGridPath(segments, InventoryManager.ConstructionCursor is SmallGrid, spacing, step =>
     {
       if (structureCounter == draft.PreviewCount) return;
 
-      var increasing = step.Axis.Increasing;
+      var increasing = step.Increasing;
 
       for (var placementIndex = 0; placementIndex < step.ZoopCounter;)
       {
@@ -132,13 +132,13 @@ internal static class ZoopPreviewLayoutCoordinator
           {
             if (cellSpan > 1)
             {
-              localBlockedDirections ??= new HashSet<(int seg, int dir)>();
-              localBlockedDirections.Add((step.SegmentIndex, step.DirectionIndex));
+              localBlockedDirections ??= new HashSet<int>();
+              localBlockedDirections.Add(step.RunIndex);
             }
 
             // Record every error cell so the rebuild pass can place barriers precisely.
-            var key = (step.SegmentIndex, step.DirectionIndex);
-            localErrorCells ??= new Dictionary<(int seg, int dir), HashSet<int>>();
+            var key = step.RunIndex;
+            localErrorCells ??= new Dictionary<int, HashSet<int>>();
             if (!localErrorCells.TryGetValue(key, out var cellSet))
             {
               cellSet = new HashSet<int>();
@@ -146,7 +146,7 @@ internal static class ZoopPreviewLayoutCoordinator
             }
             for (var ec = 0; ec < cellSpan; ec++)
               cellSet.Add(placementIndex + ec);
-            ZoopLog.Debug($"[CellError] seg={step.SegmentIndex} dir={step.DirectionIndex} pIdx={placementIndex} span={cellSpan}");
+            ZoopLog.Debug($"[CellError] run={step.RunIndex} pIdx={placementIndex} span={cellSpan}");
           }
 
           structureCounter++;
