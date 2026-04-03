@@ -23,15 +23,11 @@ internal static class ZoopPathPlanner
       var startPos = waypoints[wpIndex];
       var endPos = wpIndex < waypoints.Count - 1 ? waypoints[wpIndex + 1] : currentPos;
 
-      var segment = new ZoopSegment();
-      CalculateZoopSegments(startPos, endPos, segment);
+      var segment = ZoopSegment.FromEndpoints(startPos, endPos);
 
       isSinglePlacement = ZoopPositionUtility.IsSameZoopPosition(startPos, endPos);
       if (isSinglePlacement)
-      {
-        segment.X = new ZoopAxisData(1 + (int)(Math.Abs(startPos.x - endPos.x) * 2), startPos.x < endPos.x);
-        segment.AddDirection(ZoopDirection.x);
-      }
+        segment = ZoopSegment.SinglePlacement(startPos.x, endPos.x);
 
       segments.Add(segment);
     }
@@ -81,23 +77,22 @@ internal static class ZoopPathPlanner
     for (var segmentIndex = 0; segmentIndex < totalSegmentCount; segmentIndex++)
     {
       var segment = segments[segmentIndex];
-      var directionCount = segment.DirectionCount;
+      var directionCount = segment.Count;
       var startPos = waypoints[segmentIndex];
       float xOffset = 0, yOffset = 0, zOffset = 0;
 
       for (var directionIndex = 0; directionIndex < directionCount; directionIndex++)
       {
-        var direction = segment.GetDirection(directionIndex);
-        var axis = segment.GetAxis(direction);
-        var zoopCounter = GetPlacementCount(totalSegmentCount, segmentIndex, directionCount, directionIndex, axis.Count);
-        var value = GetDirectionalPlacementValue(axis.Increasing, isSmallGrid, spacing);
+        var run = segment[directionIndex];
+        var zoopCounter = GetPlacementCount(totalSegmentCount, segmentIndex, directionCount, directionIndex, run.Count);
+        var value = GetDirectionalPlacementValue(run.Increasing, isSmallGrid, spacing);
 
         // Compute the next direction for lookahead (ZoopDirection.none when this is the global last).
         ZoopDirection nextDirection;
         if (directionIndex + 1 < directionCount)
-          nextDirection = segment.GetDirection(directionIndex + 1);
+          nextDirection = segment[directionIndex + 1].Direction;
         else if (segmentIndex + 1 < totalSegmentCount)
-          nextDirection = segments[segmentIndex + 1].GetDirection(0);
+          nextDirection = segments[segmentIndex + 1][0].Direction;
         else
           nextDirection = ZoopDirection.none;
 
@@ -111,8 +106,7 @@ internal static class ZoopPathPlanner
         }
         else if (directionIndex == 0 && segmentIndex > 0)
         {
-          var prevSeg = segments[segmentIndex - 1];
-          increasingFromPrevious = prevSeg.GetAxis(prevSeg.LastDirection).Increasing;
+          increasingFromPrevious = segments[segmentIndex - 1].LastRun.Increasing;
         }
         else
         {
@@ -122,14 +116,14 @@ internal static class ZoopPathPlanner
         onDirection(new ZoopPathStep(
           segmentIndex, directionIndex,
           totalSegmentCount, directionCount,
-          direction, axis,
+          run,
           zoopCounter, value,
           startPos, new Vector3(xOffset, yOffset, zOffset),
           nextDirection, increasingFromPrevious));
 
-        lastDirection = direction;
-        lastIncreasing = axis.Increasing;
-        SetDirectionalOffset(ref xOffset, ref yOffset, ref zOffset, direction, zoopCounter * value);
+        lastDirection = run.Direction;
+        lastIncreasing = run.Increasing;
+        SetDirectionalOffset(ref xOffset, ref yOffset, ref zOffset, run.Direction, zoopCounter * value);
       }
     }
   }
@@ -163,40 +157,6 @@ internal static class ZoopPathPlanner
         return;
       default:
         throw new ArgumentOutOfRangeException(nameof(direction), direction, null);
-    }
-  }
-
-  private static void CalculateZoopSegments(Vector3 startPos, Vector3 endPos, ZoopSegment segment)
-  {
-    segment.ClearDirections();
-
-    var startX = startPos.x;
-    var startY = startPos.y;
-    var startZ = startPos.z;
-    var endX = endPos.x;
-    var endY = endPos.y;
-    var endZ = endPos.z;
-
-    var absX = Math.Abs(endX - startX);
-    var absY = Math.Abs(endY - startY);
-    var absZ = Math.Abs(endZ - startZ);
-
-    if (absX > float.Epsilon)
-    {
-      segment.X = new ZoopAxisData(1 + (int)(Math.Abs(startX - endX) * 2), startX < endX);
-      segment.AddDirection(ZoopDirection.x);
-    }
-
-    if (absY > float.Epsilon)
-    {
-      segment.Y = new ZoopAxisData(1 + (int)(Math.Abs(startY - endY) * 2), startY < endY);
-      segment.AddDirection(ZoopDirection.y);
-    }
-
-    if (absZ > float.Epsilon)
-    {
-      segment.Z = new ZoopAxisData(1 + (int)(Math.Abs(startZ - endZ) * 2), startZ < endZ);
-      segment.AddDirection(ZoopDirection.z);
     }
   }
 

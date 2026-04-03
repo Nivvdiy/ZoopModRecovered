@@ -1,65 +1,83 @@
 using System;
+using UnityEngine;
 
 namespace ZoopMod.Zoop.Planning;
 
 /// <summary>
-/// Per-axis traversal data for one segment of a planned zoop path.
+/// One ordered direction-run within a <see cref="ZoopSegment"/>: combines the axis, cell count,
+/// and travel direction so both lookups previously needed (GetDirection + GetAxis) collapse to one.
 /// </summary>
-internal readonly struct ZoopAxisData(int count, bool increasing)
+internal readonly struct ZoopSegmentDirection(ZoopDirection direction, int count, bool increasing)
 {
+  public ZoopDirection Direction { get; } = direction;
   public int Count { get; } = count;
   public bool Increasing { get; } = increasing;
 }
 
 /// <summary>
 /// One segment of a planned zoop path between two waypoints.
-/// Axis data is stored in per-axis structs; direction order is stored in three inline fields
-/// rather than a <c>List&lt;ZoopDirection&gt;</c> to avoid per-frame heap allocation.
+/// Iterate over all direction-runs with <c>foreach (var run in segment)</c>.
+/// Constructed via <see cref="FromEndpoints"/> or <see cref="SinglePlacement"/>.
 /// </summary>
-internal sealed class ZoopSegment
+internal readonly struct ZoopSegment
 {
-  public ZoopAxisData X { get; set; }
-  public ZoopAxisData Y { get; set; }
-  public ZoopAxisData Z { get; set; }
+  private readonly ZoopSegmentDirection[] _runs;
 
-  private ZoopDirection _dir0;
-  private ZoopDirection _dir1;
-  private ZoopDirection _dir2;
-  private int _dirCount;
+  private ZoopSegment(ZoopSegmentDirection[] runs) => _runs = runs;
 
-  public int DirectionCount => _dirCount;
+  /// <summary>Number of direction-runs in this segment.</summary>
+  public int Count => _runs?.Length ?? 0;
 
-  public ZoopDirection GetDirection(int index) => index switch
+  /// <summary>Returns the run at <paramref name="index"/>.</summary>
+  public ZoopSegmentDirection this[int index] => _runs[index];
+
+  /// <summary>The last run, or a default value if the segment is empty.</summary>
+  public ZoopSegmentDirection LastRun => _runs is { Length: > 0 } r ? r[r.Length - 1] : default;
+
+  /// <summary>Returns an enumerator so <c>foreach (var run in segment)</c> works without allocation.</summary>
+  public Enumerator GetEnumerator() => new(_runs);
+
+  /// <summary>Struct enumerator for <see cref="ZoopSegment"/> — no heap allocation on foreach.</summary>
+  public struct Enumerator
   {
-    0 => _dir0,
-    1 => _dir1,
-    2 => _dir2,
-    _ => throw new ArgumentOutOfRangeException(nameof(index), index, null)
-  };
+    private readonly ZoopSegmentDirection[] _runs;
+    private int _index;
 
-  /// <summary>The last direction added, or <see cref="ZoopDirection.none"/> if no directions have been added.</summary>
-  public ZoopDirection LastDirection => _dirCount > 0 ? GetDirection(_dirCount - 1) : ZoopDirection.none;
-
-  public void AddDirection(ZoopDirection dir)
-  {
-    switch (_dirCount)
+    internal Enumerator(ZoopSegmentDirection[] runs)
     {
-      case 0: _dir0 = dir; break;
-      case 1: _dir1 = dir; break;
-      case 2: _dir2 = dir; break;
-      default: throw new InvalidOperationException("ZoopSegment supports at most 3 directions.");
+      _runs = runs ?? Array.Empty<ZoopSegmentDirection>();
+      _index = -1;
     }
-    _dirCount++;
+
+    public bool MoveNext() => ++_index < _runs.Length;
+    public ZoopSegmentDirection Current => _runs[_index];
   }
 
-  public void ClearDirections() => _dirCount = 0;
-
-  /// <summary>Returns the axis data for the given direction.</summary>
-  public ZoopAxisData GetAxis(ZoopDirection dir) => dir switch
+  /// <summary>
+  /// Calculates a segment from two waypoint positions.
+  /// Each axis with non-trivial displacement becomes one direction-run, in X→Y→Z order.
+  /// </summary>
+  public static ZoopSegment FromEndpoints(Vector3 start, Vector3 end)
   {
-    ZoopDirection.x => X,
-    ZoopDirection.y => Y,
-    ZoopDirection.z => Z,
-    _ => throw new ArgumentOutOfRangeException(nameof(dir), dir, null)
-  };
+    var hasX = Math.Abs(end.x - start.x) > float.Epsilon;
+    var hasY = Math.Abs(end.y - start.y) > float.Epsilon;
+    var hasZ = Math.Abs(end.z - start.z) > float.Epsilon;
+    var count = (hasX ? 1 : 0) + (hasY ? 1 : 0) + (hasZ ? 1 : 0);
+
+    if (count == 0)
+      return SinglePlacement(start.x, end.x);
+
+    var runs = new ZoopSegmentDirection[count];
+    var i = 0;
+    if (hasX) runs[i++] = new ZoopSegmentDirection(ZoopDirection.x, 1 + (int)(Math.Abs(start.x - end.x) * 2), start.x < end.x);
+    if (hasY) runs[i++] = new ZoopSegmentDirection(ZoopDirection.y, 1 + (int)(Math.Abs(start.y - end.y) * 2), start.y < end.y);
+    if (hasZ) runs[i++] = new ZoopSegmentDirection(ZoopDirection.z, 1 + (int)(Math.Abs(start.z - end.z) * 2), start.z < end.z);
+    return new ZoopSegment(runs);
+  }
+
+  /// <summary>
+  /// Returns a single-cell segment used when start and end are the same position.
+  /// </summary>
+  public static ZoopSegment SinglePlacement(float startX, float endX) =>
+    new(new[] { new ZoopSegmentDirection(ZoopDirection.x, 1 + (int)(Math.Abs(startX - endX) * 2), startX < endX) });
 }

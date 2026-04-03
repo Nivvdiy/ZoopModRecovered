@@ -10,7 +10,7 @@ namespace ZoopMod.Zoop.Planning;
 internal readonly struct ZoopPathStep(
   int segmentIndex, int directionIndex,
   int totalSegmentCount, int directionCount,
-  ZoopDirection direction, ZoopAxisData axis,
+  ZoopSegmentDirection run,
   int zoopCounter, float value,
   Vector3 startPos, Vector3 baseOffset,
   ZoopDirection nextDirection,
@@ -29,10 +29,10 @@ internal readonly struct ZoopPathStep(
   public int DirectionCount { get; } = directionCount;
 
   /// <summary>World axis being traversed in this run.</summary>
-  public ZoopDirection Direction { get; } = direction;
+  public ZoopDirection Direction { get; } = run.Direction;
 
   /// <summary>Count and increasing flag for this direction run.</summary>
-  public ZoopAxisData Axis { get; } = axis;
+  public ZoopSegmentDirection Axis { get; } = run;
 
   /// <summary>Number of cell positions in this run after endpoint deduplication.</summary>
   public int ZoopCounter { get; } = zoopCounter;
