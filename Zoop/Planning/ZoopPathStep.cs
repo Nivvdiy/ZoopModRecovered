@@ -10,7 +10,7 @@ namespace ZoopMod.Zoop.Planning;
 internal readonly struct ZoopPathStep(
   int runIndex, int totalRunCount,
   ZoopSegment run, Vector3 baseOffset,
-  int zoopCounter, float value,
+  int zoopCounter, float cellStride,
   bool increasingFromPrevious)
 {
   /// <summary>Flat index of this run in the path.</summary>
@@ -29,7 +29,7 @@ internal readonly struct ZoopPathStep(
   public int ZoopCounter { get; } = zoopCounter;
 
   /// <summary>World-space step size (positive or negative) per cell along <see cref="Direction"/>.</summary>
-  public float Value { get; } = value;
+  public float CellStride { get; } = cellStride;
 
   /// <summary>World-space position of the start of the parent segment (the waypoint origin).</summary>
   public Vector3 StartPos { get; } = run.StartPos;
@@ -62,7 +62,7 @@ internal readonly struct ZoopPathStep(
   public Vector3 GetCellPosition(int placementIndex)
   {
     float x = BaseOffset.x, y = BaseOffset.y, z = BaseOffset.z;
-    ZoopPathPlanner.SetDirectionalOffset(ref x, ref y, ref z, Direction, placementIndex * Value);
+    ZoopPathPlanner.SetDirectionalOffset(ref x, ref y, ref z, Direction, placementIndex * CellStride);
     return StartPos + new Vector3(x, y, z);
   }
 }

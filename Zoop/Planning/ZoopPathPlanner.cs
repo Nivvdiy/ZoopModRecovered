@@ -7,6 +7,8 @@ namespace ZoopMod.Zoop.Planning;
 
 internal static class ZoopPathPlanner
 {
+  private const float SmallGridCellSpacing = 0.5f;
+
   private static readonly List<ZoopSegment> _segments = new List<ZoopSegment>();
 
   public static IReadOnlyList<ZoopSegment> BuildSmallGridPlan(IReadOnlyList<Vector3> waypoints, Vector3 currentPos)
@@ -41,9 +43,6 @@ internal static class ZoopPathPlanner
     return plane;
   }
 
-  public static float GetDirectionalPlacementValue(bool increasing) =>
-    increasing ? 2f : -2f;
-
   /// <summary>
   /// Walks every run in the flat <paramref name="segments"/> list and invokes
   /// <paramref name="onRun"/> once per run with full traversal context.
@@ -68,15 +67,15 @@ internal static class ZoopPathPlanner
       }
 
       var zoopCounter = GetPlacementCount(i, totalCount, run.Count);
-      var value = GetDirectionalPlacementValue(run.Increasing);
+      var cellStride = run.Increasing ? SmallGridCellSpacing : -SmallGridCellSpacing;
       var increasingFromPrevious = lastDirection != ZoopDirection.none && lastIncreasing;
 
       onRun(new ZoopPathStep(i, totalCount, run, new Vector3(xOffset, yOffset, zOffset),
-        zoopCounter, value, increasingFromPrevious));
+        zoopCounter, cellStride, increasingFromPrevious));
 
       lastDirection = run.Direction;
       lastIncreasing = run.Increasing;
-      SetDirectionalOffset(ref xOffset, ref yOffset, ref zOffset, run.Direction, zoopCounter * value);
+      SetDirectionalOffset(ref xOffset, ref yOffset, ref zOffset, run.Direction, zoopCounter * cellStride);
     }
   }
 

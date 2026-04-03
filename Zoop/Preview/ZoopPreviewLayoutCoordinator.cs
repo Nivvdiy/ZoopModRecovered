@@ -41,6 +41,8 @@ internal interface IBigGridPreviewLayoutAdapter
 /// </summary>
 internal static class ZoopPreviewLayoutCoordinator
 {
+  private const float BigGridCellSpacing = 2f;
+
   // Reused across calls to avoid per-frame HashSet allocation. Cleared at the top of every
   // PositionSmallGridStructures call so it never carries stale data from a previous update.
   private static readonly HashSet<Vector3Int> OccupiedCells = new();
@@ -107,7 +109,7 @@ internal static class ZoopPreviewLayoutCoordinator
               placementOffset = placementIndex + cellSpan - 1;
           }
 
-          var pieceOffset = placementOffset * step.Value;
+          var pieceOffset = placementOffset * step.CellStride;
 
           float xOffset = step.BaseOffset.x, yOffset = step.BaseOffset.y, zOffset = step.BaseOffset.z;
           ZoopPathPlanner.SetDirectionalOffset(ref xOffset, ref yOffset, ref zOffset, step.Direction,
@@ -124,7 +126,7 @@ internal static class ZoopPreviewLayoutCoordinator
 
           // Track all cells this piece covers and check for overlaps/constructibility.
           var cellError = HasSmallGridCellError(creativeFreedomEnabled, adapter, inventoryManager,
-            OccupiedCells, step.StartPos, xOffset, yOffset, zOffset, step.Direction, step.Value, placementIndex,
+            OccupiedCells, step.StartPos, xOffset, yOffset, zOffset, step.Direction, step.CellStride, placementIndex,
             cellSpan, previewStructure, structureCounter);
           hasError = hasError || cellError;
           if (cellError)
@@ -173,7 +175,7 @@ internal static class ZoopPreviewLayoutCoordinator
     float yOffset,
     float zOffset,
     ZoopDirection zoopDirection,
-    float value,
+    float cellStride,
     int placementIndex,
     int cellSpan,
     Structure previewStructure,
@@ -185,7 +187,7 @@ internal static class ZoopPreviewLayoutCoordinator
     for (var c = 0; c < cellSpan; c++)
     {
       float cx = xOffset, cy = yOffset, cz = zOffset;
-      ZoopPathPlanner.SetDirectionalOffset(ref cx, ref cy, ref cz, zoopDirection, (placementIndex + c) * value);
+      ZoopPathPlanner.SetDirectionalOffset(ref cx, ref cy, ref cz, zoopDirection, (placementIndex + c) * cellStride);
       var cellPos = startPos + new Vector3(cx, cy, cz);
       var cellKey = adapter.GetDraftCellKey(cellPos);
       if (occupiedCells.Contains(cellKey)) hasOverlap = true;
@@ -225,7 +227,7 @@ internal static class ZoopPreviewLayoutCoordinator
       var zoopDirection2 = plane.Directions.direction2;
       var increasing2 = plane.Increasing.direction2;
 
-      var value2 = ZoopPathPlanner.GetDirectionalPlacementValue(increasing2);
+      var value2 = increasing2 ? BigGridCellSpacing : -BigGridCellSpacing;
       ZoopPathPlanner.SetDirectionalOffset(ref xOffset, ref yOffset, ref zOffset, zoopDirection2,
         indexDirection2 * value2);
 
@@ -239,7 +241,7 @@ internal static class ZoopPreviewLayoutCoordinator
         var zoopDirection1 = plane.Directions.direction1;
         var increasing1 = plane.Increasing.direction1;
 
-        var value1 = ZoopPathPlanner.GetDirectionalPlacementValue(increasing1);
+        var value1 = increasing1 ? BigGridCellSpacing : -BigGridCellSpacing;
         ZoopPathPlanner.SetDirectionalOffset(ref xOffset, ref yOffset, ref zOffset, zoopDirection1,
           indexDirection1 * value1);
 
