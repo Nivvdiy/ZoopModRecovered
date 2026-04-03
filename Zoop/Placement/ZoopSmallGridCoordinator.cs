@@ -39,7 +39,6 @@ internal sealed class ZoopSmallGridCoordinator(ZoopPreviewValidator previewValid
       int placementIndex,
       ZoopDirection lastDirection,
       bool increasingFrom,
-      bool isSinglePlacement,
       bool supportsCornerVariant)
     {
       if (!supportsCornerVariant)
@@ -63,10 +62,7 @@ internal sealed class ZoopSmallGridCoordinator(ZoopPreviewValidator previewValid
         return;
       }
 
-      if (!isSinglePlacement)
-      {
-        SetStraightRotation(GetAdapterPreviewStructure(structureCounter), step.Segment.Direction);
-      }
+      SetStraightRotation(GetAdapterPreviewStructure(structureCounter), step.Segment.Direction);
     }
 
     public bool CanConstructSmallCell(InventoryManager inventoryManager, Structure structure, int structureIndex)
@@ -183,7 +179,6 @@ internal sealed class ZoopSmallGridCoordinator(ZoopPreviewValidator previewValid
       inventoryManager,
       segments,
       supportsCornerVariant,
-      isSinglePlacement: segments.Count == 0,
       out var hasPlacementError);
     draft.HasError = draft.HasError || hasPlacementError;
   }

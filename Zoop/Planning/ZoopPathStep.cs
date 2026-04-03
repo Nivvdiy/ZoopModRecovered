@@ -9,7 +9,6 @@ namespace ZoopMod.Zoop.Planning;
 /// </summary>
 internal readonly struct ZoopPathStep(
   int segmentIndex,
-  int totalSegmentCount,
   ZoopSegment segment,
   Vector3 baseOffset,
   int zoopCounter,
@@ -22,13 +21,10 @@ internal readonly struct ZoopPathStep(
 /// <summary>Flat index of this segment in the path.</summary>
   public int SegmentIndex { get; } = segmentIndex;
 
-  /// <summary>Total number of segments in the path.</summary>
-  public int TotalSegmentCount { get; } = totalSegmentCount;
-
   /// <summary>Number of cell positions in this segment after endpoint deduplication.</summary>
   public int ZoopCounter { get; } = zoopCounter;
 
-  /// <summary>World-space step size (positive or negative) per cell along <see cref="Direction"/>.</summary>
+  /// <summary>World-space step size (positive or negative) per cell along the segment direction.</summary>
   public float CellStride { get; } = cellStride;
 
   /// <summary>
@@ -46,9 +42,6 @@ internal readonly struct ZoopPathStep(
 
   /// <summary>Returns true if this is the very first segment in the path.</summary>
   public bool IsGlobalFirst => SegmentIndex == 0;
-
-  /// <summary>Returns true if this is the very last segment in the path.</summary>
-  public bool IsGlobalLast => SegmentIndex == TotalSegmentCount - 1;
 
   /// <summary>
   /// Computes the world-space position at <paramref name="placementIndex"/> cells along this direction.

@@ -22,7 +22,6 @@ internal interface ISmallGridPreviewLayoutAdapter
     int placementIndex,
     ZoopDirection lastDirection,
     bool increasingFrom,
-    bool isSinglePlacement,
     bool supportsCornerVariant);
   bool CanConstructSmallCell(InventoryManager inventoryManager, Structure structure, int structureIndex);
   Vector3Int GetDraftCellKey(Vector3 position);
@@ -57,7 +56,6 @@ internal static class ZoopPreviewLayoutCoordinator
     InventoryManager inventoryManager,
     IReadOnlyList<ZoopSegment> segments,
     bool supportsCornerVariant,
-    bool isSinglePlacement,
     out bool hasPlacementError)
   {
     var draft = adapter.Draft;
@@ -81,7 +79,7 @@ internal static class ZoopPreviewLayoutCoordinator
           // Apply rotation first so we can read the actual quaternion to determine
           // which direction the model's mesh extends in world space.
           // increasingFromPrevious is precomputed by the walker; no segment lookback needed here.
-          adapter.ApplyRotation(structureCounter, step, placementIndex, lastDirection, step.IncreasingFromPrevious, isSinglePlacement, supportsCornerVariant);
+          adapter.ApplyRotation(structureCounter, step, placementIndex, lastDirection, step.IncreasingFromPrevious, supportsCornerVariant);
 
           // Each structure family has a different local mesh direction:
           //   Chute: local -X    Pipe: local +Z    Cable: local -Z
