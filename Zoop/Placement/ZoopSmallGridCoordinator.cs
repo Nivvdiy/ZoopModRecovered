@@ -156,9 +156,9 @@ internal sealed class ZoopSmallGridCoordinator(ZoopPreviewValidator previewValid
   /// Rebuilds the active small-grid preview for the current snapped cursor position.
   /// </summary>
   public async UniTask UpdatePreview(ZoopDraft draft, ZoopPreviewCache previewCache, InventoryManager inventoryManager,
-    Vector3 currentPos, List<ZoopSegment> segments, int spacing)
+    Vector3 currentPos)
   {
-    var isSinglePlacement = ZoopPathPlanner.BuildSmallGridPlan(draft.Waypoints, currentPos, segments);
+    var segments = ZoopPathPlanner.BuildSmallGridPlan(draft.Waypoints, currentPos);
 
     await UniTask.SwitchToMainThread(); // Switch to main thread for Unity API calls
 
@@ -169,7 +169,7 @@ internal sealed class ZoopSmallGridCoordinator(ZoopPreviewValidator previewValid
 
     // Pre-scan every cell along the path for existing structures. Occupied cells
     // become separators so long variants never straddle an obstacle.
-    var occupiedCells = ScanOccupiedCells(draft, segments, spacing);
+    var occupiedCells = ScanOccupiedCells(segments);
 
     BuildSmallStructureList(draft, previewCache, inventoryManager, segments, supportsCornerVariant,
       barrierCells: occupiedCells);
@@ -185,8 +185,7 @@ internal sealed class ZoopSmallGridCoordinator(ZoopPreviewValidator previewValid
       inventoryManager,
       segments,
       supportsCornerVariant,
-      spacing,
-      isSinglePlacement,
+      isSinglePlacement: segments.Count == 0,
       out _,
       out _);
   }
@@ -204,27 +203,24 @@ internal sealed class ZoopSmallGridCoordinator(ZoopPreviewValidator previewValid
   /// so the overlap only finds actual world structures.
   /// </summary>
   private static Dictionary<int, HashSet<int>> ScanOccupiedCells(
-    ZoopDraft draft,
-    List<ZoopSegment> segments,
-    int spacing)
+    IReadOnlyList<ZoopSegment> segments)
   {
     if (InventoryManager.ConstructionCursor == null) return null;
 
-    var isSmallGrid = InventoryManager.ConstructionCursor is SmallGrid;
     Dictionary<int, HashSet<int>> occupied = null;
 
-    ZoopPathPlanner.WalkSmallGridPath(segments, isSmallGrid, spacing, step =>
+    ZoopPathPlanner.WalkSmallGridPath(segments, step =>
     {
       for (var cellIndex = 0; cellIndex < step.ZoopCounter; cellIndex++)
       {
         if (!HasSmallGridStructureAt(step.GetCellPosition(cellIndex)))
           continue;
 
-        occupied ??= new Dictionary<int, HashSet<int>>();
+        occupied ??= [];
         var key = step.RunIndex;
         if (!occupied.TryGetValue(key, out var cellSet))
         {
-          cellSet = new HashSet<int>();
+          cellSet = [];
           occupied[key] = cellSet;
         }
 
@@ -260,7 +256,7 @@ internal sealed class ZoopSmallGridCoordinator(ZoopPreviewValidator previewValid
   /// </summary>
   private static void BuildSmallStructureList(ZoopDraft draft, ZoopPreviewCache previewCache,
     InventoryManager inventoryManager,
-    List<ZoopSegment> segments,
+    IReadOnlyList<ZoopSegment> segments,
     bool supportsCornerVariant,
     Dictionary<int, HashSet<int>> barrierCells)
   {
@@ -280,7 +276,7 @@ internal sealed class ZoopSmallGridCoordinator(ZoopPreviewValidator previewValid
     var corners = 0;
     var lastDirection = ZoopDirection.none;
     var canBuildNext = true;
-    ZoopPathPlanner.WalkSmallGridPath(segments, isSmallGrid: false, spacing: 1, step =>
+    ZoopPathPlanner.WalkSmallGridPath(segments, step =>
     {
       var zoopDirection = step.Direction;
       var zoopCounter = step.ZoopCounter;

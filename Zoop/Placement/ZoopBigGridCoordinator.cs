@@ -35,7 +35,7 @@ internal sealed class ZoopBigGridCoordinator(ZoopPreviewValidator previewValidat
   /// Rebuilds the active large-grid preview for the current snapped cursor position.
   /// </summary>
   public async UniTask UpdatePreview(ZoopDraft draft, ZoopPreviewCache previewCache, InventoryManager inventoryManager,
-    Vector3 currentPos, int spacing)
+    Vector3 currentPos)
   {
     var startPos = draft.Waypoints[0];
     var endPos = ClampWallZoopPositionToStartPlane(draft, startPos, currentPos);
@@ -56,8 +56,7 @@ internal sealed class ZoopBigGridCoordinator(ZoopPreviewValidator previewValidat
       layoutAdapter,
       inventoryManager,
       startPos,
-      plane,
-      spacing);
+      plane);
   }
 
   /// <summary>

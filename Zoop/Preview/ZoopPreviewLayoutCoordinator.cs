@@ -53,9 +53,8 @@ internal static class ZoopPreviewLayoutCoordinator
   public static bool PositionSmallGridStructures(
     ISmallGridPreviewLayoutAdapter adapter,
     InventoryManager inventoryManager,
-    List<ZoopSegment> segments,
+    IReadOnlyList<ZoopSegment> segments,
     bool supportsCornerVariant,
-    int spacing,
     bool isSinglePlacement,
     out HashSet<int> blockedDirections,
     out Dictionary<int, HashSet<int>> errorCells)
@@ -70,7 +69,7 @@ internal static class ZoopPreviewLayoutCoordinator
     Dictionary<int, HashSet<int>> localErrorCells = null;
     var creativeFreedomEnabled = ZoopIntegrations.CreativeFreedomAvailable;
 
-    ZoopPathPlanner.WalkSmallGridPath(segments, InventoryManager.ConstructionCursor is SmallGrid, spacing, step =>
+    ZoopPathPlanner.WalkSmallGridPath(segments, step =>
     {
       if (structureCounter == draft.PreviewCount) return;
 
@@ -206,8 +205,7 @@ internal static class ZoopPreviewLayoutCoordinator
     IBigGridPreviewLayoutAdapter adapter,
     InventoryManager inventoryManager,
     Vector3 startPos,
-    ZoopPlane plane,
-    int spacing)
+    ZoopPlane plane)
   {
     var draft = adapter.Draft;
     var structureCounter = 0;
@@ -222,14 +220,12 @@ internal static class ZoopPreviewLayoutCoordinator
     float yOffset = 0;
     float zOffset = 0;
 
-    var safeSpacing = Mathf.Max(spacing, 1);
-
     for (var indexDirection2 = 0; indexDirection2 < plane.Count.direction2; indexDirection2++)
     {
       var zoopDirection2 = plane.Directions.direction2;
       var increasing2 = plane.Increasing.direction2;
 
-      var value2 = ZoopPathPlanner.GetDirectionalPlacementValue(increasing2, false, safeSpacing);
+      var value2 = ZoopPathPlanner.GetDirectionalPlacementValue(increasing2);
       ZoopPathPlanner.SetDirectionalOffset(ref xOffset, ref yOffset, ref zOffset, zoopDirection2,
         indexDirection2 * value2);
 
@@ -243,7 +239,7 @@ internal static class ZoopPreviewLayoutCoordinator
         var zoopDirection1 = plane.Directions.direction1;
         var increasing1 = plane.Increasing.direction1;
 
-        var value1 = ZoopPathPlanner.GetDirectionalPlacementValue(increasing1, false, safeSpacing);
+        var value1 = ZoopPathPlanner.GetDirectionalPlacementValue(increasing1);
         ZoopPathPlanner.SetDirectionalOffset(ref xOffset, ref yOffset, ref zOffset, zoopDirection1,
           indexDirection1 * value1);
 

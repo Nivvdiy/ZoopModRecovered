@@ -7,27 +7,21 @@ namespace ZoopMod.Zoop.Planning;
 
 internal static class ZoopPathPlanner
 {
-  /// <summary>
-  /// Populates <paramref name="segments"/> in-place (clearing it first) and returns whether the path
-  /// covers a single placement position. The caller owns the list and should reuse it across calls
-  /// to avoid per-frame allocation.
-  /// </summary>
-  public static bool BuildSmallGridPlan(IReadOnlyList<Vector3> waypoints, Vector3 currentPos,
-    List<ZoopSegment> segments)
+  private static readonly List<ZoopSegment> _segments = new List<ZoopSegment>();
+
+  public static IReadOnlyList<ZoopSegment> BuildSmallGridPlan(IReadOnlyList<Vector3> waypoints, Vector3 currentPos)
   {
-    segments.Clear();
-    var isSinglePlacement = true;
+    _segments.Clear();
 
     for (var wpIndex = 0; wpIndex < waypoints.Count; wpIndex++)
     {
       var startPos = waypoints[wpIndex];
       var endPos = wpIndex < waypoints.Count - 1 ? waypoints[wpIndex + 1] : currentPos;
 
-      isSinglePlacement = ZoopPositionUtility.IsSameZoopPosition(startPos, endPos);
-      ZoopSegment.AppendRuns(segments, startPos, endPos, isFirstWaypoint: wpIndex == 0);
+      ZoopSegment.AppendRuns(_segments, startPos, endPos, isFirstWaypoint: wpIndex == 0);
     }
 
-    return isSinglePlacement;
+    return _segments;
   }
 
   public static ZoopPlane BuildBigGridPlane(Vector3 startPos, Vector3 endPos)
@@ -47,12 +41,8 @@ internal static class ZoopPathPlanner
     return plane;
   }
 
-  public static float GetDirectionalPlacementValue(bool increasing, bool isSmallGridCursor, int spacing)
-  {
-    var safeSpacing = Mathf.Max(spacing, 1);
-    var minValue = isSmallGridCursor ? 0.5f : 2f;
-    return increasing ? minValue * safeSpacing : -(minValue * safeSpacing);
-  }
+  public static float GetDirectionalPlacementValue(bool increasing) =>
+    increasing ? 2f : -2f;
 
   /// <summary>
   /// Walks every run in the flat <paramref name="segments"/> list and invokes
@@ -60,8 +50,6 @@ internal static class ZoopPathPlanner
   /// </summary>
   public static void WalkSmallGridPath(
     IReadOnlyList<ZoopSegment> segments,
-    bool isSmallGrid,
-    int spacing,
     Action<ZoopPathStep> onRun)
   {
     var totalCount = segments.Count;
@@ -80,7 +68,7 @@ internal static class ZoopPathPlanner
       }
 
       var zoopCounter = GetPlacementCount(i, totalCount, run.Count);
-      var value = GetDirectionalPlacementValue(run.Increasing, isSmallGrid, spacing);
+      var value = GetDirectionalPlacementValue(run.Increasing);
       var nextDirection = i + 1 < totalCount ? segments[i + 1].Direction : ZoopDirection.none;
       var increasingFromPrevious = lastDirection != ZoopDirection.none && lastIncreasing;
 

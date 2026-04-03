@@ -7,7 +7,6 @@ using Cysharp.Threading.Tasks;
 using UnityEngine;
 using ZoopMod.Zoop.Logging;
 using ZoopMod.Zoop.Placement;
-using ZoopMod.Zoop.Planning;
 using ZoopMod.Zoop.Preview;
 
 namespace ZoopMod.Zoop.Core;
@@ -90,7 +89,7 @@ internal sealed class ZoopPreviewCoordinator(ZoopPreviewValidator previewValidat
 
     try
     {
-      UpdatePreviewStep(draft, previewCache, inventoryManager, new List<ZoopSegment>(), currentPos.Value).GetAwaiter()
+      UpdatePreviewStep(draft, previewCache, inventoryManager, currentPos.Value).GetAwaiter()
         .GetResult();
       lastPreviewCursorPosition = currentPos.Value;
       previewDirty = false;
@@ -121,7 +120,6 @@ internal sealed class ZoopPreviewCoordinator(ZoopPreviewValidator previewValidat
 
   private IEnumerator PreviewLoop(ZoopDraft draft, ZoopPreviewCache previewCache, InventoryManager inventoryManager)
   {
-    var segments = new List<ZoopSegment>();
     InventoryManager.ConstructionCursor?.gameObject.SetActive(false);
 
     while (ReferenceEquals(activeDraft, draft) &&
@@ -132,7 +130,7 @@ internal sealed class ZoopPreviewCoordinator(ZoopPreviewValidator previewValidat
       if (shouldRefresh)
       {
         Exception previewException = null;
-        yield return UpdatePreviewStep(draft, previewCache, inventoryManager, segments, currentPos.Value)
+        yield return UpdatePreviewStep(draft, previewCache, inventoryManager, currentPos.Value)
           .ToCoroutine(exception => { previewException = exception; });
 
         if (previewException != null)
@@ -152,8 +150,7 @@ internal sealed class ZoopPreviewCoordinator(ZoopPreviewValidator previewValidat
   }
 
   private async UniTask UpdatePreviewStep(ZoopDraft draft, ZoopPreviewCache previewCache,
-    InventoryManager inventoryManager,
-    List<ZoopSegment> segments, Vector3 currentPos)
+    InventoryManager inventoryManager, Vector3 currentPos)
   {
     if (draft.Waypoints.Count <= 0)
     {
@@ -164,11 +161,11 @@ internal sealed class ZoopPreviewCoordinator(ZoopPreviewValidator previewValidat
 
     if (IsZoopingSmallGrid())
     {
-      await smallGridCoordinator.UpdatePreview(draft, previewCache, inventoryManager, currentPos, segments, 1);
+      await smallGridCoordinator.UpdatePreview(draft, previewCache, inventoryManager, currentPos);
     }
     else if (IsZoopingBigGrid())
     {
-      await bigGridCoordinator.UpdatePreview(draft, previewCache, inventoryManager, currentPos, 1);
+      await bigGridCoordinator.UpdatePreview(draft, previewCache, inventoryManager, currentPos);
     }
 
     UpdateFullFidelityPieces(draft);
