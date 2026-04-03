@@ -348,13 +348,11 @@ internal sealed class ZoopSmallGridCoordinator(ZoopPreviewValidator previewValid
     if (straightInDir > 0 && longVariants.Count > 0)
     {
       ZoopLongVariantRules.PlanRun(straightInDir, longVariants, runPlan);
-      for (var planIdx = 0; planIdx < runPlan.Count; planIdx++)
+      foreach (var cellSpan in runPlan)
       {
-        var cellSpan = runPlan[planIdx];
         if (cellSpan > 1)
           PlaceLongSpan(context, longVariants,
-            cellSpan, isLastInPlan: planIdx == runPlan.Count - 1,
-            corners, ref straight, ref canBuildNext);
+            cellSpan, corners, ref straight, ref canBuildNext);
         else
           AddStraightCells(context, corners, 1, ref straight, ref canBuildNext);
       }
@@ -380,13 +378,13 @@ internal sealed class ZoopSmallGridCoordinator(ZoopPreviewValidator previewValid
   // may cover fewer total cells than span-1 pieces.
   private void PlaceLongSpan(ZoopPreviewContext context,
     List<LongVariant> longVariants,
-    int cellSpan, bool isLastInPlan, int corners, ref int straight, ref bool canBuildNext)
+    int cellSpan, int corners, ref int straight, ref bool canBuildNext)
   {
     var longBuildIndex = ZoopLongVariantRules.GetBuildIndexForSpan(longVariants, cellSpan);
     if (!_longCounts.TryGetValue(cellSpan, out var longIndex))
       longIndex = 0;
 
-    if (!isLastInPlan && canBuildNext && IsLongSpanBudgetTight(context, longBuildIndex, cellSpan))
+    if (canBuildNext && IsLongSpanBudgetTight(context, longBuildIndex, cellSpan))
     {
       AddStraightCells(context, corners, cellSpan, ref straight, ref canBuildNext);
       return;

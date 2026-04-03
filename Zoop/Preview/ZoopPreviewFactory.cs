@@ -287,7 +287,7 @@ internal static class ZoopPreviewFactory
 
   internal static int GetEntryQuantity(Structure structure)
   {
-    if (structure.BuildStates != null && structure.BuildStates.Count > 0)
+    if (structure.BuildStates is { Count: > 0 })
     {
       return structure.BuildStates[0].Tool.EntryQuantity;
     }
