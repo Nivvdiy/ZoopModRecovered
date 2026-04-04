@@ -5,11 +5,11 @@ using Assets.Scripts.Inventory;
 using Assets.Scripts.Objects;
 using Cysharp.Threading.Tasks;
 using UnityEngine;
+using ZoopMod.Zoop.Core;
 using ZoopMod.Zoop.Logging;
 using ZoopMod.Zoop.Placement;
-using ZoopMod.Zoop.Preview;
 
-namespace ZoopMod.Zoop.Core;
+namespace ZoopMod.Zoop.Preview;
 
 /// <summary>
 /// Owns the live zoop preview loop, including cursor-movement gating and preview reconstruction.

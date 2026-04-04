@@ -7,6 +7,7 @@ using Assets.Scripts.Objects;
 using UnityEngine;
 using ZoopMod.Zoop.Logging;
 using ZoopMod.Zoop.Placement;
+using ZoopMod.Zoop.Preview;
 
 namespace ZoopMod.Zoop.Core;
 

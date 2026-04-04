@@ -1,6 +1,7 @@
 using Assets.Scripts.Inventory;
 using UnityEngine;
 using ZoopMod.Zoop.Logging;
+using ZoopMod.Zoop.Preview;
 
 namespace ZoopMod.Zoop.Core;
 

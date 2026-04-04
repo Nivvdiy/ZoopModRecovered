@@ -1,7 +1,7 @@
 using System.Collections.Generic;
 using Assets.Scripts.Objects;
 
-namespace ZoopMod.Zoop.Core;
+namespace ZoopMod.Zoop.Preview;
 
 /// <summary>A pooled preview structure paired with the build-index it was instantiated for.</summary>
 internal readonly struct CachedStructure(Structure instance, int buildIndex)

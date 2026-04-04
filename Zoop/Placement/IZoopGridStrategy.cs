@@ -3,6 +3,7 @@ using Assets.Scripts.Objects;
 using Cysharp.Threading.Tasks;
 using UnityEngine;
 using ZoopMod.Zoop.Core;
+using ZoopMod.Zoop.Preview;
 
 namespace ZoopMod.Zoop.Placement;
 
