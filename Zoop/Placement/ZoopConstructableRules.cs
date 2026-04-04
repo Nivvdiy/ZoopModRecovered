@@ -9,16 +9,6 @@ namespace ZoopMod.Zoop.Placement;
 
 internal static class ZoopConstructableRules
 {
-  public static bool IsAllowed(Structure constructionCursor)
-  {
-    return constructionCursor is Pipe or Cable or Chute or Frame or Wall;
-  }
-
-  public static bool SupportsWaypoints(Structure constructionCursor)
-  {
-    return constructionCursor is not Frame && constructionCursor is not Wall;
-  }
-
   public static bool SupportsCornerVariant(List<Structure> constructables, int selectedIndex)
   {
     if (constructables == null || selectedIndex < 0 || selectedIndex >= constructables.Count)

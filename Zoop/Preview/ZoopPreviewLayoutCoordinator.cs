@@ -8,6 +8,7 @@ using ZoopMod.Zoop.Core;
 using ZoopMod.Zoop.EntryPoints.Integrations;
 using ZoopMod.Zoop.Logging;
 using ZoopMod.Zoop.Planning;
+using ZoopMod.Zoop.Planning.BigGrid;
 using ZoopMod.Zoop.Planning.SmallGrid;
 
 namespace ZoopMod.Zoop.Preview;

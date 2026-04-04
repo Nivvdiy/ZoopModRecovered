@@ -18,8 +18,14 @@ namespace ZoopMod.Zoop.Placement;
 /// <summary>
 /// Owns the small-grid zoop preview flow from path planning through preview instantiation and placement.
 /// </summary>
-internal sealed class ZoopSmallGridCoordinator(ZoopPreviewValidator previewValidator)
+internal sealed class ZoopSmallGridCoordinator(ZoopPreviewValidator previewValidator) : IZoopGridStrategy
 {
+  public bool Matches(Structure cursor) => cursor is SmallGrid;
+  public bool SupportsWaypoints => true;
+  public Vector3? GetCursorPosition(Structure cursor) => cursor.GetLocalGrid().ToVector3();
+
+  private readonly List<ZoopSegment> _segments = [];
+
   private readonly Dictionary<Structure, List<LongVariant>> _longVariantsByBasePiece = [];
   private readonly Dictionary<int, int> _longCounts = [];
 
@@ -158,7 +164,7 @@ internal sealed class ZoopSmallGridCoordinator(ZoopPreviewValidator previewValid
   public async UniTask UpdatePreview(ZoopDraft draft, ZoopPreviewCache previewCache, InventoryManager inventoryManager,
     Vector3 currentPos)
   {
-    var rawSegments = ZoopPathPlanner.BuildSmallGridPlan(draft.Waypoints, currentPos);
+    var rawSegments = BuildSmallGridPlan(draft.Waypoints, currentPos);
 
     await UniTask.SwitchToMainThread(); // Switch to main thread for Unity API calls
 
@@ -290,6 +296,25 @@ internal sealed class ZoopSmallGridCoordinator(ZoopPreviewValidator previewValid
       var isWaypointStart = s == 0 && seg.IsWaypointStart;
       result.Add(new ZoopSegment(seg.Direction, count, seg.Increasing, isWaypointStart, seg.StartPos));
     }
+  }
+
+  /// <summary>
+  /// Builds the flat segment list for the current waypoint path ending at <paramref name="currentPos"/>.
+  /// </summary>
+  private IReadOnlyList<ZoopSegment> BuildSmallGridPlan(IReadOnlyList<Vector3> waypoints, Vector3 currentPos)
+  {
+    _segments.Clear();
+    var prevDirection = ZoopDirection.none;
+    for (var wpIndex = 0; wpIndex < waypoints.Count; wpIndex++)
+    {
+      var startPos = waypoints[wpIndex];
+      var endPos = wpIndex < waypoints.Count - 1 ? waypoints[wpIndex + 1] : currentPos;
+      ZoopSegment.AppendBoundarySegments(_segments, startPos, endPos, wpIndex == 0, wpIndex == waypoints.Count - 1,
+        prevDirection);
+      prevDirection = _segments[_segments.Count - 1].Direction;
+    }
+
+    return _segments;
   }
 
   /// <summary>

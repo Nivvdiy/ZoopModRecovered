@@ -1,7 +1,6 @@
 using Assets.Scripts.Inventory;
 using UnityEngine;
 using ZoopMod.Zoop.Logging;
-using ZoopMod.Zoop.Placement;
 
 namespace ZoopMod.Zoop.Core;
 
@@ -30,7 +29,7 @@ internal sealed class ZoopWaypointManager
   public void AddWaypoint()
   {
     var draft = host.ActiveDraft;
-    var supportsWaypoints = ZoopConstructableRules.SupportsWaypoints(InventoryManager.ConstructionCursor);
+    var supportsWaypoints = previewCoordinator.FindStrategy(InventoryManager.ConstructionCursor)?.SupportsWaypoints ?? false;
     if (!host.IsPreviewing || draft == null || !supportsWaypoints)
     {
       ZoopLog.Debug(
@@ -38,7 +37,7 @@ internal sealed class ZoopWaypointManager
       return;
     }
 
-    var currentPos = ZoopPreviewCoordinator.GetCurrentMouseGridPosition();
+    var currentPos = previewCoordinator.GetCurrentMouseGridPosition();
     var lastWaypoint = draft.Waypoints[draft.Waypoints.Count - 1];
     ZoopLog.Debug(
       $"[Waypoint] Add requested. CurrentPos={(currentPos.HasValue ? currentPos.Value.ToString() : "<none>")}, LastWaypoint={lastWaypoint}, PreviewCount={draft.PreviewCount}, WaypointCount={draft.Waypoints.Count}.");
@@ -62,7 +61,7 @@ internal sealed class ZoopWaypointManager
   {
     var draft = host.ActiveDraft;
     if (!host.IsPreviewing || draft == null ||
-        !ZoopConstructableRules.SupportsWaypoints(InventoryManager.ConstructionCursor))
+        !(previewCoordinator.FindStrategy(InventoryManager.ConstructionCursor)?.SupportsWaypoints ?? false))
     {
       return;
     }
@@ -79,7 +78,7 @@ internal sealed class ZoopWaypointManager
   {
     capturedPos = default;
 
-    var currentPos = ZoopPreviewCoordinator.GetCurrentMouseGridPosition();
+    var currentPos = previewCoordinator.GetCurrentMouseGridPosition();
     if (!currentPos.HasValue)
     {
       return WaypointCaptureResult.MissingCursor;
