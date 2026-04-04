@@ -10,6 +10,7 @@ using Cysharp.Threading.Tasks;
 using UnityEngine;
 using ZoopMod.Zoop.Core;
 using ZoopMod.Zoop.Planning;
+using ZoopMod.Zoop.Planning.SmallGrid;
 using ZoopMod.Zoop.Preview;
 
 namespace ZoopMod.Zoop.Placement;
@@ -258,7 +259,7 @@ internal sealed class ZoopSmallGridCoordinator(ZoopPreviewValidator previewValid
   private static void SplitSegmentAtBarriers(ZoopSegment seg, int segIndex, int totalSegments,
     HashSet<int> barrierCells, List<ZoopSegment> result)
   {
-    var zoopCounter = ZoopPathPlanner.GetPlacementCount(segIndex, totalSegments, seg.Count);
+    var zoopCounter = ZoopPathPlanner.GetPlacementCount(segIndex, totalSegments, seg.Length);
 
     var sorted = new List<int>(barrierCells);
     sorted.Sort();
@@ -373,9 +374,9 @@ internal sealed class ZoopSmallGridCoordinator(ZoopPreviewValidator previewValid
     }
   }
 
-  // Before placing a long piece, verify we can also afford at least one more span-1 piece after
-  // it — otherwise the preview would end on a long variant which changes the build cursor and
-  // may cover fewer total cells than span-1 pieces.
+  // Before placing a long piece, verify the remaining budget covers at least the long piece
+  // itself plus one more unit — otherwise fall back to span-1 pieces so the last placed piece
+  // is a span-1 variant, keeping the build cursor at the base piece type.
   private void PlaceLongSpan(ZoopPreviewContext context,
     List<LongVariant> longVariants,
     int cellSpan, int corners, ref int straight, ref bool canBuildNext)
@@ -404,8 +405,8 @@ internal sealed class ZoopSmallGridCoordinator(ZoopPreviewValidator previewValid
     }
   }
 
-  // Returns true when the given long piece would consume all remaining budget,
-  // leaving no room for at least one trailing span-1 piece.
+  // Returns true when placing this long piece would leave less than one straight piece's worth
+  // of budget remaining — i.e. the isolated end cell couldn't be afforded after the long.
   private static bool IsLongSpanBudgetTight(ZoopPreviewContext context, int longBuildIndex, int cellSpan)
   {
     if (InventoryManager.ActiveHandSlot.Get() is not Stackable stack) return false;
@@ -413,6 +414,9 @@ internal sealed class ZoopSmallGridCoordinator(ZoopPreviewValidator previewValid
     var longCost = longBuildIndex >= 0 && longBuildIndex < constructables.Count
       ? ZoopPreviewFactory.GetEntryQuantity(constructables[longBuildIndex])
       : cellSpan;
-    return stack.Quantity <= context.Draft.TotalResourceCost + longCost;
+    var straightCost = constructables.Count > 0
+      ? ZoopPreviewFactory.GetEntryQuantity(constructables[0])
+      : 1;
+    return stack.Quantity < context.Draft.TotalResourceCost + longCost + straightCost;
   }
 }

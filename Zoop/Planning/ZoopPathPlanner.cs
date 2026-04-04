@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 using ZoopMod.Zoop.Core;
+using ZoopMod.Zoop.Planning.SmallGrid;
 
 namespace ZoopMod.Zoop.Planning;
 
@@ -66,7 +67,7 @@ internal static class ZoopPathPlanner
         xOffset = 0; yOffset = 0; zOffset = 0;
       }
 
-      var zoopCounter = GetPlacementCount(i, totalCount, segment.Count);
+      var zoopCounter = GetPlacementCount(i, totalCount, segment.Length);
       var cellStride = segment.Increasing ? SmallGridCellSpacing : -SmallGridCellSpacing;
 
       onSegment(new ZoopPathStep(i, segment, new Vector3(xOffset, yOffset, zOffset),

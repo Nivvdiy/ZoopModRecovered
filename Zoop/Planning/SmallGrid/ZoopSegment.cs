@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 
-namespace ZoopMod.Zoop.Planning;
+namespace ZoopMod.Zoop.Planning.SmallGrid;
 
 /// <summary>
 /// One direction-run in a planned zoop path.
@@ -10,14 +10,18 @@ namespace ZoopMod.Zoop.Planning;
 /// Constructed by <see cref="AppendBoundarySegments"/>.
 /// </summary>
 internal readonly struct ZoopSegment(
-  ZoopDirection direction, int count, bool increasing,
-  bool isWaypointStart, Vector3 startPos, bool isCorner = false)
+  ZoopDirection direction,
+  int length,
+  bool increasing,
+  bool isWaypointStart,
+  Vector3 startPos,
+  bool isCorner = false)
 {
   /// <summary>World axis being traversed in this run.</summary>
   public ZoopDirection Direction { get; } = direction;
 
   /// <summary>Total cell count from the path plan (before endpoint deduplication).</summary>
-  public int Count { get; } = count;
+  public int Length { get; } = length;
 
   /// <summary>Whether the run travels in the positive axis direction.</summary>
   public bool Increasing { get; } = increasing;
@@ -46,61 +50,95 @@ internal readonly struct ZoopSegment(
     var hasY = Math.Abs(end.y - start.y) > float.Epsilon;
     var hasZ = Math.Abs(end.z - start.z) > float.Epsilon;
 
-    var b = new SegmentBuilder(segments, start, isFirstWaypoint, isLastWaypoint, prevDirection);
+    var segmentBuilder = new SegmentBuilder(segments, start, end, isFirstWaypoint, isLastWaypoint, prevDirection);
 
-    if (!hasX && !hasY && !hasZ) { b.Add(ZoopDirection.x, 1, start.x < end.x, isLastAxis: true); return; }
+    // Handle Single Piece segments
+    if (!hasX && !hasY && !hasZ)
+    {
+      segmentBuilder.Add(ZoopDirection.x);
+      return;
+    }
 
-    if (hasX) b.Add(ZoopDirection.x, 1 + (int)(Math.Abs(start.x - end.x) * 2), start.x < end.x, !hasY && !hasZ);
-    if (hasY) b.Add(ZoopDirection.y, 1 + (int)(Math.Abs(start.y - end.y) * 2), start.y < end.y, !hasZ);
-    if (hasZ) b.Add(ZoopDirection.z, 1 + (int)(Math.Abs(start.z - end.z) * 2), start.z < end.z, true);
+    if (hasX)
+      segmentBuilder.Add(ZoopDirection.x);
+    if (hasY)
+      segmentBuilder.Add(ZoopDirection.y);
+    if (hasZ)
+      segmentBuilder.Add(ZoopDirection.z);
   }
 
   private ref struct SegmentBuilder(
-    List<ZoopSegment> segments, Vector3 start,
-    bool isFirstWaypoint, bool isLastWaypoint, ZoopDirection prevDirection)
+    List<ZoopSegment> segments,
+    Vector3 start,
+    Vector3 end,
+    bool isFirstWaypoint,
+    bool isLastWaypoint,
+    ZoopDirection prevDirection)
   {
     private bool _isFirstSegment = true;
 
-    public void Add(ZoopDirection dir, int count, bool increasing, bool isLastAxis)
+    public void Add(ZoopDirection dir)
     {
+      var (axisStart, axisEnd) = dir switch
+      {
+        ZoopDirection.x => (start.x, end.x),
+        ZoopDirection.y => (start.y, end.y),
+        _ => (start.z, end.z)
+      };
+
+      var length = 1 + (int)(Math.Abs(axisStart - axisEnd) * 2);
+      var increasing = axisStart < axisEnd;
+      var isLastAxis = dir switch
+      {
+        ZoopDirection.x => Math.Abs(end.y - start.y) <= float.Epsilon && Math.Abs(end.z - start.z) <= float.Epsilon,
+        ZoopDirection.y => Math.Abs(end.z - start.z) <= float.Epsilon,
+        _ => true
+      };
+
       var waypointStart = !isFirstWaypoint && _isFirstSegment;
       var corner = prevDirection != ZoopDirection.none && dir != prevDirection;
       var needsBoundary = segments.Count == 0 || waypointStart || corner;
-      AppendAxisSegments(dir, count, increasing, needsBoundary, isLastAxis && isLastWaypoint, waypointStart, corner);
+      AppendAxisSegments(dir, length, increasing, needsBoundary, isLastAxis && isLastWaypoint, waypointStart, corner);
       prevDirection = dir;
       _isFirstSegment = false;
     }
 
-    private readonly void AppendAxisSegments(ZoopDirection dir, int count, bool increasing,
-      bool needsBoundary, bool isolateEnd, bool waypointStart, bool corner)
+    private readonly void AppendAxisSegments(
+      ZoopDirection dir,
+      int length,
+      bool increasing,
+      bool needsBoundary,
+      bool isolateEnd,
+      bool waypointStart,
+      bool corner)
     {
       switch (needsBoundary)
       {
-        case true when isolateEnd && count > 2:
+        case true when isolateEnd && length > 2:
           segments.Add(new ZoopSegment(dir, 2, increasing, waypointStart, start, corner));
-          segments.Add(new ZoopSegment(dir, count - 1, increasing, isWaypointStart: false, start));
+          segments.Add(new ZoopSegment(dir, length - 1, increasing, isWaypointStart: false, start));
           segments.Add(new ZoopSegment(dir, 1, increasing, isWaypointStart: false, start));
           break;
-        case true when count > 1:
-          {
-            segments.Add(new ZoopSegment(dir, 2, increasing, waypointStart, start, corner));
-            if (isolateEnd)
-              segments.Add(new ZoopSegment(dir, 1, increasing, isWaypointStart: false, start));
-            else if (count > 2)
-              segments.Add(new ZoopSegment(dir, count - 1, increasing, isWaypointStart: false, start));
-            break;
-          }
+        case true when length > 1:
+        {
+          segments.Add(new ZoopSegment(dir, 2, increasing, waypointStart, start, corner));
+          if (isolateEnd)
+            segments.Add(new ZoopSegment(dir, 1, increasing, isWaypointStart: false, start));
+          else if (length > 2)
+            segments.Add(new ZoopSegment(dir, length - 1, increasing, isWaypointStart: false, start));
+          break;
+        }
         // case false:
         default:
           {
-            if (isolateEnd && count > 1)
+            if (isolateEnd && length > 1)
             {
-              segments.Add(new ZoopSegment(dir, count, increasing, waypointStart, start, corner));
+              segments.Add(new ZoopSegment(dir, length, increasing, waypointStart, start, corner));
               segments.Add(new ZoopSegment(dir, 1, increasing, isWaypointStart: false, start));
             }
             else
             {
-              segments.Add(new ZoopSegment(dir, count, increasing, waypointStart, start, corner));
+              segments.Add(new ZoopSegment(dir, length, increasing, waypointStart, start, corner));
             }
 
             break;

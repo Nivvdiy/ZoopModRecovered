@@ -1,6 +1,6 @@
 using UnityEngine;
 
-namespace ZoopMod.Zoop.Planning;
+namespace ZoopMod.Zoop.Planning.SmallGrid;
 
 /// <summary>
 /// Per-segment context emitted by <see cref="ZoopPathPlanner.WalkSmallGridPath"/> for each
