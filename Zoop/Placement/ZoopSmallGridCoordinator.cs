@@ -294,7 +294,8 @@ internal sealed class ZoopSmallGridCoordinator(ZoopPreviewValidator previewValid
       var isLastSub = isLastOriginal && s == subCellCounts.Count - 1;
       var count = isLastSub ? cells : cells + 1;
       var isWaypointStart = s == 0 && seg.IsWaypointStart;
-      result.Add(new ZoopSegment(seg.Direction, count, seg.Increasing, isWaypointStart, seg.StartPos));
+      var isCorner = s == 0 && seg.IsCorner;
+      result.Add(new ZoopSegment(seg.Direction, count, seg.Increasing, isWaypointStart, seg.StartPos, isCorner));
     }
   }
 
