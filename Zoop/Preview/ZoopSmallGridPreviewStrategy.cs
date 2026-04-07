@@ -9,16 +9,16 @@ using Assets.Scripts.Util;
 using Cysharp.Threading.Tasks;
 using UnityEngine;
 using ZoopMod.Zoop.Core;
+using ZoopMod.Zoop.Placement;
 using ZoopMod.Zoop.Planning;
 using ZoopMod.Zoop.Planning.SmallGrid;
-using ZoopMod.Zoop.Preview;
 
-namespace ZoopMod.Zoop.Placement;
+namespace ZoopMod.Zoop.Preview;
 
 /// <summary>
 /// Owns the small-grid zoop preview flow from path planning through preview instantiation and placement.
 /// </summary>
-internal sealed class ZoopSmallGridCoordinator(ZoopPreviewValidator previewValidator) : IZoopGridStrategy
+internal sealed class ZoopSmallGridPreviewStrategy(ZoopPreviewValidator previewValidator) : IZoopPreviewGridStrategy
 {
   public bool Matches(Structure cursor) => cursor is SmallGrid;
   public bool SupportsWaypoints => true;

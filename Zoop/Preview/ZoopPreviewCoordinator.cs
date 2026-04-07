@@ -7,7 +7,6 @@ using Cysharp.Threading.Tasks;
 using UnityEngine;
 using ZoopMod.Zoop.Core;
 using ZoopMod.Zoop.Logging;
-using ZoopMod.Zoop.Placement;
 
 namespace ZoopMod.Zoop.Preview;
 
@@ -16,10 +15,10 @@ namespace ZoopMod.Zoop.Preview;
 /// </summary>
 internal sealed class ZoopPreviewCoordinator(ZoopPreviewValidator previewValidator)
 {
-  private readonly IZoopGridStrategy[] gridStrategies =
+  private readonly IZoopPreviewGridStrategy[] gridStrategies =
   [
-    new ZoopSmallGridCoordinator(previewValidator),
-    new ZoopBigGridCoordinator(previewValidator),
+    new ZoopSmallGridPreviewStrategy(previewValidator),
+    new ZoopBigGridPreviewStrategy(previewValidator),
   ];
 
   private ZoopDraft activeDraft;
@@ -106,7 +105,7 @@ internal sealed class ZoopPreviewCoordinator(ZoopPreviewValidator previewValidat
     }
   }
 
-  internal IZoopGridStrategy FindStrategy(Structure cursor)
+  internal IZoopPreviewGridStrategy FindStrategy(Structure cursor)
     => cursor != null ? Array.Find(gridStrategies, s => s.Matches(cursor)) : null;
 
   internal Vector3? GetCurrentMouseGridPosition()

@@ -3,16 +3,15 @@ using Assets.Scripts.Objects;
 using Cysharp.Threading.Tasks;
 using UnityEngine;
 using ZoopMod.Zoop.Core;
-using ZoopMod.Zoop.Preview;
 
-namespace ZoopMod.Zoop.Placement;
+namespace ZoopMod.Zoop.Preview;
 
 /// <summary>
 /// Encapsulates the grid-type-specific preview update logic for a single cursor family
-/// (e.g. SmallGrid, LargeStructure). Implement this interface on each coordinator and
+/// (e.g. SmallGrid, LargeStructure). Implement this interface on each preview strategy and
 /// register it in <see cref="ZoopPreviewCoordinator"/> to add support for a new grid type.
 /// </summary>
-internal interface IZoopGridStrategy
+internal interface IZoopPreviewGridStrategy
 {
   /// <summary>Returns true when this strategy handles the given construction cursor.</summary>
   bool Matches(Structure cursor);

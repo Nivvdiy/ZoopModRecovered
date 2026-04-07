@@ -6,14 +6,13 @@ using UnityEngine;
 using ZoopMod.Zoop.Core;
 using ZoopMod.Zoop.Planning;
 using ZoopMod.Zoop.Planning.BigGrid;
-using ZoopMod.Zoop.Preview;
 
-namespace ZoopMod.Zoop.Placement;
+namespace ZoopMod.Zoop.Preview;
 
 /// <summary>
 /// Owns the large-grid zoop preview flow from wall-plane planning through preview placement.
 /// </summary>
-internal sealed class ZoopBigGridCoordinator(ZoopPreviewValidator previewValidator) : IZoopGridStrategy
+internal sealed class ZoopBigGridPreviewStrategy(ZoopPreviewValidator previewValidator) : IZoopPreviewGridStrategy
 {
   public bool Matches(Structure cursor) => cursor is LargeStructure;
   public bool SupportsWaypoints => false;
