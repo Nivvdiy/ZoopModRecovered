@@ -13,7 +13,7 @@ namespace ZoopMod.Zoop.Preview;
 internal static class ZoopPreviewFactory
 {
   /// <returns>The updated <c>canBuildNext</c> value to carry forward to the next piece.</returns>
-  public static bool AddStructure(
+  public static bool AddStructureAndGetBuildGate(
     ZoopPreviewContext context,
     bool isCorner,
     int index,
@@ -197,7 +197,7 @@ internal static class ZoopPreviewFactory
   }
 
   /// <returns>The updated <c>canBuildNext</c> value to carry forward to the next piece.</returns>
-  public static bool AddLongStructure(
+  public static bool AddLongStructureAndGetBuildGate(
     ZoopPreviewContext context,
     int longBuildIndex,
     int cellSpan,

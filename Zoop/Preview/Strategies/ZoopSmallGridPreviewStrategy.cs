@@ -368,7 +368,7 @@ internal sealed class ZoopSmallGridPreviewStrategy(ZoopPreviewValidator previewV
   {
     if (step.Segment.IsCorner && context.SupportsCornerVariant && context.Draft.PreviewCount > 0)
     {
-      canBuildNext = ZoopPreviewFactory.AddStructure(context, true, corners, straight, canBuildNext);
+      canBuildNext = ZoopPreviewFactory.AddStructureAndGetBuildGate(context, true, corners, straight, canBuildNext);
       corners++;
       return;
     }
@@ -397,7 +397,7 @@ internal sealed class ZoopSmallGridPreviewStrategy(ZoopPreviewValidator previewV
   {
     for (var i = 0; i < count; i++)
     {
-      canBuildNext = ZoopPreviewFactory.AddStructure(context, false, straight, corners, canBuildNext);
+      canBuildNext = ZoopPreviewFactory.AddStructureAndGetBuildGate(context, false, straight, corners, canBuildNext);
       straight++;
     }
   }
@@ -420,7 +420,7 @@ internal sealed class ZoopSmallGridPreviewStrategy(ZoopPreviewValidator previewV
     }
 
     var previousCanBuild = canBuildNext;
-    canBuildNext = ZoopPreviewFactory.AddLongStructure(context, longBuildIndex, cellSpan, longIndex, canBuildNext);
+    canBuildNext = ZoopPreviewFactory.AddLongStructureAndGetBuildGate(context, longBuildIndex, cellSpan, longIndex, canBuildNext);
     if (canBuildNext)
     {
       _longCounts[cellSpan] = longIndex + 1;

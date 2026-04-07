@@ -82,7 +82,7 @@ internal sealed class ZoopBigGridPreviewStrategy(ZoopPreviewValidator previewVal
     {
       for (var indexDirection1 = 0; indexDirection1 < plane.Count.direction1; indexDirection1++)
       {
-        canBuildNext = ZoopPreviewFactory.AddStructure(context, isCorner: false, index: count, secondaryCount: 0, canBuildNext: canBuildNext);
+        canBuildNext = ZoopPreviewFactory.AddStructureAndGetBuildGate(context, isCorner: false, index: count, secondaryCount: 0, canBuildNext: canBuildNext);
         count++;
       }
     }
