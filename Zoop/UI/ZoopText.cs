@@ -1,6 +1,6 @@
 using Assets.Scripts.Localization2;
 
-namespace ZoopMod.Zoop;
+namespace ZoopMod.Zoop.UI;
 
 public static class ZoopText
 {

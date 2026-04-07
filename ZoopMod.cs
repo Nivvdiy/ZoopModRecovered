@@ -1,84 +1,37 @@
 using System;
 using BepInEx;
-using BepInEx.Configuration;
 using HarmonyLib;
-using UnityEngine;
+using ZoopMod.Zoop.EntryPoints.Configuration;
+using ZoopMod.Zoop.EntryPoints.Input;
+using ZoopMod.Zoop.EntryPoints.Integrations;
+using ZoopMod.Zoop.Logging;
 
 namespace ZoopMod;
 
 [BepInPlugin("ZoopMod", "ZoopMod", "2026.28.03")]
+// ReSharper disable once UnusedMember.Global
 public class ZoopMod : BaseUnityPlugin
 {
-  public enum Logs
-  {
-    debug = 0,
-    info = 1,
-    error = 2
-  }
-
-  public static KeyCode ZoopHold;
-  public static KeyCode ZoopSwitch;
-  public static KeyCode ZoopAddWaypoint;
-  public static KeyCode ZoopRemoveWaypoint;
-
-  public static ZoopMod Instance;
-
-  public static bool CFree;
-  public static ConfigEntry<int> MaxZoopWaitTimeMultiplier;
-
-  private static readonly Logs CurrentLogLevel = Logs.debug;
-
+  // ReSharper disable once UnusedMember.Local
   private void Awake()
   {
+    ZoopLog.Initialize(Logger);
+
     try
     {
-      Instance = this;
-      MaxZoopWaitTimeMultiplier =
-        Config.Bind(
-          new ConfigDefinition("Zoop", nameof(MaxZoopWaitTimeMultiplier)),
-          5,
-          new ConfigDescription("Maximum multiplier applied to placement wait time when building multiple structures in one zoop."));
+      ZoopConfig.Initialize(Config);
 
       var harmony = new Harmony("ZoopMod");
       harmony.PatchAll();
-      Log("Patch succeeded", Logs.info);
-      Log($"Build commit: {GetBuildCommitHash()}", Logs.info);
-      KeyManager.OnControlsChanged += ControlsChangedEvent;
-
-      var type = Type.GetType("CreativeFreedom.CreativeFreedom, CreativeFreedom");
-      CFree = type != null;
+      ZoopLog.Info("Harmony patch registration succeeded.");
+      ZoopLog.Info($"Build commit: {GetBuildCommitHash()}");
+      ZoopIntegrations.Initialize();
+      ZoopKeyBindings.Initialize();
     }
     catch (Exception e)
     {
-      Log("Patch Failed", Logs.error);
-      Log(e.ToString(), Logs.error);
+      ZoopLog.Error(e, "Plugin startup failed.");
     }
-  }
-
-  public static void Log(string line, Logs level)
-  {
-#if !DEBUG
-      if (level == Logs.debug)
-      {
-        return;
-      }
-#endif
-
-    if (level >= CurrentLogLevel)
-    {
-      Debug.Log($"[{level} : Zoop Mod] {line}");
-    }
-  }
-
-  /* Track current player keybinding selection, event trigger after any
-   * keybinding change.
-   */
-  private static void ControlsChangedEvent()
-  {
-    ZoopHold = KeyManager.GetKey("Zoop Hold");
-    ZoopSwitch = KeyManager.GetKey("Zoop Switch");
-    ZoopAddWaypoint = KeyManager.GetKey("Zoop Add Waypoint");
-    ZoopRemoveWaypoint = KeyManager.GetKey("Zoop Remove Last Waypoint");
   }
 
   private static string GetBuildCommitHash()

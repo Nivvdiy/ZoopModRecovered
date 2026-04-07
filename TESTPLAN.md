@@ -57,6 +57,7 @@ Use this checklist after any zoop-related change to verify preview validity, pla
 - [ ] Confirm preview/final placement respect resource limits.
 - [ ] Confirm long zoops still use the expected build timing in normal mode.
 - [ ] Confirm authoring placements remain instant.
+- [ ] Interrupting the build during the wait window restores a valid preview/manual placement state.
 
 ## Normal Mode Merge / Replacement Rules
 
