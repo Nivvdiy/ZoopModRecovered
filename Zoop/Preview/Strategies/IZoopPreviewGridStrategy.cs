@@ -4,7 +4,7 @@ using Cysharp.Threading.Tasks;
 using UnityEngine;
 using ZoopMod.Zoop.Core;
 
-namespace ZoopMod.Zoop.Preview;
+namespace ZoopMod.Zoop.Preview.Strategies;
 
 /// <summary>
 /// Encapsulates the grid-type-specific preview update logic for a single cursor family

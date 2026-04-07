@@ -6,8 +6,9 @@ using UnityEngine;
 using ZoopMod.Zoop.Core;
 using ZoopMod.Zoop.Planning;
 using ZoopMod.Zoop.Planning.BigGrid;
+using ZoopMod.Zoop.Preview.Layout;
 
-namespace ZoopMod.Zoop.Preview;
+namespace ZoopMod.Zoop.Preview.Strategies;
 
 /// <summary>
 /// Owns the large-grid zoop preview flow from wall-plane planning through preview placement.
@@ -47,7 +48,7 @@ internal sealed class ZoopBigGridPreviewStrategy(ZoopPreviewValidator previewVal
 
     var plane = BuildBigGridPlane(startPos, endPos);
 
-    await UniTask.SwitchToMainThread(); // Switch to main thread for Unity API calls
+    await UniTask.SwitchToMainThread();
 
     BuildBigStructureList(draft, previewCache, inventoryManager, plane);
 

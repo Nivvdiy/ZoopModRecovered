@@ -12,8 +12,9 @@ using ZoopMod.Zoop.Core;
 using ZoopMod.Zoop.Placement;
 using ZoopMod.Zoop.Planning;
 using ZoopMod.Zoop.Planning.SmallGrid;
+using ZoopMod.Zoop.Preview.Layout;
 
-namespace ZoopMod.Zoop.Preview;
+namespace ZoopMod.Zoop.Preview.Strategies;
 
 /// <summary>
 /// Owns the small-grid zoop preview flow from path planning through preview instantiation and placement.
@@ -166,7 +167,8 @@ internal sealed class ZoopSmallGridPreviewStrategy(ZoopPreviewValidator previewV
   {
     var rawSegments = BuildSmallGridPlan(draft.Waypoints, currentPos);
 
-    await UniTask.SwitchToMainThread(); // Switch to main thread for Unity API calls
+    // Switch to main thread for Unity API calls
+    await UniTask.SwitchToMainThread();
 
     // Pre-scan every cell along the path for existing structures. Occupied cells
     // become single-cell segments in the path so long variants never straddle an obstacle.
