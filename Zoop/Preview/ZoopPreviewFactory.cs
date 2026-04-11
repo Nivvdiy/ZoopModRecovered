@@ -6,7 +6,6 @@ using Assets.Scripts.Objects.Pipes;
 using UnityEngine;
 using ZoopMod.Zoop.Core;
 using ZoopMod.Zoop.Placement;
-using Thing = Assets.Scripts.Objects.Thing;
 using UnityObject = UnityEngine.Object;
 
 namespace ZoopMod.Zoop.Preview;
@@ -14,7 +13,7 @@ namespace ZoopMod.Zoop.Preview;
 internal static class ZoopPreviewFactory
 {
   /// <returns>The updated <c>canBuildNext</c> value to carry forward to the next piece.</returns>
-  public static bool AddStructure(
+  public static bool AddStructureAndGetBuildGate(
     ZoopPreviewContext context,
     bool isCorner,
     int index,
@@ -43,22 +42,22 @@ internal static class ZoopPreviewFactory
       case Stackable constructor:
         var canMakeItem = activeItem switch
         {
-          Chute when buildIndex == 0 => constructor.Quantity > draft.PreviewCount,
+          Chute when buildIndex == 0 => constructor.Quantity > draft.TotalResourceCost,
           Chute when buildIndex == 2 => constructor.Quantity >
                                         straightCount * 2 + (isCorner ? 0 : 1) + cornerCount,
-          _ => constructor.Quantity > draft.PreviewCount
+          _ => constructor.Quantity > draft.TotalResourceCost
         };
 
         if (canMakeItem && canBuildNext)
         {
-          MakeItem(context.Draft, context.PreviewCache, constructables, index, buildIndex, supportsCornerVariant);
+          PreparePreviewPiece(context.Draft, context.PreviewCache, constructables, index, buildIndex, supportsCornerVariant);
           return true;
         }
 
         return false;
 
       case AuthoringTool:
-        MakeItem(context.Draft, context.PreviewCache, constructables, index, buildIndex, supportsCornerVariant);
+        PreparePreviewPiece(context.Draft, context.PreviewCache, constructables, index, buildIndex, supportsCornerVariant);
         return true;
 
       default:
@@ -68,39 +67,47 @@ internal static class ZoopPreviewFactory
 
   public static void ClearStructureCache(ZoopPreviewCache previewCache)
   {
-    foreach (var structure in previewCache.StraightCache)
+    foreach (var entry in previewCache.StraightCache)
     {
-      structure.gameObject.SetActive(false);
-      UnityObject.Destroy(structure);
+      entry.Instance.gameObject.SetActive(false);
+      UnityObject.Destroy(entry.Instance);
     }
-
     previewCache.StraightCache.Clear();
-    previewCache.StraightCacheBuildIndices.Clear();
 
-    foreach (var structure in previewCache.CornerCache)
+    foreach (var entry in previewCache.CornerCache)
     {
-      structure.gameObject.SetActive(false);
-      UnityObject.Destroy(structure);
+      entry.Instance.gameObject.SetActive(false);
+      UnityObject.Destroy(entry.Instance);
     }
-
     previewCache.CornerCache.Clear();
-    previewCache.CornerCacheBuildIndices.Clear();
+
+    foreach (var kvp in previewCache.LongCaches)
+    {
+      foreach (var entry in kvp.Value)
+      {
+        entry.Instance.gameObject.SetActive(false);
+        UnityObject.Destroy(entry.Instance);
+      }
+    }
+    previewCache.LongCaches.Clear();
   }
 
   public static void ResetSmallGridPreviewList(ZoopDraft draft, ZoopPreviewCache previewCache)
   {
     draft.ClearPreviewPieces();
-    previewCache.StraightCache.ForEach(structure => structure.GameObject.SetActive(false));
-    previewCache.CornerCache.ForEach(structure => structure.GameObject.SetActive(false));
+    previewCache.StraightCache.ForEach(e => e.Instance.GameObject.SetActive(false));
+    previewCache.CornerCache.ForEach(e => e.Instance.GameObject.SetActive(false));
+    foreach (var kvp in previewCache.LongCaches)
+      kvp.Value.ForEach(e => e.Instance.GameObject.SetActive(false));
   }
 
   public static void ResetBigGridPreviewList(ZoopDraft draft, ZoopPreviewCache previewCache)
   {
     draft.ClearPreviewPieces();
-    previewCache.StraightCache.ForEach(structure => structure.GameObject.SetActive(false));
+    previewCache.StraightCache.ForEach(e => e.Instance.GameObject.SetActive(false));
   }
 
-  private static void MakeItem(ZoopDraft draft, ZoopPreviewCache previewCache, List<Structure> constructables,
+  private static void PreparePreviewPiece(ZoopDraft draft, ZoopPreviewCache previewCache, List<Structure> constructables,
     int index, int selectedIndex,
     bool supportsCornerVariant)
   {
@@ -109,17 +116,16 @@ internal static class ZoopPreviewFactory
     {
       case false when previewCache.StraightCache.Count > index:
         {
+          var cached = previewCache.StraightCache[index];
           if (!supportsCornerVariant)
-          {
-            ApplyCursorRotation(draft, previewCache.StraightCache[index]);
-          }
-
-          AddPreviewPiece(draft, previewCache.StraightCache[index], previewCache.StraightCacheBuildIndices[index]);
+            ApplyCursorRotation(draft, cached.Instance);
+          AddPreviewPiece(draft, cached.Instance, cached.BuildIndex);
           break;
         }
       case true when previewCache.CornerCache.Count > index:
         {
-          AddPreviewPiece(draft, previewCache.CornerCache[index], previewCache.CornerCacheBuildIndices[index]);
+          var cached = previewCache.CornerCache[index];
+          AddPreviewPiece(draft, cached.Instance, cached.BuildIndex);
           break;
         }
       default:
@@ -130,39 +136,12 @@ internal static class ZoopPreviewFactory
             return;
           }
 
-          var structureNew = UnityObject.Instantiate(InventoryManager.GetStructureCursor(structure.PrefabName));
+          var structureNew = InstantiatePreviewClone(structure);
           if (structureNew == null)
           {
             return;
           }
 
-          // Deactivate the clone so OnDisable fires on all components and deregisters
-          // them from the game's global tick lists (Thing.AllThings, network registries, etc.).
-          structureNew.gameObject.SetActive(false);
-
-          // Disable game-logic MonoBehaviours (Thing and its derivatives: Structure, SmallGrid, Wall, etc.)
-          // to prevent their OnEnable from re-registering in global tick lists when we reactivate.
-          foreach (var thing in structureNew.GetComponentsInChildren<Thing>(true))
-          {
-            thing.enabled = false;
-          }
-
-          // Disable colliders to remove them from the physics broadphase.
-          foreach (var col in structureNew.GetComponentsInChildren<Collider>(true))
-          {
-            col.enabled = false;
-          }
-
-          // Reactivate so visual components (Wireframe, etc.) run their OnEnable and set up
-          // blueprint materials, renderer states, and child object visibility correctly.
-          structureNew.gameObject.SetActive(true);
-
-          // Now disable all remaining MonoBehaviours to stop per-frame Update/LateUpdate
-          // calls. The visual state is already initialized from OnEnable above.
-          foreach (var mb in structureNew.GetComponentsInChildren<MonoBehaviour>(true))
-          {
-            mb.enabled = false;
-          }
           if (!supportsCornerVariant)
           {
             ApplyCursorRotation(draft, structureNew);
@@ -171,18 +150,35 @@ internal static class ZoopPreviewFactory
           AddPreviewPiece(draft, structureNew, selectedIndex);
           if (isCorner)
           {
-            previewCache.CornerCache.Add(structureNew);
-            previewCache.CornerCacheBuildIndices.Add(selectedIndex);
+            previewCache.CornerCache.Add(new CachedStructure(structureNew, selectedIndex));
           }
           else
           {
-            previewCache.StraightCache.Add(structureNew);
-            previewCache.StraightCacheBuildIndices.Add(selectedIndex);
+            previewCache.StraightCache.Add(new CachedStructure(structureNew, selectedIndex));
           }
 
           break;
         }
     }
+  }
+
+  // Instantiates a disabled preview clone of structure's cursor prefab, strips game-logic
+  // components, and re-enables only visuals. Returns null when the prefab cannot be found.
+  // Detail: deactivate first so OnDisable fires and deregisters from Thing.AllThings etc.,
+  // disable Things + Colliders, reactivate so visual OnEnable runs (blueprint materials etc.),
+  // then disable all remaining MonoBehaviours to suppress per-frame Update calls.
+  private static Structure InstantiatePreviewClone(Structure structure)
+  {
+    var clone = UnityObject.Instantiate(InventoryManager.GetStructureCursor(structure.PrefabName));
+    if (clone == null) return null;
+
+    clone.gameObject.SetActive(false);
+    foreach (var thing in clone.GetComponentsInChildren<Thing>(true)) thing.enabled = false;
+    foreach (var col in clone.GetComponentsInChildren<Collider>(true)) col.enabled = false;
+    clone.gameObject.SetActive(true);
+    foreach (var mb in clone.GetComponentsInChildren<MonoBehaviour>(true)) mb.enabled = false;
+
+    return clone;
   }
 
   private static void ApplyCursorRotation(ZoopDraft draft, Structure structure)
@@ -192,16 +188,110 @@ internal static class ZoopPreviewFactory
       return;
     }
 
-    var rotation = structure is Wall && draft.ZoopStartWallNormal != Vector3.zero
-      ? draft.ZoopStartRotation
+    var rotation = structure is Wall && draft.Session.StartWallNormal != Vector3.zero
+      ? draft.Session.StartRotation
       : InventoryManager.ConstructionCursor.transform.rotation;
 
     structure.ThingTransformRotation = rotation;
     structure.transform.rotation = rotation;
   }
 
-  private static void AddPreviewPiece(ZoopDraft draft, Structure structure, int buildIndex)
+  /// <returns>The updated <c>canBuildNext</c> value to carry forward to the next piece.</returns>
+  public static bool AddLongStructureAndGetBuildGate(
+    ZoopPreviewContext context,
+    int longBuildIndex,
+    int cellSpan,
+    int longIndex,
+    bool canBuildNext)
   {
-    draft.PreviewPieces.Add(new PreviewPiece(structure, buildIndex));
+    var draft = context.Draft;
+    var constructables = context.Constructables;
+    var activeItem = longBuildIndex >= 0 && longBuildIndex < constructables.Count
+      ? constructables[longBuildIndex]
+      : null;
+    if (activeItem == null)
+    {
+      return false;
+    }
+
+    var activeHandItem = InventoryManager.ActiveHandSlot.Get();
+    switch (activeHandItem)
+    {
+      case Stackable constructor:
+        var nextLongCost = GetEntryQuantity(activeItem);
+        if (constructor.Quantity > draft.TotalResourceCost + nextLongCost - 1 && canBuildNext)
+        {
+          PrepareLongPreviewPiece(draft, context.PreviewCache, constructables, longIndex, longBuildIndex, cellSpan,
+            context.SupportsCornerVariant);
+          return true;
+        }
+
+        return false;
+
+      case AuthoringTool:
+        PrepareLongPreviewPiece(draft, context.PreviewCache, constructables, longIndex, longBuildIndex, cellSpan,
+          context.SupportsCornerVariant);
+        return true;
+
+      default:
+        return canBuildNext;
+    }
+  }
+
+  private static void PrepareLongPreviewPiece(ZoopDraft draft, ZoopPreviewCache previewCache,
+    List<Structure> constructables, int longIndex, int buildIndex, int cellSpan,
+    bool supportsCornerVariant)
+  {
+    if (!previewCache.LongCaches.TryGetValue(cellSpan, out var cache))
+    {
+      cache = new List<CachedStructure>();
+      previewCache.LongCaches[cellSpan] = cache;
+    }
+
+    if (cache.Count > longIndex)
+    {
+      var cached = cache[longIndex];
+      if (!supportsCornerVariant)
+        ApplyCursorRotation(draft, cached.Instance);
+      AddPreviewPiece(draft, cached.Instance, cached.BuildIndex, cellSpan);
+      return;
+    }
+
+    var structure = constructables[buildIndex];
+    if (structure == null)
+    {
+      return;
+    }
+
+    var structureNew = InstantiatePreviewClone(structure);
+    if (structureNew == null)
+    {
+      return;
+    }
+
+    if (!supportsCornerVariant)
+    {
+      ApplyCursorRotation(draft, structureNew);
+    }
+
+    AddPreviewPiece(draft, structureNew, buildIndex, cellSpan);
+    cache.Add(new CachedStructure(structureNew, buildIndex));
+  }
+
+  private static void AddPreviewPiece(ZoopDraft draft, Structure structure, int buildIndex, int cellSpan = 1)
+  {
+    draft.PreviewPieces.Add(new PreviewPiece(structure, buildIndex, cellSpan));
+    draft.TotalCellCost += cellSpan;
+    draft.TotalResourceCost += GetEntryQuantity(structure);
+  }
+
+  internal static int GetEntryQuantity(Structure structure)
+  {
+    if (structure.BuildStates is { Count: > 0 })
+    {
+      return structure.BuildStates[0].Tool.EntryQuantity;
+    }
+
+    return 1;
   }
 }

@@ -5,20 +5,22 @@ using Assets.Scripts.Inventory;
 using Assets.Scripts.Objects;
 using Cysharp.Threading.Tasks;
 using UnityEngine;
+using ZoopMod.Zoop.Core;
 using ZoopMod.Zoop.Logging;
-using ZoopMod.Zoop.Placement;
-using ZoopMod.Zoop.Planning;
-using ZoopMod.Zoop.Preview;
+using ZoopMod.Zoop.Preview.Strategies;
 
-namespace ZoopMod.Zoop.Core;
+namespace ZoopMod.Zoop.Preview;
 
 /// <summary>
 /// Owns the live zoop preview loop, including cursor-movement gating and preview reconstruction.
 /// </summary>
 internal sealed class ZoopPreviewCoordinator(ZoopPreviewValidator previewValidator)
 {
-  private readonly ZoopSmallGridCoordinator smallGridCoordinator = new(previewValidator);
-  private readonly ZoopBigGridCoordinator bigGridCoordinator = new(previewValidator);
+  private readonly IZoopPreviewGridStrategy[] gridStrategies =
+  [
+    new ZoopSmallGridPreviewStrategy(previewValidator),
+    new ZoopBigGridPreviewStrategy(previewValidator),
+  ];
 
   private ZoopDraft activeDraft;
   private ZoopPreviewCache activePreviewCache;
@@ -90,7 +92,7 @@ internal sealed class ZoopPreviewCoordinator(ZoopPreviewValidator previewValidat
 
     try
     {
-      UpdatePreviewStep(draft, previewCache, inventoryManager, new List<ZoopSegment>(), currentPos.Value).GetAwaiter()
+      UpdatePreviewStep(draft, previewCache, inventoryManager, currentPos.Value).GetAwaiter()
         .GetResult();
       lastPreviewCursorPosition = currentPos.Value;
       previewDirty = false;
@@ -104,28 +106,23 @@ internal sealed class ZoopPreviewCoordinator(ZoopPreviewValidator previewValidat
     }
   }
 
-  internal static Vector3? GetCurrentMouseGridPosition()
+  internal IZoopPreviewGridStrategy FindStrategy(Structure cursor)
+    => cursor != null ? Array.Find(gridStrategies, s => s.Matches(cursor)) : null;
+
+  internal Vector3? GetCurrentMouseGridPosition()
   {
-    if (InventoryManager.ConstructionCursor == null)
+    var cursor = InventoryManager.ConstructionCursor;
+    if (cursor == null)
     {
       return null;
     }
 
-    if (InventoryManager.ConstructionCursor is Wall)
-    {
-      return InventoryManager.ConstructionCursor.ThingTransformPosition;
-    }
-
-    return InventoryManager.ConstructionCursor.GetLocalGrid().ToVector3();
+    return FindStrategy(cursor)?.GetCursorPosition(cursor);
   }
 
   private IEnumerator PreviewLoop(ZoopDraft draft, ZoopPreviewCache previewCache, InventoryManager inventoryManager)
   {
-    var segments = new List<ZoopSegment>();
-    if (InventoryManager.ConstructionCursor != null)
-    {
-      InventoryManager.ConstructionCursor.gameObject.SetActive(false);
-    }
+    InventoryManager.ConstructionCursor?.gameObject.SetActive(false);
 
     while (ReferenceEquals(activeDraft, draft) &&
            ReferenceEquals(activePreviewCache, previewCache))
@@ -135,7 +132,7 @@ internal sealed class ZoopPreviewCoordinator(ZoopPreviewValidator previewValidat
       if (shouldRefresh)
       {
         Exception previewException = null;
-        yield return UpdatePreviewStep(draft, previewCache, inventoryManager, segments, currentPos.Value)
+        yield return UpdatePreviewStep(draft, previewCache, inventoryManager, currentPos.Value)
           .ToCoroutine(exception => { previewException = exception; });
 
         if (previewException != null)
@@ -155,8 +152,7 @@ internal sealed class ZoopPreviewCoordinator(ZoopPreviewValidator previewValidat
   }
 
   private async UniTask UpdatePreviewStep(ZoopDraft draft, ZoopPreviewCache previewCache,
-    InventoryManager inventoryManager,
-    List<ZoopSegment> segments, Vector3 currentPos)
+    InventoryManager inventoryManager, Vector3 currentPos)
   {
     if (draft.Waypoints.Count <= 0)
     {
@@ -165,13 +161,11 @@ internal sealed class ZoopPreviewCoordinator(ZoopPreviewValidator previewValidat
 
     draft.HasError = false;
 
-    if (IsZoopingSmallGrid())
+    var cursor = InventoryManager.ConstructionCursor;
+    var strategy = Array.Find(gridStrategies, s => s.Matches(cursor));
+    if (strategy != null)
     {
-      await smallGridCoordinator.UpdatePreview(draft, previewCache, inventoryManager, currentPos, segments, 1);
-    }
-    else if (IsZoopingBigGrid())
-    {
-      await bigGridCoordinator.UpdatePreview(draft, previewCache, inventoryManager, currentPos, 1);
+      await strategy.UpdatePreview(draft, previewCache, inventoryManager, currentPos);
     }
 
     UpdateFullFidelityPieces(draft);
@@ -188,16 +182,6 @@ internal sealed class ZoopPreviewCoordinator(ZoopPreviewValidator previewValidat
     return previewDirty ||
            !lastPreviewCursorPosition.HasValue ||
            !ZoopPositionUtility.IsSameZoopPosition(lastPreviewCursorPosition.Value, currentPos);
-  }
-
-  private static bool IsZoopingSmallGrid()
-  {
-    return InventoryManager.ConstructionCursor is SmallGrid;
-  }
-
-  private static bool IsZoopingBigGrid()
-  {
-    return InventoryManager.ConstructionCursor is LargeStructure;
   }
 
   private void UpdateFullFidelityPieces(ZoopDraft draft)

@@ -1,5 +1,4 @@
 using BepInEx.Configuration;
-using ZoopMod.Zoop.Logging;
 
 namespace ZoopMod.Zoop.EntryPoints.Configuration;
 

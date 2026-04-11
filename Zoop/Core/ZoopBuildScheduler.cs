@@ -7,6 +7,7 @@ using Assets.Scripts.Objects;
 using UnityEngine;
 using ZoopMod.Zoop.Logging;
 using ZoopMod.Zoop.Placement;
+using ZoopMod.Zoop.Preview;
 
 namespace ZoopMod.Zoop.Core;
 
@@ -323,9 +324,9 @@ internal sealed class ZoopBuildScheduler
     InventoryManager inventoryManager,
     int buildIndex, Structure previewStructure)
   {
-    if (InventoryManager.IsAuthoringMode && draft.ZoopSpawnPrefab != null)
+    if (InventoryManager.IsAuthoringMode && draft.Session.SpawnPrefab != null)
     {
-      return draft.ZoopSpawnPrefab;
+      return draft.Session.SpawnPrefab;
     }
 
     return ZoopConstructableResolver.GetConstructableForBuildIndex(inventoryManager, buildIndex) ?? previewStructure;

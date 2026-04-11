@@ -111,7 +111,7 @@ internal sealed class ZoopController : IZoopController
 
   private void BeginZoop(InventoryManager inventoryManager, bool restartExisting = false)
   {
-    if (!ZoopConstructableRules.IsAllowed(InventoryManager.ConstructionCursor))
+    if (previewCoordinator.FindStrategy(InventoryManager.ConstructionCursor) == null)
     {
       ZoopLog.Debug("[Lifecycle] Ignored zoop start because the current constructable is not supported.");
       if (restartExisting)
@@ -128,10 +128,7 @@ internal sealed class ZoopController : IZoopController
       ResetSession(restoreCursorVisibility: false, cancelPendingBuild: true);
     }
 
-    var draft = new ZoopDraft
-    {
-      ZoopSpawnPrefab = InventoryManager.SpawnPrefab
-    };
+    var draft = new ZoopDraft();
     activeDraft = draft;
     activePreviewCache = new ZoopPreviewCache();
 
@@ -146,12 +143,14 @@ internal sealed class ZoopController : IZoopController
         }
       }
 
-      draft.ZoopStartRotation = InventoryManager.ConstructionCursor.transform.rotation;
-      draft.ZoopStartWallNormal = InventoryManager.ConstructionCursor is Wall
-        ? GetCardinalAxis(InventoryManager.ConstructionCursor.transform.forward)
-        : Vector3.zero;
+      draft.Session = new ZoopSessionConfig(
+        InventoryManager.SpawnPrefab,
+        InventoryManager.ConstructionCursor.transform.rotation,
+        InventoryManager.ConstructionCursor is Wall
+          ? GetCardinalAxis(InventoryManager.ConstructionCursor.transform.forward)
+          : Vector3.zero);
 
-      var startPos = ZoopPreviewCoordinator.GetCurrentMouseGridPosition();
+      var startPos = previewCoordinator.GetCurrentMouseGridPosition();
       if (startPos.HasValue)
       {
         draft.Waypoints.Add(startPos.Value);
@@ -177,7 +176,7 @@ internal sealed class ZoopController : IZoopController
         activePreviewCache == null ||
         activeDraft.Waypoints.Count <= 0 ||
         InventoryManager.ConstructionCursor == null ||
-        !ZoopConstructableRules.IsAllowed(InventoryManager.ConstructionCursor))
+        previewCoordinator.FindStrategy(InventoryManager.ConstructionCursor) == null)
     {
       ZoopLog.Debug("[Lifecycle] Unable to resume zoop preview after interrupted build; resetting session.");
       ResetSession(restoreCursorVisibility: true, cancelPendingBuild: false);
