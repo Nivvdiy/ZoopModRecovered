@@ -1,4 +1,6 @@
-namespace ZoopMod.Zoop;
+using ZoopMod.Zoop.Planning;
+
+namespace ZoopMod.Zoop.Planning.BigGrid;
 
 public class ZoopPlane
 {

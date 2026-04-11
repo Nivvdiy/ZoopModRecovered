@@ -1,4 +1,4 @@
-namespace ZoopMod.Zoop;
+namespace ZoopMod.Zoop.Planning.SmallGrid;
 
 public enum ZoopTransition
 {
