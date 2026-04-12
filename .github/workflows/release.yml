@@ -1,0 +1,116 @@
+name: Create Release
+
+on:
+  push:
+    tags:
+      - 'V-*'
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Validate tag format
+      run: |
+        tag="${{ github.ref_name }}"
+
+        # Regex stricte: V-YYYY.DD.MM ou V-YYYY.DD.MM-patch
+        # YYYY: 4 chiffres (année)
+        # DD: 01-31 (jour)
+        # MM: 01-12 (mois)
+        # patch: nombre >= 1 (optionnel)
+        if ! echo "$tag" | grep -Pq '^V-\d{4}\.(0[1-9]|[12]\d|3[01])\.(0[1-9]|1[0-2])(-([1-9]\d*))?$'; then
+          echo "❌ Format de tag invalide: $tag"
+          echo "Format attendu: V-YYYY.DD.MM ou V-YYYY.DD.MM-patch"
+          echo "Exemples valides:"
+          echo "  - V-2024.31.12"
+          echo "  - V-2024.15.01-1"
+          echo "  - V-2024.30.06-42"
+          exit 1
+        fi
+
+        echo "✅ Tag valide: $tag"
+      shell: bash
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '8.0.x'
+
+    - name: Create ZoopMod.VS.props for CI
+      run: |
+        cat > ZoopMod.VS.props << 'EOF'
+        <?xml version="1.0" encoding="utf-8"?>
+        <Project ToolsVersion="Current" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+          <PropertyGroup>
+            <ManagedDirectory>${{ github.workspace }}/lib/</ManagedDirectory>
+            <StationeersModOutputFolder>${{ github.workspace }}/output/</StationeersModOutputFolder>
+          </PropertyGroup>
+        </Project>
+        EOF
+      shell: bash
+
+    - name: Create lib directory for stub references
+      run: mkdir -p "${{ github.workspace }}/lib"
+      shell: bash
+
+    - name: Restore NuGet packages
+      run: dotnet restore ZoopMod.csproj
+
+    - name: Build Release
+      run: dotnet build ZoopMod.csproj -c Release -p:SkipVersionUpdate=true
+      continue-on-error: true
+
+    - name: Prepare release files
+      run: |
+        modName="ZoopMod"
+        releaseDir="${{ github.workspace }}/release/$modName"
+
+        # Créer le dossier de release
+        mkdir -p "$releaseDir"
+
+        # Copier les fichiers nécessaires
+        cp "${{ github.workspace }}/ZoopMod.info" "$releaseDir/" 2>/dev/null || true
+        cp "${{ github.workspace }}/bin/Release/net48/ZoopMod.dll" "$releaseDir/" 2>/dev/null || true
+
+        # Copier les dossiers About et GameData
+        if [ -d "${{ github.workspace }}/About" ]; then
+          cp -r "${{ github.workspace }}/About" "$releaseDir/"
+        fi
+        if [ -d "${{ github.workspace }}/GameData" ]; then
+          cp -r "${{ github.workspace }}/GameData" "$releaseDir/"
+        fi
+
+        # Créer le zip
+        cd "${{ github.workspace }}/release"
+        zip -r "${{ github.workspace }}/ZoopMod-${{ github.ref_name }}.zip" "$modName"
+      shell: bash
+
+
+
+    - name: Create GitHub Release
+      uses: softprops/action-gh-release@v2
+      with:
+        files: ZoopMod-${{ github.ref_name }}.zip
+        name: Release ${{ github.ref_name }}
+        body: |
+          ## ZoopMod ${{ github.ref_name }}
+
+          ### Installation
+          1. Download the `ZoopMod-${{ github.ref_name }}.zip` file
+          2. Extract the contents into your Stationeers mods folder
+          3. Launch the game
+
+          ### Included Files
+          - ZoopMod.dll
+          - ZoopMod.info
+          - About and GameData folders
+        draft: false
+        prerelease: false
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
