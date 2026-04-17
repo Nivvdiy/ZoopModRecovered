@@ -5,6 +5,7 @@ using ZoopMod.Zoop.EntryPoints.Configuration;
 using ZoopMod.Zoop.EntryPoints.Input;
 using ZoopMod.Zoop.EntryPoints.Integrations;
 using ZoopMod.Zoop.Logging;
+using ZoopMod.Zoop.NetworkDeconstruction;
 
 namespace ZoopMod;
 
@@ -27,6 +28,9 @@ public class ZoopMod : BaseUnityPlugin
       ZoopLog.Info($"Build commit: {GetBuildCommitHash()}");
       ZoopIntegrations.Initialize();
       ZoopKeyBindings.Initialize();
+
+      // Initialize network detection tester
+      NetworkDetectionTester.Initialize();
     }
     catch (Exception e)
     {
