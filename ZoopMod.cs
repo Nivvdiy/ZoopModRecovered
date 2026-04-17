@@ -29,8 +29,8 @@ public class ZoopMod : BaseUnityPlugin
       ZoopIntegrations.Initialize();
       ZoopKeyBindings.Initialize();
 
-      // Initialize network detection tester
-      NetworkDetectionTester.Initialize();
+      // Initialize network deconstruction mode
+      NetworkDeconstructionMode.Initialize();
     }
     catch (Exception e)
     {
