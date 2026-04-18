@@ -17,7 +17,7 @@ public class NetworkDeconstructionUI
   /// <summary>
   /// Renders the network information tooltip.
   /// </summary>
-  public void Render(Structure target, List<Structure> network, NetworkValidator.ValidationResult validation)
+  public void Render(Structure target, List<Structure> network, NetworkValidator.ValidationResult validation, bool isDeconstructing)
   {
     if (target == null || network == null)
       return;
@@ -36,7 +36,7 @@ public class NetworkDeconstructionUI
     var labelStyle = CreateLabelStyle();
 
     // Build message with rich text formatting
-    string message = BuildMessage(networkType, networkSize, validation);
+    string message = BuildMessage(networkType, networkSize, validation, isDeconstructing);
 
     // Calculate size
     GUIContent content = new GUIContent(message);
@@ -49,14 +49,20 @@ public class NetworkDeconstructionUI
     GUI.Label(new Rect(posX, posY, boxWidth, boxHeight), message, labelStyle);
   }
 
-  private string BuildMessage(string networkType, int networkSize, NetworkValidator.ValidationResult validation)
+  private string BuildMessage(string networkType, int networkSize, NetworkValidator.ValidationResult validation, bool isDeconstructing)
   {
     var message = $"<b><color={NetworkDeconstructionConfig.Colors.NetworkTitle}>{networkType} Network</color></b>\n";
     message += $"<size={NetworkDeconstructionConfig.FontSizes.NetworkSize}>Size: {networkSize} structure{(networkSize > 1 ? "s" : "")}</size>\n\n";
 
-    if (validation.CanDeconstruct)
+    if (isDeconstructing)
     {
-      message += $"<color={NetworkDeconstructionConfig.Colors.Ready}>✓ Ready to deconstruct</color>";
+      // Show deconstruction in progress
+      message += $"<color={NetworkDeconstructionConfig.Colors.Warning}>⚙ Deconstructing...</color>";
+    }
+    else if (validation.CanDeconstruct)
+    {
+      message += $"<color={NetworkDeconstructionConfig.Colors.Ready}>✓ Ready to deconstruct</color>\n";
+      message += $"<color={NetworkDeconstructionConfig.Colors.Warning}><size={NetworkDeconstructionConfig.FontSizes.Reason}>Click to deconstruct</size></color>";
     }
     else
     {
