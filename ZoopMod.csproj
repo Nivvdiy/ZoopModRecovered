@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <Project Sdk="Microsoft.NET.Sdk" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
 
 	<!-- General Property Group -->
@@ -90,9 +90,12 @@
 	<ItemGroup>
 		<Folder Include="GameData\Images\" />
 	</ItemGroup>
+	<ItemGroup>
+	  <None Include=".github\workflows\release.yml" />
+	</ItemGroup>
 
 	<!-- Update Version On Release -->
-	<Target Name="RunUpdateVersionScript" BeforeTargets="BeforeBuild" Condition=" '$(Configuration)' == 'Release' ">
+	<Target Name="RunUpdateVersionScript" BeforeTargets="BeforeBuild" Condition=" '$(Configuration)' == 'Release' AND '$(SkipVersionUpdate)' != 'true' ">
 		<Message Importance="High" Text="Update version" />
 		<Exec Command="powershell -NonInteractive -executionpolicy Unrestricted -command &quot;&amp; { .\UpdateVersion.ps1 } &quot;" />
 	</Target>
@@ -100,17 +103,14 @@
 	<!-- Post-Build Events -->
 	<Target Name="CustomAfterBuild" AfterTargets="Build">
 		<Message Importance="High" Text="Start building project files" />
-		<Warning Text="Configured Pdb2MdbPath was not found. Skipping .mdb generation: $(Pdb2MdbPath)"
-		         Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' and '$(Pdb2MdbPath)' != '' and !Exists('$(Pdb2MdbPath)')" />
-		<Exec Command="&quot;$(Pdb2MdbPath)&quot; &quot;$(TargetPath)&quot;"
-		      Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' and '$(Pdb2MdbPath)' != '' and Exists('$(Pdb2MdbPath)')" />
+		<Warning Text="Configured Pdb2MdbPath was not found. Skipping .mdb generation: $(Pdb2MdbPath)" Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' and '$(Pdb2MdbPath)' != '' and !Exists('$(Pdb2MdbPath)')" />
+		<Exec Command="&quot;$(Pdb2MdbPath)&quot; &quot;$(TargetPath)&quot;" Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' and '$(Pdb2MdbPath)' != '' and Exists('$(Pdb2MdbPath)')" />
 		<RemoveDir Directories="$(StationeersModOutputFolder)\$(ModName)" />
 		<Copy SourceFiles="$(ProjectDir)\$(ModName).info" DestinationFolder="$(StationeersModOutputFolder)\$(ModName)" ContinueOnError="false" />
 		<Copy SourceFiles="$(ProjectDir)\bin\Debug\net48\$(ModName).dll" DestinationFolder="$(StationeersModOutputFolder)\$(ModName)" ContinueOnError="true" />
 		<Copy SourceFiles="@(_CopyItemsGameData)" DestinationFolder="$(StationeersModOutputFolder)\$(ModName)\GameData\%(RecursiveDir)" ContinueOnError="true" />
 		<Copy SourceFiles="@(_CopyItemsAbout)" DestinationFolder="$(StationeersModOutputFolder)\$(ModName)\About\%(RecursiveDir)" ContinueOnError="true" />
-		<Copy SourceFiles="$(Pdb2MdbOutputPath)" DestinationFolder="$(StationeersModOutputFolder)\$(ModName)" ContinueOnError="true"
-		      Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' and Exists('$(Pdb2MdbOutputPath)')" />
+		<Copy SourceFiles="$(Pdb2MdbOutputPath)" DestinationFolder="$(StationeersModOutputFolder)\$(ModName)" ContinueOnError="true" Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' and Exists('$(Pdb2MdbOutputPath)')" />
 	</Target>
 
 </Project>
