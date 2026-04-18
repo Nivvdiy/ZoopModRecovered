@@ -2,6 +2,7 @@ using System;
 using Assets.Scripts.Inventory;
 using Assets.Scripts.Objects;
 using Cysharp.Threading.Tasks;
+using Objects.Structures;
 using UnityEngine;
 using ZoopMod.Zoop.Core;
 using ZoopMod.Zoop.Planning;
@@ -15,7 +16,7 @@ namespace ZoopMod.Zoop.Preview.Strategies;
 /// </summary>
 internal sealed class ZoopBigGridPreviewStrategy(ZoopPreviewValidator previewValidator) : IZoopPreviewGridStrategy
 {
-  public bool Matches(Structure cursor) => cursor is LargeStructure;
+  public bool Matches(Structure cursor) => cursor is Frame or Wall;
   public bool SupportsWaypoints => false;
   public Vector3? GetCursorPosition(Structure cursor) => cursor.ThingTransformPosition;
 

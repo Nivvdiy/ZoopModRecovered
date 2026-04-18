@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?><ModMetadata xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"><Name>ZoopMod [StationeersLaunchPad]</Name><Author>Nivvdiy, MerGatto</Author><Version>2026.11.04</Version><Description>
+<?xml version="1.0" encoding="utf-8"?><ModMetadata xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"><Name>ZoopMod [StationeersLaunchPad]</Name><Author>Nivvdiy, MerGatto</Author><Version>2026.18.04</Version><Description>
   [h1]ZoopMod[/h1]
 
   [b]WARNING:[/b]
@@ -10,6 +10,9 @@
 
   Please ensure you are unsubscribed from older versions of this mod:
   https://steamcommunity.com/sharedfiles/filedetails/?id=3182410797
+
+  GitHub repository:
+  https://github.com/Nivvdiy/ZoopModRecovered
 
   Works when joining a multiplayer server as a client.
 
@@ -94,6 +97,7 @@
 <b>Maintained by:</b> Nivvdiy and MerGatto
 <b>WARNING:</b> <color=#ff0000>This mod requires the StationeersLaunchPad Plugin and BepInEx to function properly.</color>
 Make sure you are unsubscribed from any previous versions. Installation details are available at <b><u><color=#00ccff>https://github.com/StationeersLaunchPad/StationeersLaunchPad</color></u></b>.
+<b>GitHub:</b> <b><u><color=#00ccff>https://github.com/Nivvdiy/ZoopModRecovered</color></u></b>
 
 Compatible with <b>The Gases Update</b> and works when joining multiplayer servers as a <b>client</b>.
 

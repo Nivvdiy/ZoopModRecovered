@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using Assets.Scripts.Inventory;
 using Assets.Scripts.Objects;
+using Assets.Scripts.Objects.Electrical;
 using Assets.Scripts.Objects.Items;
 using Assets.Scripts.Objects.Pipes;
 using Assets.Scripts.Util;
@@ -21,7 +22,7 @@ namespace ZoopMod.Zoop.Preview.Strategies;
 /// </summary>
 internal sealed class ZoopSmallGridPreviewStrategy(ZoopPreviewValidator previewValidator) : IZoopPreviewGridStrategy
 {
-  public bool Matches(Structure cursor) => cursor is SmallGrid;
+  public bool Matches(Structure cursor) => cursor is Pipe or Cable or Chute;
   public bool SupportsWaypoints => true;
   public Vector3? GetCursorPosition(Structure cursor) => cursor.GetLocalGrid().ToVector3();
 
