@@ -3,6 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using Assets.Scripts.Inventory;
 using Assets.Scripts.Objects;
+using Assets.Scripts.Objects.Pipes;
 using Cysharp.Threading.Tasks;
 using UnityEngine;
 using ZoopMod.Zoop.Core;
@@ -107,7 +108,14 @@ internal sealed class ZoopPreviewCoordinator(ZoopPreviewValidator previewValidat
   }
 
   internal IZoopPreviewGridStrategy FindStrategy(Structure cursor)
-    => cursor != null ? Array.Find(gridStrategies, s => s.Matches(cursor)) : null;
+  {
+    if (cursor == null || IsBlacklisted(cursor))
+    {
+      return null;
+    }
+
+    return Array.Find(gridStrategies, s => s.Matches(cursor));
+  }
 
   internal Vector3? GetCurrentMouseGridPosition()
   {
@@ -162,7 +170,7 @@ internal sealed class ZoopPreviewCoordinator(ZoopPreviewValidator previewValidat
     draft.HasError = false;
 
     var cursor = InventoryManager.ConstructionCursor;
-    var strategy = Array.Find(gridStrategies, s => s.Matches(cursor));
+    var strategy = FindStrategy(cursor);
     if (strategy != null)
     {
       await strategy.UpdatePreview(draft, previewCache, inventoryManager, currentPos);
@@ -182,6 +190,13 @@ internal sealed class ZoopPreviewCoordinator(ZoopPreviewValidator previewValidat
     return previewDirty ||
            !lastPreviewCursorPosition.HasValue ||
            !ZoopPositionUtility.IsSameZoopPosition(lastPreviewCursorPosition.Value, currentPos);
+  }
+
+  // Keep explicit opt-outs separate from strategy allowlists so unsupported cursors can be
+  // blocked even if they later share a broader base type with a supported zoop family.
+  private static bool IsBlacklisted(Structure cursor)
+  {
+    return cursor is Tank or InLineTank or StructureInLineTank;
   }
 
   private void UpdateFullFidelityPieces(ZoopDraft draft)
