@@ -90,9 +90,6 @@
 	<ItemGroup>
 		<Folder Include="GameData\Images\" />
 	</ItemGroup>
-	<ItemGroup>
-	  <None Include=".github\workflows\release.yml" />
-	</ItemGroup>
 
 	<!-- Update Version On Release -->
 	<Target Name="RunUpdateVersionScript" BeforeTargets="BeforeBuild" Condition=" '$(Configuration)' == 'Release' AND '$(SkipVersionUpdate)' != 'true' ">
