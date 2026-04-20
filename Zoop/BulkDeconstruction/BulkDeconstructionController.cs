@@ -1,65 +1,62 @@
 using System.Collections;
 using System.Collections.Generic;
-using Assets.Scripts;
 using Assets.Scripts.Inventory;
-using Assets.Scripts.Networking;
 using Assets.Scripts.Objects;
 using Assets.Scripts.Objects.Electrical;
 using Assets.Scripts.Objects.Items;
 using Assets.Scripts.Objects.Pipes;
-using Assets.Scripts.Util;
 using UnityEngine;
 using ZoopMod.Zoop.EntryPoints.Input;
 using ZoopMod.Zoop.Logging;
 
-namespace ZoopMod.Zoop.NetworkDeconstruction;
+namespace ZoopMod.Zoop.BulkDeconstruction;
 
 /// <summary>
-/// Controller for network deconstruction system.
-/// Handles detection, validation, and progressive deconstruction of network elements.
+/// Controller for bulk deconstruction system.
+/// Handles detection, validation, and progressive deconstruction of bulk elements.
 /// Similar to ZoopController but for deconstruction instead of construction.
 /// </summary>
-public class NetworkDeconstructionController : MonoBehaviour
+public class BulkDeconstructionController : MonoBehaviour
 {
-  private static NetworkDeconstructionController _instance;
-  public static NetworkDeconstructionController Instance => _instance;
+  private static BulkDeconstructionController _instance;
+  public static BulkDeconstructionController Instance => _instance;
 
-  private readonly NetworkDetector _detector = new NetworkDetector();
-  private readonly NetworkValidator _validator = new NetworkValidator();
-  private readonly NetworkDeconstructionUI _ui = new NetworkDeconstructionUI();
-  private readonly NetworkItemRecovery _itemRecovery = new NetworkItemRecovery();
+  private readonly BulkDetector _detector = new BulkDetector();
+  private readonly BulkValidator _validator = new BulkValidator();
+  private readonly BulkDeconstructionUI _ui = new BulkDeconstructionUI();
+  private readonly BulkItemRecovery _itemRecovery = new BulkItemRecovery();
 
   private bool _isActive;
   private Thing _lastHeldTool;
   private Structure _currentTarget;
-  private List<Structure> _currentNetwork;
-  private NetworkValidator.ValidationResult _currentValidation;
+  private List<Structure> _currentBulk;
+  private BulkValidator.ValidationResult _currentValidation;
   private bool _isDeconstructing; // Currently executing deconstruction
   private Coroutine _deconstructionCoroutine;
 
   // Public properties for patches
   public bool IsActive => _isActive;
   public Structure CurrentTarget => _currentTarget;
-  public NetworkValidator.ValidationResult CurrentValidation => _currentValidation;
+  public BulkValidator.ValidationResult CurrentValidation => _currentValidation;
   public bool IsDeconstructing => _isDeconstructing;
-  public int CurrentNetworkSize => _currentNetwork?.Count ?? 0;
+  public int CurrentBulkSize => _currentBulk?.Count ?? 0;
 
   public static void Initialize()
   {
     if (_instance != null)
     {
-      ZoopLog.Info("[NetworkDeconstruction] Already initialized");
+      ZoopLog.Info("[BulkDeconstruction] Already initialized");
       return;
     }
 
-    var gameObject = new GameObject("NetworkDeconstructionController");
+    var gameObject = new GameObject("BulkDeconstructionController");
     DontDestroyOnLoad(gameObject);
-    _instance = gameObject.AddComponent<NetworkDeconstructionController>();
+    _instance = gameObject.AddComponent<BulkDeconstructionController>();
 
     // Register with runtime
-    Patches.NetworkDeconstructionRuntime.Initialize(_instance);
+    Patches.BulkDeconstructionRuntime.Initialize(_instance);
 
-    ZoopLog.Info("[NetworkDeconstruction] Initialized successfully");
+    ZoopLog.Info("[BulkDeconstruction] Initialized successfully");
   }
 
   private void Update()
@@ -92,7 +89,7 @@ public class NetworkDeconstructionController : MonoBehaviour
     }
 
     // Handle key press to toggle mode
-    if (UnityEngine.Input.GetKeyDown(ZoopKeyBindings.NetworkDeconstruct))
+    if (UnityEngine.Input.GetKeyDown(ZoopKeyBindings.BulkDeconstruct))
     {
       if (!_isActive)
       {
@@ -117,38 +114,38 @@ public class NetworkDeconstructionController : MonoBehaviour
     DiagnosticWindow.Render();
 
     // Only render tooltip if mode is active
-    if (!_isActive || _currentTarget == null || _currentNetwork == null)
+    if (!_isActive || _currentTarget == null || _currentBulk == null)
       return;
 
-    _ui.Render(_currentTarget, _currentNetwork, _currentValidation, _isDeconstructing);
+    _ui.Render(_currentTarget, _currentBulk, _currentValidation, _isDeconstructing);
   }
 
   private void TryActivateMode()
   {
     if (!HasValidTool())
     {
-      ZoopLog.Info("[NetworkDeconstruction] Cannot activate: No valid tool equipped");
+      ZoopLog.Info("[BulkDeconstruction] Cannot activate: No valid tool equipped");
       return;
     }
 
     _isActive = true;
-    ZoopLog.Info("[NetworkDeconstruction] Mode activated");
+    ZoopLog.Info("[BulkDeconstruction] Mode activated");
   }
 
   private void DeactivateMode(string reason)
   {
     _isActive = false;
     _currentTarget = null;
-    _currentNetwork = null;
+    _currentBulk = null;
     _currentValidation = null;
 
     // Reset patch state
-    Patches.NetworkDeconstructionRuntime.Reset();
+    Patches.BulkDeconstructionRuntime.Reset();
 
     // Clear deconstructing flag
     _isDeconstructing = false;
 
-    ZoopLog.Info($"[NetworkDeconstruction] Mode deactivated: {reason}");
+    ZoopLog.Info($"[BulkDeconstruction] Mode deactivated: {reason}");
   }
 
   /// <summary>
@@ -158,19 +155,19 @@ public class NetworkDeconstructionController : MonoBehaviour
   /// </summary>
   public void StartProgressiveDeconstruction()
   {
-    if (_currentNetwork == null || _currentNetwork.Count == 0)
+    if (_currentBulk == null || _currentBulk.Count == 0)
     {
-      ZoopLog.Info("[NetworkDeconstruction] Cannot start: No network");
+      ZoopLog.Info("[BulkDeconstruction] Cannot start: No bulk");
       return;
     }
 
     if (_isDeconstructing)
     {
-      ZoopLog.Info("[NetworkDeconstruction] Already deconstructing");
+      ZoopLog.Info("[BulkDeconstruction] Already deconstructing");
       return;
     }
 
-    ZoopLog.Info($"[NetworkDeconstruction] Starting progressive deconstruction of {_currentNetwork.Count} structures");
+    ZoopLog.Info($"[BulkDeconstruction] Starting progressive deconstruction of {_currentBulk.Count} structures");
     _deconstructionCoroutine = StartCoroutine(DeconstructProgressively());
   }
 
@@ -182,40 +179,40 @@ public class NetworkDeconstructionController : MonoBehaviour
     _isDeconstructing = true;
 
     // Count total structures for logging
-    int totalStructures = _currentNetwork?.Count ?? 0;
+    int totalStructures = _currentBulk?.Count ?? 0;
 
-    if (_currentNetwork == null || _currentNetwork.Count == 0)
+    if (_currentBulk == null || _currentBulk.Count == 0)
     {
-      ZoopLog.Error("[NetworkDeconstruction] Network is NULL or empty - cannot deconstruct");
+      ZoopLog.Error("[BulkDeconstruction] Bulk is NULL or empty - cannot deconstruct");
       _isDeconstructing = false;
       _deconstructionCoroutine = null;
       yield break;
     }
 
-    ZoopLog.Info($"[NetworkDeconstruction] Starting deconstruction of {totalStructures} structures");
+    ZoopLog.Info($"[BulkDeconstruction] Starting deconstruction of {totalStructures} structures");
 
-    // Step 1: Collect all items from the network BEFORE destroying anything
-    ZoopLog.Info($"[NetworkDeconstruction] Collecting items from {totalStructures} structures...");
+    // Step 1: Collect all items from the bulk BEFORE destroying anything
+    ZoopLog.Info($"[BulkDeconstruction] Collecting items from {totalStructures} structures...");
 
     Dictionary<Thing, int> collectedItems = null;
-    Vector3 spawnPosition = _currentNetwork[0]?.transform.position ?? Vector3.zero;
+    Vector3 spawnPosition = _currentBulk[0]?.transform.position ?? Vector3.zero;
 
     try
     {
-      collectedItems = _itemRecovery.CollectItemsFromNetwork(_currentNetwork);
-      ZoopLog.Info("[NetworkDeconstruction] Item collection complete");
+      collectedItems = _itemRecovery.CollectItemsFromBulk(_currentBulk);
+      ZoopLog.Info("[BulkDeconstruction] Item collection complete");
     }
     catch (System.Exception ex)
     {
-      ZoopLog.Error($"[NetworkDeconstruction] Item collection failed: {ex.Message}");
-      ZoopLog.Error($"[NetworkDeconstruction] Stack trace: {ex.StackTrace}");
+      ZoopLog.Error($"[BulkDeconstruction] Item collection failed: {ex.Message}");
+      ZoopLog.Error($"[BulkDeconstruction] Stack trace: {ex.StackTrace}");
     }
 
-    // Step 2: Remove all structures from the network
-    ZoopLog.Info($"[NetworkDeconstruction] Removing {totalStructures} structures...");
+    // Step 2: Remove all structures from the bulk
+    ZoopLog.Info($"[BulkDeconstruction] Removing {totalStructures} structures...");
 
     int removed = 0;
-    foreach (Structure structure in _currentNetwork)
+    foreach (Structure structure in _currentBulk)
     {
       if (structure == null || structure.gameObject == null)
         continue;
@@ -227,7 +224,7 @@ public class NetworkDeconstructionController : MonoBehaviour
       }
       catch (System.Exception ex)
       {
-        ZoopLog.Error($"[NetworkDeconstruction] Error removing {structure.PrefabName}: {ex.Message}");
+        ZoopLog.Error($"[BulkDeconstruction] Error removing {structure.PrefabName}: {ex.Message}");
       }
 
       // Small delay every few structures
@@ -237,25 +234,25 @@ public class NetworkDeconstructionController : MonoBehaviour
       }
     }
 
-    ZoopLog.Info($"[NetworkDeconstruction] Removed {removed}/{totalStructures} structures");
+    ZoopLog.Info($"[BulkDeconstruction] Removed {removed}/{totalStructures} structures");
 
     // Step 3: Spawn all collected items as stacks
     if (collectedItems != null && collectedItems.Count > 0)
     {
-      ZoopLog.Info($"[NetworkDeconstruction] Spawning collected items...");
+      ZoopLog.Info($"[BulkDeconstruction] Spawning collected items...");
 
       try
       {
         _itemRecovery.SpawnCollectedItems(collectedItems, spawnPosition);
-        ZoopLog.Info("[NetworkDeconstruction] Item spawning complete");
+        ZoopLog.Info("[BulkDeconstruction] Item spawning complete");
       }
       catch (System.Exception ex)
       {
-        ZoopLog.Error($"[NetworkDeconstruction] Item spawning failed: {ex.Message}");
+        ZoopLog.Error($"[BulkDeconstruction] Item spawning failed: {ex.Message}");
       }
     }
 
-    ZoopLog.Info($"[NetworkDeconstruction] Complete: {removed}/{totalStructures} structures removed with item recovery");
+    ZoopLog.Info($"[BulkDeconstruction] Complete: {removed}/{totalStructures} structures removed with item recovery");
 
     _isDeconstructing = false;
     _deconstructionCoroutine = null;
@@ -272,19 +269,19 @@ public class NetworkDeconstructionController : MonoBehaviour
 
     var ray = camera.ScreenPointToRay(new Vector3(Screen.width / 2f, Screen.height / 2f, 0));
 
-    if (Physics.Raycast(ray, out RaycastHit hit, NetworkDeconstructionConfig.RaycastDistance))
+    if (Physics.Raycast(ray, out RaycastHit hit, BulkDeconstructionConfig.RaycastDistance))
     {
       var structure = hit.collider.GetComponentInParent<Structure>();
 
-      if (structure != null && IsValidNetworkElement(structure))
+      if (structure != null && IsValidBulkElement(structure))
       {
         if (_currentTarget != structure)
         {
           _currentTarget = structure;
-          _currentNetwork = _detector.ExploreNetwork(structure);
+          _currentBulk = _detector.ExploreBulk(structure);
           _currentValidation = _validator.Validate(structure);
 
-          ZoopLog.Debug($"[NetworkDeconstruction] Detected {GetNetworkTypeName(structure)} network: {_currentNetwork.Count} structures");
+          ZoopLog.Debug($"[BulkDeconstruction] Detected {GetBulkTypeName(structure)} bulk: {_currentBulk.Count} structures");
         }
       }
       else
@@ -301,11 +298,11 @@ public class NetworkDeconstructionController : MonoBehaviour
   private void ClearCurrentTarget()
   {
     _currentTarget = null;
-    _currentNetwork = null;
+    _currentBulk = null;
     _currentValidation = null;
   }
 
-  private bool IsValidNetworkElement(Structure structure)
+  private bool IsValidBulkElement(Structure structure)
   {
     if (structure is Cable && IsHoldingWireCutters())
       return true;
@@ -344,7 +341,7 @@ public class NetworkDeconstructionController : MonoBehaviour
     return heldItem is Wrench;
   }
 
-  private string GetNetworkTypeName(Structure structure)
+  private string GetBulkTypeName(Structure structure)
   {
     if (structure is Cable)
       return "Cable";
@@ -372,7 +369,7 @@ public class NetworkDeconstructionController : MonoBehaviour
 
     var ray = camera.ScreenPointToRay(new Vector3(Screen.width / 2f, Screen.height / 2f, 0));
 
-    if (!Physics.Raycast(ray, out RaycastHit hit, NetworkDeconstructionConfig.RaycastDistance))
+    if (!Physics.Raycast(ray, out RaycastHit hit, BulkDeconstructionConfig.RaycastDistance))
     {
       ZoopLog.Info("[Diagnostic] No object in sight");
       return;
@@ -408,25 +405,25 @@ public class NetworkDeconstructionController : MonoBehaviour
 
     if (!hasCorrectTool)
     {
-      ZoopLog.Info($"[Diagnostic] Wrong tool! You need a {requiredTool} to inspect this {GetNetworkTypeName(structure)}");
+      ZoopLog.Info($"[Diagnostic] Wrong tool! You need a {requiredTool} to inspect this {GetBulkTypeName(structure)}");
 
       // Show a message in the diagnostic window
-      DiagnosticWindow.Show(null, $"⚠️ WRONG TOOL ⚠️\n\nYou need a {requiredTool} to inspect this {GetNetworkTypeName(structure)}");
+      DiagnosticWindow.Show(null, $"⚠️ WRONG TOOL ⚠️\n\nYou need a {requiredTool} to inspect this {GetBulkTypeName(structure)}");
       return;
     }
 
     // We have the right tool and a valid target - show diagnostic!
-    ZoopLog.Info($"[Diagnostic] Showing diagnostic for {structure.PrefabName} ({GetNetworkTypeName(structure)})");
+    ZoopLog.Info($"[Diagnostic] Showing diagnostic for {structure.PrefabName} ({GetBulkTypeName(structure)})");
 
     // Show detailed diagnostic of the structure
     DiagnosticWindow.ShowStructureDiagnostic(structure);
 
-    // Also explore and show the network if you want
-    var network = _detector.ExploreNetwork(structure);
-    if (network != null && network.Count > 0)
+    // Also explore and show the bulk group if you want
+    List<Structure> bulk = _detector.ExploreBulk(structure);
+    if (bulk != null && bulk.Count > 0)
     {
-      ZoopLog.Info($"[Diagnostic] Network detected: {network.Count} elements");
-      // You can optionally show network diagnostic too after a delay, but for now we just log it
+      ZoopLog.Info($"[Diagnostic] Bulk group detected: {bulk.Count} elements");
+      // You can optionally show bulk diagnostic too after a delay, but for now we just log it
     }
   }
 }

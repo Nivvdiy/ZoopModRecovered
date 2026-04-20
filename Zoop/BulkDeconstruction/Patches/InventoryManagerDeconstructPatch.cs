@@ -5,7 +5,7 @@ using HarmonyLib;
 using JetBrains.Annotations;
 using ZoopMod.Zoop.Logging;
 
-namespace ZoopMod.Zoop.NetworkDeconstruction.Patches;
+namespace ZoopMod.Zoop.BulkDeconstruction.Patches;
 
 /// <summary>
 /// NOTE: WaitUntilDone is NOT used for deconstruction in Stationeers.
@@ -14,7 +14,7 @@ namespace ZoopMod.Zoop.NetworkDeconstruction.Patches;
 /// </summary>
 
 /// <summary>
-/// Patches ToolUse.Deconstruct to completely replace network deconstruction.
+/// Patches ToolUse.Deconstruct to completely replace bulk deconstruction.
 /// Uses Prefix to block game's deconstruction and handle it ourselves.
 /// </summary>
 [HarmonyPatch(typeof(ToolUse), "Deconstruct")]
@@ -23,35 +23,35 @@ internal static class ToolUseDeconstructPatch
   [UsedImplicitly]
   public static bool Prefix(ToolUse __instance, ConstructionEventInstance eventInstance)
   {
-    ZoopLog.Debug($"[NetworkDeconstruction] ToolUse.Deconstruct Prefix - IsActive: {NetworkDeconstructionRuntime.IsActive}");
+    ZoopLog.Debug($"[BulkDeconstruction] ToolUse.Deconstruct Prefix - IsActive: {BulkDeconstructionRuntime.IsActive}");
 
-    // Only intercept if network deconstruction mode is active
-    if (!NetworkDeconstructionRuntime.IsActive)
+    // Only intercept if bulk deconstruction mode is active
+    if (!BulkDeconstructionRuntime.IsActive)
     {
-      ZoopLog.Debug("[NetworkDeconstruction] Mode not active, allowing normal deconstruction");
+      ZoopLog.Debug("[BulkDeconstruction] Mode not active, allowing normal deconstruction");
       return true; // Allow normal deconstruction
     }
 
-    // Check if we should execute network deconstruction
-    var target = NetworkDeconstructionRuntime.CurrentTarget;
+    // Check if we should execute bulk deconstruction
+    var target = BulkDeconstructionRuntime.CurrentTarget;
     if (target == null)
     {
-      ZoopLog.Debug("[NetworkDeconstruction] No target, allowing normal deconstruction");
+      ZoopLog.Debug("[BulkDeconstruction] No target, allowing normal deconstruction");
       return true;
     }
 
     // Check validation
-    var validation = NetworkDeconstructionRuntime.CurrentValidation;
+    var validation = BulkDeconstructionRuntime.CurrentValidation;
     if (validation == null || !validation.CanDeconstruct)
     {
-      ZoopLog.Info($"[NetworkDeconstruction] Blocked: {validation?.Reason ?? "Invalid"}");
+      ZoopLog.Info($"[BulkDeconstruction] Blocked: {validation?.Reason ?? "Invalid"}");
       return false; // Block deconstruction
     }
 
-    ZoopLog.Info($"[NetworkDeconstruction] Intercepting deconstruction, will handle {NetworkDeconstructionRuntime.CurrentNetworkSize} structures");
+    ZoopLog.Info($"[BulkDeconstruction] Intercepting deconstruction, will handle {BulkDeconstructionRuntime.CurrentBulkSize} structures");
 
-    // Start our own network deconstruction (with proper item spawning)
-    NetworkDeconstructionRuntime.StartProgressiveDeconstruction();
+    // Start our own bulk deconstruction (with proper item spawning)
+    BulkDeconstructionRuntime.StartProgressiveDeconstruction();
 
     // Block the game's default deconstruction
     return false;
@@ -73,31 +73,31 @@ internal static class StructureDeconstructionHook
     Structure.OnDeconstruct += OnStructureDeconstruct;
     _isHookRegistered = true;
 
-    ZoopLog.Info("[NetworkDeconstruction] Registered Structure.OnDeconstruct hook");
+    ZoopLog.Info("[BulkDeconstruction] Registered Structure.OnDeconstruct hook");
   }
 
   private static void OnStructureDeconstruct(Structure structure)
   {
     // Only log if our mode is active (for debugging)
-    if (NetworkDeconstructionRuntime.IsActive)
+    if (BulkDeconstructionRuntime.IsActive)
     {
-      var target = NetworkDeconstructionRuntime.CurrentTarget;
+      var target = BulkDeconstructionRuntime.CurrentTarget;
       if (target != null && structure == target)
       {
-        ZoopLog.Debug($"[NetworkDeconstruction] Structure deconstructed: {structure.PrefabName}");
+        ZoopLog.Debug($"[BulkDeconstruction] Structure deconstructed: {structure.PrefabName}");
       }
     }
   }
 }
 
 /// <summary>
-/// Runtime state for network deconstruction system.
+/// Runtime state for bulk deconstruction system.
 /// </summary>
-public static class NetworkDeconstructionRuntime
+public static class BulkDeconstructionRuntime
 {
-  private static NetworkDeconstructionController _controller;
+  private static BulkDeconstructionController _controller;
 
-  public static void Initialize(NetworkDeconstructionController controller)
+  public static void Initialize(BulkDeconstructionController controller)
   {
     _controller = controller;
     StructureDeconstructionHook.Initialize();
@@ -105,8 +105,8 @@ public static class NetworkDeconstructionRuntime
 
   public static bool IsActive => _controller?.IsActive ?? false;
   public static Structure CurrentTarget => _controller?.CurrentTarget;
-  public static NetworkValidator.ValidationResult CurrentValidation => _controller?.CurrentValidation;
-  public static int CurrentNetworkSize => _controller?.CurrentNetworkSize ?? 0;
+  public static BulkValidator.ValidationResult CurrentValidation => _controller?.CurrentValidation;
+  public static int CurrentBulkSize => _controller?.CurrentBulkSize ?? 0;
 
   public static void StartProgressiveDeconstruction()
   {

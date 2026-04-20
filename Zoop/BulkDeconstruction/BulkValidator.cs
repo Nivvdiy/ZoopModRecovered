@@ -2,16 +2,16 @@ using Assets.Scripts.Objects;
 using Assets.Scripts.Objects.Electrical;
 using Assets.Scripts.Objects.Pipes;
 
-namespace ZoopMod.Zoop.NetworkDeconstruction;
+namespace ZoopMod.Zoop.BulkDeconstruction;
 
 /// <summary>
-/// Validates if a network can be safely deconstructed.
+/// Validates if a bulk can be safely deconstructed.
 /// Checks conditions like pressure, power, and item presence.
 /// </summary>
-public class NetworkValidator
+public class BulkValidator
 {
   /// <summary>
-  /// Result of a network validation check.
+  /// Result of a bulk validation check.
   /// </summary>
   public class ValidationResult
   {
@@ -23,7 +23,7 @@ public class NetworkValidator
   }
 
   /// <summary>
-  /// Validates if the given structure's network can be deconstructed.
+  /// Validates if the given structure's bulk can be deconstructed.
   /// </summary>
   public ValidationResult Validate(Structure structure)
   {
@@ -32,49 +32,49 @@ public class NetworkValidator
 
     return structure switch
     {
-      Cable cable => ValidateCableNetwork(cable),
-      Pipe pipe => ValidatePipeNetwork(pipe),
-      Chute chute => ValidateChuteNetwork(chute),
-      _ => ValidationResult.Failure("Unknown network type")
+      Cable cable => ValidateCableBulk(cable),
+      Pipe pipe => ValidatePipeBulk(pipe),
+      Chute chute => ValidateChuteBulk(chute),
+      _ => ValidationResult.Failure("Unknown bulk type")
     };
   }
 
-  private ValidationResult ValidateCableNetwork(Cable cable)
+  private ValidationResult ValidateCableBulk(Cable cable)
   {
-    // Check if cable network has power using CableNetwork.PotentialLoad
+    // Check if cable bulk has power using CableBulk.PotentialLoad
     if (cable.CableNetwork != null && cable.CableNetwork.PotentialLoad > 0f)
     {
-      return ValidationResult.Failure("Network is powered");
+      return ValidationResult.Failure("Bulk is powered");
     }
 
     return ValidationResult.Success();
   }
 
-  private ValidationResult ValidatePipeNetwork(Pipe pipe)
+  private ValidationResult ValidatePipeBulk(Pipe pipe)
   {
     // Check if pipe has significant pressure
     if (pipe.PipeNetwork != null)
     {
       var atmosphere = pipe.PipeNetwork.Atmosphere;
-      if (atmosphere != null && atmosphere.PressureGassesAndLiquidsInPa > NetworkDeconstructionConfig.SafePressureThreshold)
+      if (atmosphere != null && atmosphere.PressureGassesAndLiquidsInPa > BulkDeconstructionConfig.SafePressureThreshold)
       {
-        return ValidationResult.Failure("Network under pressure");
+        return ValidationResult.Failure("Bulk under pressure");
       }
     }
 
     return ValidationResult.Success();
   }
 
-  private ValidationResult ValidateChuteNetwork(Chute chute)
+  private ValidationResult ValidateChuteBulk(Chute chute)
   {
-    // Check if chute network has items
+    // Check if chute bulk has items
     // TODO: Find the correct way to check for items in chutes
     // Currently allowing deconstruction as we haven't found the right API yet
 
     // Placeholder for future implementation:
     // if (chute has items)
     // {
-    //   return ValidationResult.Failure("Network contains items");
+    //   return ValidationResult.Failure("Bulk contains items");
     // }
 
     return ValidationResult.Success();

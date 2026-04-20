@@ -5,7 +5,7 @@ using ZoopMod.Zoop.EntryPoints.Configuration;
 using ZoopMod.Zoop.EntryPoints.Input;
 using ZoopMod.Zoop.EntryPoints.Integrations;
 using ZoopMod.Zoop.Logging;
-using ZoopMod.Zoop.NetworkDeconstruction;
+using ZoopMod.Zoop.BulkDeconstruction;
 
 namespace ZoopMod;
 
@@ -29,8 +29,8 @@ public class ZoopMod : BaseUnityPlugin
       ZoopIntegrations.Initialize();
       ZoopKeyBindings.Initialize();
 
-      // Initialize network deconstruction controller
-      NetworkDeconstructionController.Initialize();
+      // Initialize bulk deconstruction controller
+      BulkDeconstructionController.Initialize();
     }
     catch (Exception e)
     {

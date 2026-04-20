@@ -3,7 +3,7 @@ using Assets.Scripts.Objects;
 using Assets.Scripts.Objects.Electrical;
 using Assets.Scripts.Objects.Pipes;
 
-namespace ZoopMod.Zoop.NetworkDeconstruction;
+namespace ZoopMod.Zoop.BulkDeconstruction;
 
 /// <summary>
 /// Maps structure prefab names to their corresponding item prefab names.

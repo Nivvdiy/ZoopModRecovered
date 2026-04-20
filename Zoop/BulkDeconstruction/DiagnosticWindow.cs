@@ -9,7 +9,7 @@ using Assets.Scripts.Objects.Pipes;
 using Assets.Scripts.Objects.Items;
 using ZoopMod.Zoop.Logging;
 
-namespace ZoopMod.Zoop.NetworkDeconstruction
+namespace ZoopMod.Zoop.BulkDeconstruction
 {
   /// <summary>
   /// Fenêtre de diagnostic affichant toutes les propriétés d'un objet au centre de l'écran
@@ -25,7 +25,7 @@ namespace ZoopMod.Zoop.NetworkDeconstruction
     private static GUIStyle _buttonStyle;
     private static GUIStyle _labelStyle;
     private static bool _stylesInitialized = false;
-    private static NetworkDetector _networkDetector = new NetworkDetector();
+    private static BulkDetector _BulkDetector = new BulkDetector();
 
     public static void Show(object target, string title = "Diagnostic")
     {
@@ -76,24 +76,24 @@ namespace ZoopMod.Zoop.NetworkDeconstruction
         sb.AppendLine("═══════════════════════════════════════════════════════════════");
         sb.AppendLine();
 
-        // Detect and display network information
+        // Detect and display bulk information
         try
         {
-          List<Structure> network = _networkDetector.ExploreNetwork(structure);
-          if(network != null && network.Count > 0)
+          List<Structure> bulk = _BulkDetector.ExploreBulk(structure);
+          if(bulk != null && bulk.Count > 0)
           {
             sb.AppendLine("╔═══════════════════════════════════════════════════════════════");
-            sb.AppendLine("║ 📊 RÉSEAU DÉTECTÉ");
+            sb.AppendLine("║ 📊 BULK GROUP DETECTED");
             sb.AppendLine("╚═══════════════════════════════════════════════════════════════");
             sb.AppendLine();
-            sb.AppendLine($"Nombre total d'éléments : {network.Count}");
+            sb.AppendLine($"Total elements: {bulk.Count}");
             sb.AppendLine();
 
             // Calculate total items that will be recovered
             Dictionary<string, int> itemTotals = new Dictionary<string, int>();
             DeconstructionInfo firstInfo = null;
 
-            foreach(Structure netStructure in network)
+            foreach(Structure netStructure in bulk)
             {
               if(netStructure == null) continue;
 
@@ -325,11 +325,11 @@ namespace ZoopMod.Zoop.NetworkDeconstruction
     /// <summary>
     /// Diagnostic pour une liste de structures
     /// </summary>
-    public static void ShowNetworkDiagnostic(List<Structure> network)
+    public static void ShowBulkDiagnostic(List<Structure> bulk)
     {
-      if(network == null || network.Count == 0)
+      if(bulk == null || bulk.Count == 0)
       {
-        Show(null, "Network vide");
+        Show(null, "Bulk vide");
         return;
       }
 
@@ -338,14 +338,14 @@ namespace ZoopMod.Zoop.NetworkDeconstruction
       sb.AppendLine("║ 📊 DIAGNOSTIC DU RÉSEAU");
       sb.AppendLine("╚═══════════════════════════════════════════════════════════════");
       sb.AppendLine();
-      sb.AppendLine($"Nombre total d'éléments : {network.Count}");
+      sb.AppendLine($"Nombre total d'éléments : {bulk.Count}");
       sb.AppendLine();
 
       // Calculate total items that will be recovered
       var itemTotals = new Dictionary<string, int>();
       DeconstructionInfo firstInfo = null;
 
-      foreach(var structure in network)
+      foreach(var structure in bulk)
       {
         if(structure == null) continue;
 

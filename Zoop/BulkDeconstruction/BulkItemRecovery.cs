@@ -1,37 +1,36 @@
 using System.Collections.Generic;
 using Assets.Scripts.Objects;
-using Assets.Scripts.Networking;
 using Assets.Scripts.Objects.Items;
 using Assets.Scripts.GridSystem;
 using Assets.Scripts;
 using UnityEngine;
 using ZoopMod.Zoop.Logging;
 
-namespace ZoopMod.Zoop.NetworkDeconstruction;
+namespace ZoopMod.Zoop.BulkDeconstruction;
 
 /// <summary>
-/// Handles item recovery when deconstructing network structures.
+/// Handles item recovery when deconstructing bulk structures.
 /// Uses BuildStates[0].Tool to get the correct item and quantity.
 /// </summary>
-public class NetworkItemRecovery
+public class BulkItemRecovery
 {
   /// <summary>
-  /// Collects all items from the network and spawns them as stacks.
+  /// Collects all items from the bulk structures and spawns them as stacks.
   /// Returns a dictionary of item prefabs and their total quantities.
   /// </summary>
-  public Dictionary<Thing, int> CollectItemsFromNetwork(List<Structure> network)
+  public Dictionary<Thing, int> CollectItemsFromBulk(List<Structure> bulk)
   {
     Dictionary<Thing, int> itemsByPrefab = new Dictionary<Thing, int>();
 
-    if (network == null || network.Count == 0)
+    if (bulk == null || bulk.Count == 0)
     {
-      ZoopLog.Info("[ItemRecovery] No network to collect items from");
+      ZoopLog.Info("[ItemRecovery] No bulk structures to collect items from");
       return itemsByPrefab;
     }
 
-    ZoopLog.Info($"[ItemRecovery] Collecting items from {network.Count} structures");
+    ZoopLog.Info($"[ItemRecovery] Collecting items from {bulk.Count} structures");
 
-    foreach (Structure structure in network)
+    foreach (Structure structure in bulk)
     {
       if (structure == null)
         continue;

@@ -1,11 +1,11 @@
 using UnityEngine;
 
-namespace ZoopMod.Zoop.NetworkDeconstruction;
+namespace ZoopMod.Zoop.BulkDeconstruction;
 
 /// <summary>
-/// Configuration constants for network deconstruction feature.
+/// Configuration constants for bulk deconstruction feature.
 /// </summary>
-public static class NetworkDeconstructionConfig
+public static class BulkDeconstructionConfig
 {
   /// <summary>
   /// Maximum raycast distance to detect targeted structures.
@@ -27,7 +27,7 @@ public static class NetworkDeconstructionConfig
   /// </summary>
   public static class Colors
   {
-    public const string NetworkTitle = "#00DDFF";  // Cyan
+    public const string BulkTitle = "#00DDFF";  // Cyan
     public const string Ready = "#00FF00";          // Green
     public const string Error = "#FF4444";          // Red
     public const string Warning = "#FFCC00";        // Yellow/Orange
@@ -39,7 +39,7 @@ public static class NetworkDeconstructionConfig
   public static class FontSizes
   {
     public const int Title = 16;
-    public const int NetworkSize = 15;
+    public const int BulkSize = 15;
     public const int Status = 16;
     public const int Reason = 14;
   }
