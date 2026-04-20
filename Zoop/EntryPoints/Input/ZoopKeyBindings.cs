@@ -12,6 +12,7 @@ internal static class ZoopKeyBindings
   public static KeyCode AddWaypoint { get; private set; }
   public static KeyCode RemoveWaypoint { get; private set; }
   public static KeyCode NetworkDeconstruct { get; private set; }
+  public static KeyCode Diagnostic { get; private set; }
 
   public static void Initialize()
   {
@@ -26,5 +27,6 @@ internal static class ZoopKeyBindings
     AddWaypoint = KeyManager.GetKey("Zoop Add Waypoint");
     RemoveWaypoint = KeyManager.GetKey("Zoop Remove Last Waypoint");
     NetworkDeconstruct = KeyManager.GetKey("Zoop Network Deconstruct");
+    Diagnostic = KeyManager.GetKey("Zoop Diagnostic");
   }
 }
