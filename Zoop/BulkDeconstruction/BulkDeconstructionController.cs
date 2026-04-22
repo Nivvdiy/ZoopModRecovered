@@ -322,7 +322,8 @@ public class BulkDeconstructionController : MonoBehaviour
         _tooltip.UpdateTooltip(
           GetBulkTypeName(structure),
           _currentBulk?.Count ?? 0,
-          _currentValidation?.CanDeconstruct ?? false
+          _currentValidation?.CanDeconstruct ?? false,
+          _currentValidation?.Reason // Pass the reason for invalid status
         );
       }
       else

@@ -16,10 +16,13 @@ public class BulkDeconstructionTooltip
 
   private GameObject _bulkSizeInfo;
   private GameObject _bulkStatusInfo;
+  private GameObject _bulkReasonInfo; // New: reason for invalid status
   private TextMeshProUGUI _bulkSizeText;
   private TextMeshProUGUI _bulkSizeValue;
   private TextMeshProUGUI _bulkStatusText;
   private TextMeshProUGUI _bulkStatusValue;
+  private TextMeshProUGUI _bulkReasonText;
+  private TextMeshProUGUI _bulkReasonValue;
   private TextMeshProUGUI _itemTitleText;
 
   private string _originalTitleText;
@@ -29,26 +32,28 @@ public class BulkDeconstructionTooltip
   private string _cachedStructureType;
   private int _cachedBulkSize;
   private bool _cachedIsValid;
+  private string _cachedReason;
 
   /// <summary>
   /// Update the tooltip with bulk deconstruction information.
   /// </summary>
-  public void UpdateTooltip(string structureType, int bulkSize, bool isValid)
+  public void UpdateTooltip(string structureType, int bulkSize, bool isValid, string invalidReason = null)
   {
     // Optimization: skip update if values haven't changed
-    if (_cachedStructureType == structureType && _cachedBulkSize == bulkSize && _cachedIsValid == isValid)
+    if (_cachedStructureType == structureType && _cachedBulkSize == bulkSize && _cachedIsValid == isValid && _cachedReason == invalidReason)
       return;
 
     _cachedStructureType = structureType;
     _cachedBulkSize = bulkSize;
     _cachedIsValid = isValid;
+    _cachedReason = invalidReason;
 
     GameObject tooltip = GameObject.Find(TooltipPath);
     if (tooltip == null)
       return;
 
     // Get or create bulk info elements
-    if (_bulkSizeInfo == null || _bulkStatusInfo == null)
+    if (_bulkSizeInfo == null || _bulkStatusInfo == null || _bulkReasonInfo == null)
     {
       CreateBulkInfoElements(tooltip);
     }
@@ -83,6 +88,24 @@ public class BulkDeconstructionTooltip
       _bulkStatusValue.color = isValid ? new Color(0.0f, 1.0f, 0.0f) : new Color(1.0f, 0.0f, 0.0f);
     }
 
+    // Update reason (only show if invalid)
+    if (_bulkReasonInfo != null)
+    {
+      if (!isValid && !string.IsNullOrEmpty(invalidReason))
+      {
+        if (_bulkReasonValue != null)
+        {
+          _bulkReasonValue.text = invalidReason;
+          _bulkReasonValue.color = new Color(1.0f, 0.6f, 0.0f); // Orange
+        }
+        _bulkReasonInfo.SetActive(true);
+      }
+      else
+      {
+        _bulkReasonInfo.SetActive(false);
+      }
+    }
+
     // Show bulk info elements
     if (_bulkSizeInfo != null) _bulkSizeInfo.SetActive(true);
     if (_bulkStatusInfo != null) _bulkStatusInfo.SetActive(true);
@@ -97,6 +120,7 @@ public class BulkDeconstructionTooltip
     _cachedStructureType = null;
     _cachedBulkSize = 0;
     _cachedIsValid = false;
+    _cachedReason = null;
 
     if (_isModified && _itemTitleText != null && !string.IsNullOrEmpty(_originalTitleText))
     {
@@ -106,6 +130,7 @@ public class BulkDeconstructionTooltip
 
     if (_bulkSizeInfo != null) _bulkSizeInfo.SetActive(false);
     if (_bulkStatusInfo != null) _bulkStatusInfo.SetActive(false);
+    if (_bulkReasonInfo != null) _bulkReasonInfo.SetActive(false);
   }
 
   /// <summary>
@@ -177,9 +202,33 @@ public class BulkDeconstructionTooltip
       }
     }
 
-    // Hide both initially
+    // Clone InfoFlashpoint for bulk reason info (only shown when invalid)
+    _bulkReasonInfo = Object.Instantiate(styleReference, tooltip.transform);
+    _bulkReasonInfo.name = "BulkReasonInfo";
+    _bulkReasonInfo.transform.SetSiblingIndex(itemTitleIndex + 3);
+
+    // Update text content for bulk reason
+    _bulkReasonText = _bulkReasonInfo.GetComponent<TextMeshProUGUI>();
+    if (_bulkReasonText != null)
+    {
+      _bulkReasonText.text = "Reason:";
+    }
+
+    // Get value text component
+    Transform reasonValueTransform = _bulkReasonInfo.transform.Find("InfoValue");
+    if (reasonValueTransform != null)
+    {
+      _bulkReasonValue = reasonValueTransform.GetComponent<TextMeshProUGUI>();
+      if (_bulkReasonValue != null)
+      {
+        _bulkReasonValue.text = "";
+      }
+    }
+
+    // Hide all initially
     _bulkSizeInfo.SetActive(false);
     _bulkStatusInfo.SetActive(false);
+    _bulkReasonInfo.SetActive(false);
   }
 
   /// <summary>
@@ -191,13 +240,17 @@ public class BulkDeconstructionTooltip
 
     if (_bulkSizeInfo != null) Object.Destroy(_bulkSizeInfo);
     if (_bulkStatusInfo != null) Object.Destroy(_bulkStatusInfo);
+    if (_bulkReasonInfo != null) Object.Destroy(_bulkReasonInfo);
 
     _bulkSizeInfo = null;
     _bulkStatusInfo = null;
+    _bulkReasonInfo = null;
     _bulkSizeText = null;
     _bulkSizeValue = null;
     _bulkStatusText = null;
     _bulkStatusValue = null;
+    _bulkReasonText = null;
+    _bulkReasonValue = null;
     _itemTitleText = null;
   }
 }

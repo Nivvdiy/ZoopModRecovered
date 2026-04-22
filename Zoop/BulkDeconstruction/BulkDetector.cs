@@ -54,16 +54,22 @@ public class BulkDetector
       if (neighbors == null || neighbors.Count == 0)
         continue;
 
-      // Thread-safety: iterate over count instead of foreach to avoid enumeration issues
-      // The neighbors list may be modified by the game's network tick on another thread
-      int neighborCount = neighbors.Count;
-      for (int i = 0; i < neighborCount; i++)
+      // Thread-safety: create defensive copy to avoid concurrent modification
+      // The neighbors list is modified by the game's network tick on another thread
+      SmallGrid[] neighborsCopy;
+      try
       {
-        // Bounds check in case list was modified
-        if (i >= neighbors.Count)
-          break;
+        neighborsCopy = neighbors.ToArray();
+      }
+      catch
+      {
+        // If ToArray fails due to concurrent modification, skip this structure's neighbors
+        continue;
+      }
 
-        SmallGrid neighbor = neighbors[i];
+      // Iterate over the safe copy
+      foreach (SmallGrid neighbor in neighborsCopy)
+      {
         if (neighbor == null || _visitedPool.Contains(neighbor))
           continue;
 
