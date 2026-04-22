@@ -29,7 +29,6 @@ internal static class KeyManagerSetupKeyBindingsPatch
     AddKey("Zoop Add Waypoint", KeyCode.Mouse2, controlsGroup1);
     AddKey("Zoop Remove Last Waypoint", KeyCode.V, controlsGroup1);
     AddKey("Zoop Bulk Deconstruct", KeyCode.N, controlsGroup1);
-    AddKey("Zoop Diagnostic", KeyCode.D, controlsGroup1);
 
     ControlsAssignment.RefreshState();
   }

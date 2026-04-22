@@ -23,8 +23,9 @@ public class BulkDeconstructionController : MonoBehaviour
 
   private readonly BulkDetector _detector = new BulkDetector();
   private readonly BulkValidator _validator = new BulkValidator();
-  private readonly BulkDeconstructionUI _ui = new BulkDeconstructionUI();
   private readonly BulkItemRecovery _itemRecovery = new BulkItemRecovery();
+  private readonly BulkDeconstructionStatusIndicator _statusIndicator = new BulkDeconstructionStatusIndicator();
+  private readonly BulkDeconstructionTooltip _tooltip = new BulkDeconstructionTooltip();
 
   private bool _isActive;
   private Thing _lastHeldTool;
@@ -56,7 +57,27 @@ public class BulkDeconstructionController : MonoBehaviour
     // Register with runtime
     Patches.BulkDeconstructionRuntime.Initialize(_instance);
 
+    // Initialize status indicator after a short delay to ensure UI is loaded
+    _instance.StartCoroutine(_instance.InitializeStatusIndicatorDelayed());
+
     ZoopLog.Info("[BulkDeconstruction] Initialized successfully");
+  }
+
+  private IEnumerator InitializeStatusIndicatorDelayed()
+  {
+    ZoopLog.Debug("[BulkDeconstruction] Waiting for game to be loaded before initializing status indicator...");
+
+    // Wait until a save is loaded (InventoryManager is available)
+    while (InventoryManager.Instance == null)
+    {
+      yield return new WaitForSeconds(0.5f);
+    }
+
+    // Wait an additional second for UI to be fully ready
+    yield return new WaitForSeconds(1f);
+
+    ZoopLog.Debug("[BulkDeconstruction] Game loaded, initializing status indicator now...");
+    _statusIndicator.Initialize();
   }
 
   private void Update()
@@ -71,6 +92,9 @@ public class BulkDeconstructionController : MonoBehaviour
       return;
     }
 
+    // Update status indicator visibility based on UI state
+    _statusIndicator.Update();
+
     // Detect tool changes and auto-disable mode
     var currentTool = GetCurrentTool();
     if (_lastHeldTool != currentTool)
@@ -80,12 +104,6 @@ public class BulkDeconstructionController : MonoBehaviour
       {
         DeactivateMode("Tool changed");
       }
-    }
-
-    // Handle DIAGNOSTIC key press - shows diagnostic window without deconstructing
-    if (UnityEngine.Input.GetKeyDown(ZoopKeyBindings.Diagnostic))
-    {
-      ShowDiagnosticForTargetedElement();
     }
 
     // Handle key press to toggle mode
@@ -108,18 +126,6 @@ public class BulkDeconstructionController : MonoBehaviour
     }
   }
 
-  private void OnGUI()
-  {
-    // Always render diagnostic window if it's visible (independent of mode)
-    DiagnosticWindow.Render();
-
-    // Only render tooltip if mode is active
-    if (!_isActive || _currentTarget == null || _currentBulk == null)
-      return;
-
-    _ui.Render(_currentTarget, _currentBulk, _currentValidation, _isDeconstructing);
-  }
-
   private void TryActivateMode()
   {
     if (!HasValidTool())
@@ -129,6 +135,7 @@ public class BulkDeconstructionController : MonoBehaviour
     }
 
     _isActive = true;
+    _statusIndicator.SetVisible(true);
     ZoopLog.Info("[BulkDeconstruction] Mode activated");
   }
 
@@ -138,6 +145,12 @@ public class BulkDeconstructionController : MonoBehaviour
     _currentTarget = null;
     _currentBulk = null;
     _currentValidation = null;
+
+    // Hide status indicator
+    _statusIndicator.SetVisible(false);
+
+    // Restore original tooltip
+    _tooltip.RestoreOriginalTooltip();
 
     // Reset patch state
     Patches.BulkDeconstructionRuntime.Reset();
@@ -283,6 +296,13 @@ public class BulkDeconstructionController : MonoBehaviour
 
           ZoopLog.Debug($"[BulkDeconstruction] Detected {GetBulkTypeName(structure)} bulk: {_currentBulk.Count} structures");
         }
+
+        // Update tooltip with current bulk info
+        _tooltip.UpdateTooltip(
+          GetBulkTypeName(structure),
+          _currentBulk?.Count ?? 0,
+          _currentValidation?.CanDeconstruct ?? false
+        );
       }
       else
       {
@@ -300,6 +320,9 @@ public class BulkDeconstructionController : MonoBehaviour
     _currentTarget = null;
     _currentBulk = null;
     _currentValidation = null;
+
+    // Restore original tooltip
+    _tooltip.RestoreOriginalTooltip();
   }
 
   private bool IsValidBulkElement(Structure structure)
@@ -351,79 +374,5 @@ public class BulkDeconstructionController : MonoBehaviour
       return "Chute";
 
     return "Unknown";
-  }
-
-  /// <summary>
-  /// Shows diagnostic window for the currently targeted element (triggered by diagnostic key).
-  /// Works independently from the deconstruction mode - just aims at an element and press the key.
-  /// </summary>
-  private void ShowDiagnosticForTargetedElement()
-  {
-    // Raycast from camera center to find what we're looking at
-    var camera = Camera.main;
-    if (camera == null)
-    {
-      ZoopLog.Info("[Diagnostic] No camera found");
-      return;
-    }
-
-    var ray = camera.ScreenPointToRay(new Vector3(Screen.width / 2f, Screen.height / 2f, 0));
-
-    if (!Physics.Raycast(ray, out RaycastHit hit, BulkDeconstructionConfig.RaycastDistance))
-    {
-      ZoopLog.Info("[Diagnostic] No object in sight");
-      return;
-    }
-
-    var structure = hit.collider.GetComponentInParent<Structure>();
-
-    if (structure == null)
-    {
-      ZoopLog.Info("[Diagnostic] Targeted object is not a Structure");
-      return;
-    }
-
-    // Check if we have the right tool for this element
-    bool hasCorrectTool = false;
-    string requiredTool = "";
-
-    if (structure is Cable)
-    {
-      hasCorrectTool = IsHoldingWireCutters();
-      requiredTool = "Wire Cutter";
-    }
-    else if (structure is Pipe || structure is Chute)
-    {
-      hasCorrectTool = IsHoldingWrench();
-      requiredTool = "Wrench";
-    }
-    else
-    {
-      ZoopLog.Info($"[Diagnostic] Targeted structure is not a Cable/Pipe/Chute: {structure.GetType().Name}");
-      return;
-    }
-
-    if (!hasCorrectTool)
-    {
-      ZoopLog.Info($"[Diagnostic] Wrong tool! You need a {requiredTool} to inspect this {GetBulkTypeName(structure)}");
-
-      // Show a message in the diagnostic window
-      DiagnosticWindow.Show(null, $"⚠️ WRONG TOOL ⚠️\n\nYou need a {requiredTool} to inspect this {GetBulkTypeName(structure)}");
-      return;
-    }
-
-    // We have the right tool and a valid target - show diagnostic!
-    ZoopLog.Info($"[Diagnostic] Showing diagnostic for {structure.PrefabName} ({GetBulkTypeName(structure)})");
-
-    // Show detailed diagnostic of the structure
-    DiagnosticWindow.ShowStructureDiagnostic(structure);
-
-    // Also explore and show the bulk group if you want
-    List<Structure> bulk = _detector.ExploreBulk(structure);
-    if (bulk != null && bulk.Count > 0)
-    {
-      ZoopLog.Info($"[Diagnostic] Bulk group detected: {bulk.Count} elements");
-      // You can optionally show bulk diagnostic too after a delay, but for now we just log it
-    }
   }
 }
