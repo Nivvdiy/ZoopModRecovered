@@ -35,6 +35,14 @@ public class BulkDeconstructionController : MonoBehaviour
   private bool _isDeconstructing; // Currently executing deconstruction
   private Coroutine _deconstructionCoroutine;
 
+  // Optimization: cache to avoid redundant bulk exploration
+  private Structure _cachedBulkTarget;
+  private List<Structure> _cachedBulk;
+
+  // Optimization: throttle raycast to reduce per-frame cost
+  private int _raycastThrottleFrames = 0;
+  private const int RaycastThrottleInterval = 3; // Only raycast every N frames
+
   // Public properties for patches
   public bool IsActive => _isActive;
   public Structure CurrentTarget => _currentTarget;
@@ -276,6 +284,12 @@ public class BulkDeconstructionController : MonoBehaviour
 
   private void UpdateDetection()
   {
+    // Optimization: throttle raycast to every N frames
+    _raycastThrottleFrames++;
+    if (_raycastThrottleFrames < RaycastThrottleInterval)
+      return;
+    _raycastThrottleFrames = 0;
+
     var camera = Camera.main;
     if (camera == null)
       return;
@@ -291,10 +305,22 @@ public class BulkDeconstructionController : MonoBehaviour
         if (_currentTarget != structure)
         {
           _currentTarget = structure;
-          _currentBulk = _detector.ExploreBulk(structure);
-          _currentValidation = _validator.Validate(structure);
 
-          ZoopLog.Debug($"[BulkDeconstruction] Detected {GetBulkTypeName(structure)} bulk: {_currentBulk.Count} structures");
+          // Optimization: use cached bulk if targeting the same structure
+          if (_cachedBulkTarget == structure && _cachedBulk != null)
+          {
+            _currentBulk = _cachedBulk;
+            ZoopLog.Debug($"[BulkDeconstruction] Using cached bulk: {_currentBulk.Count} structures");
+          }
+          else
+          {
+            _currentBulk = _detector.ExploreBulk(structure);
+            _cachedBulkTarget = structure;
+            _cachedBulk = _currentBulk;
+            ZoopLog.Debug($"[BulkDeconstruction] Detected {GetBulkTypeName(structure)} bulk: {_currentBulk.Count} structures");
+          }
+
+          _currentValidation = _validator.Validate(structure);
         }
 
         // Update tooltip with current bulk info
@@ -320,6 +346,8 @@ public class BulkDeconstructionController : MonoBehaviour
     _currentTarget = null;
     _currentBulk = null;
     _currentValidation = null;
+    _cachedBulkTarget = null;
+    _cachedBulk = null;
 
     // Restore original tooltip
     _tooltip.RestoreOriginalTooltip();

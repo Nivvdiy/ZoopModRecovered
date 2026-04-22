@@ -25,11 +25,24 @@ public class BulkDeconstructionTooltip
   private string _originalTitleText;
   private bool _isModified;
 
+  // Optimization: cache last update values to avoid redundant updates
+  private string _cachedStructureType;
+  private int _cachedBulkSize;
+  private bool _cachedIsValid;
+
   /// <summary>
   /// Update the tooltip with bulk deconstruction information.
   /// </summary>
   public void UpdateTooltip(string structureType, int bulkSize, bool isValid)
   {
+    // Optimization: skip update if values haven't changed
+    if (_cachedStructureType == structureType && _cachedBulkSize == bulkSize && _cachedIsValid == isValid)
+      return;
+
+    _cachedStructureType = structureType;
+    _cachedBulkSize = bulkSize;
+    _cachedIsValid = isValid;
+
     GameObject tooltip = GameObject.Find(TooltipPath);
     if (tooltip == null)
     {
@@ -83,6 +96,11 @@ public class BulkDeconstructionTooltip
   /// </summary>
   public void RestoreOriginalTooltip()
   {
+    // Clear cache
+    _cachedStructureType = null;
+    _cachedBulkSize = 0;
+    _cachedIsValid = false;
+
     if (_isModified && _itemTitleText != null && !string.IsNullOrEmpty(_originalTitleText))
     {
       _itemTitleText.text = _originalTitleText;
