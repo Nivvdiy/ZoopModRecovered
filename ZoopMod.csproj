@@ -103,12 +103,12 @@
 		<Warning Text="Configured Pdb2MdbPath was not found. Skipping .mdb generation: $(Pdb2MdbPath)" Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' and '$(Pdb2MdbPath)' != '' and !Exists('$(Pdb2MdbPath)')" />
 		<Exec Command="&quot;$(Pdb2MdbPath)&quot; &quot;$(TargetPath)&quot;" Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' and '$(Pdb2MdbPath)' != '' and Exists('$(Pdb2MdbPath)')" />
 		<RemoveDir Directories="$(StationeersModOutputFolder)\$(ModName)" />
-    <RemoveDir Directories="$(StationeersModOutputFolder)\$(ModName)-Debug" />
-		<Copy SourceFiles="$(ProjectDir)\$(ModName).info" DestinationFolder="$(StationeersModOutputFolder)\$(ModName)-Debug" ContinueOnError="false" />
-		<Copy SourceFiles="$(ProjectDir)\bin\Debug\net48\$(ModName).dll" DestinationFolder="$(StationeersModOutputFolder)\$(ModName)-Debug" ContinueOnError="true" />
-		<Copy SourceFiles="@(_CopyItemsGameData)" DestinationFolder="$(StationeersModOutputFolder)\$(ModName)-Debug\GameData\%(RecursiveDir)" ContinueOnError="true" />
-		<Copy SourceFiles="@(_CopyItemsAbout)" DestinationFolder="$(StationeersModOutputFolder)\$(ModName)-Debug\About\%(RecursiveDir)" ContinueOnError="true" />
-		<Copy SourceFiles="$(Pdb2MdbOutputPath)" DestinationFolder="$(StationeersModOutputFolder)\$(ModName)-Debug" ContinueOnError="true" Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' and Exists('$(Pdb2MdbOutputPath)')" />
+    <RemoveDir Directories="$(StationeersModOutputFolder)\$(ModName)" />
+		<Copy SourceFiles="$(ProjectDir)\$(ModName).info" DestinationFolder="$(StationeersModOutputFolder)\$(ModName)" ContinueOnError="false" />
+		<Copy SourceFiles="$(ProjectDir)\bin\Debug\net48\$(ModName).dll" DestinationFolder="$(StationeersModOutputFolder)\$(ModName)" ContinueOnError="true" />
+		<Copy SourceFiles="@(_CopyItemsGameData)" DestinationFolder="$(StationeersModOutputFolder)\$(ModName)\GameData\%(RecursiveDir)" ContinueOnError="true" />
+		<Copy SourceFiles="@(_CopyItemsAbout)" DestinationFolder="$(StationeersModOutputFolder)\$(ModName)\About\%(RecursiveDir)" ContinueOnError="true" />
+		<Copy SourceFiles="$(Pdb2MdbOutputPath)" DestinationFolder="$(StationeersModOutputFolder)\$(ModName)" ContinueOnError="true" Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' and Exists('$(Pdb2MdbOutputPath)')" />
 	</Target>
 
 </Project>

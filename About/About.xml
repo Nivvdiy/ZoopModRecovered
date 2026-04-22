@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?><ModMetadata xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"><Name>ZoopMod [StationeersLaunchPad]</Name><Author>Nivvdiy, MerGatto</Author><Version>2026.18.04</Version><Description>
+<?xml version="1.0" encoding="utf-8"?><ModMetadata xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"><Name>ZoopMod [StationeersLaunchPad]</Name><Author>Nivvdiy, MerGatto</Author><Version>2026.22.04</Version><Description>
   [h1]ZoopMod[/h1]
 
   [b]WARNING:[/b]
@@ -36,6 +36,7 @@
   [*]Multiplayer client support.
   [*]Zooping for walls.
   [*]Compatibility with The Gases Update.
+  [*]Bulk deconstruction mode for cables, pipes, and chutes.
   [/list]
 
   [b]Usage:[/b]
@@ -44,6 +45,8 @@
   Alternatively, press [b]Z[/b] [i](default)[/i] once to start zooping without holding + clicking.
 
   You can add a waypoint by pressing [b]middle mouse button[/b] [i](default)[/i], and remove the last one with [b]V[/b] [i](default)[/i].
+
+  [b]Bulk Deconstruction:[/b] Press [b]N[/b] [i](default)[/i] with wire cutters or wrench to activate bulk mode. Click any cable, pipe, or chute to deconstruct the entire connected network. Safety validation prevents deconstruction of powered or pressurized networks.
 
   All keys can be customized in the Stationeers settings.
 
@@ -110,4 +113,7 @@ Lines cannot exceed the quantity of building materials in hand.
 Allows you to build large surfaces between two points.
 Zooping creates the largest possible surface; building full cubes is not supported in zoop mode.
 Frames cannot be placed if another frame, wall, or large structure is in the way (to prevent errors and incorrect item consumption).
-No waypoints for frames and walls.]]></InGameDescription></ModMetadata>
+No waypoints for frames and walls.
+
+<b>Bulk Deconstruction</b>
+Press <b>N</b> with wire cutters or wrench to activate bulk mode. Click any cable, pipe, or chute to deconstruct the entire connected network. Safety validation prevents deconstruction of powered or pressurized networks.]]></InGameDescription></ModMetadata>

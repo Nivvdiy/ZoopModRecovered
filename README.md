@@ -20,6 +20,8 @@ Allows you to build long lines of cables, pipes, or chutes between two points in
 
 Allow you to build big surfaces of walls or frame in a single action.
 
+**Bulk Deconstruction**: Deconstruct entire connected networks of cables, pipes, or chutes with a single click. Press **N** _(default)_ with wire cutters or wrench to activate bulk mode. Safety validation prevents deconstruction of powered or pressurized networks.
+
 ---
 
 ## Additions
