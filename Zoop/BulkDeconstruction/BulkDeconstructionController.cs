@@ -73,8 +73,6 @@ public class BulkDeconstructionController : MonoBehaviour
 
   private IEnumerator InitializeStatusIndicatorDelayed()
   {
-    ZoopLog.Debug("[BulkDeconstruction] Waiting for game to be loaded before initializing status indicator...");
-
     // Wait until a save is loaded (InventoryManager is available)
     while (InventoryManager.Instance == null)
     {
@@ -84,7 +82,6 @@ public class BulkDeconstructionController : MonoBehaviour
     // Wait an additional second for UI to be fully ready
     yield return new WaitForSeconds(1f);
 
-    ZoopLog.Debug("[BulkDeconstruction] Game loaded, initializing status indicator now...");
     _statusIndicator.Initialize();
   }
 
@@ -310,14 +307,12 @@ public class BulkDeconstructionController : MonoBehaviour
           if (_cachedBulkTarget == structure && _cachedBulk != null)
           {
             _currentBulk = _cachedBulk;
-            ZoopLog.Debug($"[BulkDeconstruction] Using cached bulk: {_currentBulk.Count} structures");
           }
           else
           {
             _currentBulk = _detector.ExploreBulk(structure);
             _cachedBulkTarget = structure;
             _cachedBulk = _currentBulk;
-            ZoopLog.Debug($"[BulkDeconstruction] Detected {GetBulkTypeName(structure)} bulk: {_currentBulk.Count} structures");
           }
 
           _currentValidation = _validator.Validate(structure);

@@ -46,8 +46,6 @@ public class BulkDeconstructionStatusIndicator
   /// </summary>
   public void Initialize()
   {
-    ZoopLog.Debug("[BulkDeconstruction] Status indicator Initialize() called");
-
     if (_isInitialized)
     {
       ZoopLog.Warn("[BulkDeconstruction] Status indicator already initialized");
@@ -56,7 +54,6 @@ public class BulkDeconstructionStatusIndicator
 
     try
     {
-      ZoopLog.Debug("[BulkDeconstruction] Creating status panel...");
       CreateStatusPanel();
       _isInitialized = true;
       SetVisible(false); // Start hidden
@@ -79,14 +76,12 @@ public class BulkDeconstructionStatusIndicator
       return;
     }
 
-    ZoopLog.Debug($"[BulkDeconstruction] SetVisible({visible}) called");
     _isVisible = visible;
 
     if (_statusPanel != null)
     {
       // Hide when UI is disabled or when not in active mode
       bool shouldShow = visible && InventoryManager.ShowUi;
-      ZoopLog.Debug($"[BulkDeconstruction] Setting panel active: {shouldShow} (visible={visible}, ShowUi={InventoryManager.ShowUi})");
       _statusPanel.SetActive(shouldShow);
     }
     else
@@ -119,8 +114,6 @@ public class BulkDeconstructionStatusIndicator
   /// </summary>
   private void CreateStatusPanel()
   {
-    ZoopLog.Debug("[BulkDeconstruction] Searching for hand inventory UI...");
-
     // Find PanelHands
     GameObject handInventory = GameObject.Find("GameCanvas/PanelHands");
     if (handInventory == null)
@@ -136,11 +129,8 @@ public class BulkDeconstructionStatusIndicator
       return;
     }
 
-    ZoopLog.Debug($"[BulkDeconstruction] PanelHands position: {panelHandsRect.anchoredPosition}, size: {panelHandsRect.sizeDelta}");
-
     // Check LeftHand and RightHand to find the highest element
     float highestTop = panelHandsRect.anchoredPosition.y + panelHandsRect.sizeDelta.y;
-    string highestElement = "PanelHands";
 
     GameObject leftHand = GameObject.Find("GameCanvas/PanelHands/LeftHand");
     if (leftHand != null)
@@ -149,11 +139,9 @@ public class BulkDeconstructionStatusIndicator
       if (leftRect != null)
       {
         float leftTop = panelHandsRect.anchoredPosition.y + leftRect.anchoredPosition.y + leftRect.sizeDelta.y;
-        ZoopLog.Debug($"[BulkDeconstruction] LeftHand top: {leftTop}");
         if (leftTop > highestTop)
         {
           highestTop = leftTop;
-          highestElement = "LeftHand";
         }
       }
     }
@@ -165,16 +153,12 @@ public class BulkDeconstructionStatusIndicator
       if (rightRect != null)
       {
         float rightTop = panelHandsRect.anchoredPosition.y + rightRect.anchoredPosition.y + rightRect.sizeDelta.y;
-        ZoopLog.Debug($"[BulkDeconstruction] RightHand top: {rightTop}");
         if (rightTop > highestTop)
         {
           highestTop = rightTop;
-          highestElement = "RightHand";
         }
       }
     }
-
-    ZoopLog.Info($"[BulkDeconstruction] Highest element: {highestElement} at top={highestTop}");
 
     // Find GameCanvas as parent for our panel
     GameObject gameCanvas = GameObject.Find("GameCanvas");
@@ -194,8 +178,6 @@ public class BulkDeconstructionStatusIndicator
   /// </summary>
   private void CreateCustomPanel(GameObject parent, RectTransform inventoryRect)
   {
-    ZoopLog.Debug("[BulkDeconstruction] Creating custom panel...");
-
     // Create the panel GameObject
     _statusPanel = new GameObject("BulkDeconstructStatusPanel");
     _statusPanel.transform.SetParent(parent.transform, false);
@@ -219,7 +201,6 @@ public class BulkDeconstructionStatusIndicator
         bgImage.sprite = existingImage.sprite;
         bgImage.color = existingImage.color;
         bgImage.type = existingImage.type;
-        ZoopLog.Debug("[BulkDeconstruction] Copied background style from player state panel");
       }
     }
     else
@@ -227,8 +208,6 @@ public class BulkDeconstructionStatusIndicator
       // Fallback to simple black background
       bgImage.color = new Color(0.1f, 0.1f, 0.1f, 0.9f);
     }
-
-    ZoopLog.Debug("[BulkDeconstruction] Custom panel created");
   }
 
   /// <summary>
@@ -255,7 +234,6 @@ public class BulkDeconstructionStatusIndicator
       {
         styleSource = textComponents[0];
         textFontSize = styleSource.fontSize;
-        ZoopLog.Debug($"[BulkDeconstruction] Found style source with fontSize={textFontSize}");
       }
     }
 
@@ -278,9 +256,6 @@ public class BulkDeconstructionStatusIndicator
       highestTop + 10f // 10px margin above highest element
     );
     rectTransform.anchoredPosition = panelPosition;
-
-    ZoopLog.Debug($"[BulkDeconstruction] Panel size: {panelSize} (calculated from fontSize={textFontSize}, lineHeight={lineHeight})");
-    ZoopLog.Debug($"[BulkDeconstruction] Panel positioned at {panelPosition} (10px above highest element at {highestTop})");
 
     // Create title text (line 1: "Bulk Deconstruction")
     GameObject titleObject = new GameObject("TitleText");
@@ -305,7 +280,6 @@ public class BulkDeconstructionStatusIndicator
       _titleText.fontSize = styleSource.fontSize;
       _titleText.fontStyle = styleSource.fontStyle;
       _titleText.color = styleSource.color;
-      ZoopLog.Debug("[BulkDeconstruction] Copied title style from existing UI");
     }
     else
     {
@@ -339,7 +313,6 @@ public class BulkDeconstructionStatusIndicator
       _statusText.fontSize = styleSource.fontSize;
       _statusText.fontStyle = styleSource.fontStyle;
       _statusText.color = StatusActiveColor; // Only difference: green color
-      ZoopLog.Debug("[BulkDeconstruction] Copied status style from existing UI (green color)");
     }
     else
     {
@@ -349,8 +322,6 @@ public class BulkDeconstructionStatusIndicator
     }
 
     _statusText.enableAutoSizing = false;
-
-    ZoopLog.Debug("[BulkDeconstruction] Panel configured with exact text sizing and styling");
   }
 
   /// <summary>

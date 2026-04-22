@@ -45,10 +45,7 @@ public class BulkDeconstructionTooltip
 
     GameObject tooltip = GameObject.Find(TooltipPath);
     if (tooltip == null)
-    {
-      ZoopLog.Debug("[BulkTooltip] Tooltip not found");
       return;
-    }
 
     // Get or create bulk info elements
     if (_bulkSizeInfo == null || _bulkStatusInfo == null)
@@ -183,8 +180,6 @@ public class BulkDeconstructionTooltip
     // Hide both initially
     _bulkSizeInfo.SetActive(false);
     _bulkStatusInfo.SetActive(false);
-
-    ZoopLog.Debug("[BulkTooltip] Bulk info elements created by cloning InfoFlashpoint");
   }
 
   /// <summary>
