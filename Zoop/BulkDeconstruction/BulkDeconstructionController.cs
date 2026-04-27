@@ -1,5 +1,6 @@
 using System.Collections;
 using System.Collections.Generic;
+using Assets.Scripts;
 using Assets.Scripts.Inventory;
 using Assets.Scripts.Objects;
 using Assets.Scripts.Objects.Electrical;
@@ -30,18 +31,20 @@ public class BulkDeconstructionController : MonoBehaviour
   private bool _isActive;
   private Thing _lastHeldTool;
   private Structure _currentTarget;
+  private int _currentTargetInstanceID; // Track by InstanceID instead of reference
   private List<Structure> _currentBulk;
   private BulkValidator.ValidationResult _currentValidation;
   private bool _isDeconstructing; // Currently executing deconstruction
   private Coroutine _deconstructionCoroutine;
 
-  // Optimization: cache to avoid redundant bulk exploration
-  private Structure _cachedBulkTarget;
-  private List<Structure> _cachedBulk;
+  // Async exploration tracking
+  private Coroutine _explorationCoroutine;
+  private bool _isExploring;
+  private Structure _explorationTarget; // Track what we're currently exploring
 
   // Optimization: throttle raycast to reduce per-frame cost
   private int _raycastThrottleFrames = 0;
-  private const int RaycastThrottleInterval = 3; // Only raycast every N frames
+  private const int RaycastThrottleInterval = 2; // Only raycast every N frames (lowered from 3 to reduce detection lag)
 
   // Public properties for patches
   public bool IsActive => _isActive;
@@ -140,6 +143,7 @@ public class BulkDeconstructionController : MonoBehaviour
     }
 
     _isActive = true;
+    _raycastThrottleFrames = RaycastThrottleInterval; // Force immediate raycast on next Update()
     _statusIndicator.SetVisible(true);
     ZoopLog.Info("[BulkDeconstruction] Mode activated");
   }
@@ -148,8 +152,19 @@ public class BulkDeconstructionController : MonoBehaviour
   {
     _isActive = false;
     _currentTarget = null;
+    _currentTargetInstanceID = 0; // Reset instance ID to force re-detection on next activation
     _currentBulk = null;
     _currentValidation = null;
+    _raycastThrottleFrames = 0; // Reset throttle for next activation
+
+    // Cancel any ongoing exploration
+    if (_explorationCoroutine != null)
+    {
+      StopCoroutine(_explorationCoroutine);
+      _explorationCoroutine = null;
+    }
+    _isExploring = false;
+    _explorationTarget = null;
 
     // Hide status indicator
     _statusIndicator.SetVisible(false);
@@ -281,54 +296,59 @@ public class BulkDeconstructionController : MonoBehaviour
 
   private void UpdateDetection()
   {
-    // Optimization: throttle raycast to every N frames
+    // Optimization: throttle detection to every N frames
     _raycastThrottleFrames++;
     if (_raycastThrottleFrames < RaycastThrottleInterval)
       return;
     _raycastThrottleFrames = 0;
 
-    var camera = Camera.main;
-    if (camera == null)
-      return;
-
-    var ray = camera.ScreenPointToRay(new Vector3(Screen.width / 2f, Screen.height / 2f, 0));
-
-    if (Physics.Raycast(ray, out RaycastHit hit, BulkDeconstructionConfig.RaycastDistance))
+    // Use the game's cursor system - CursorManager.CursorThing is what the player is currently targeting
+    if (CursorManager.CursorThing == null)
     {
-      var structure = hit.collider.GetComponentInParent<Structure>();
+      ClearCurrentTarget();
+      return;
+    }
 
-      if (structure != null && IsValidBulkElement(structure))
+    // Get the Structure from the cursor thing
+    Structure structure = CursorManager.CursorThing as Structure;
+
+    if (structure != null && structure.gameObject != null && structure.gameObject.activeInHierarchy && IsValidBulkElement(structure))
+    {
+      int structureID = structure.GetInstanceID();
+
+      if (_currentTargetInstanceID != structureID)
       {
-        if (_currentTarget != structure)
+        if (_explorationCoroutine != null)
         {
-          _currentTarget = structure;
-
-          // Optimization: use cached bulk if targeting the same structure
-          if (_cachedBulkTarget == structure && _cachedBulk != null)
-          {
-            _currentBulk = _cachedBulk;
-          }
-          else
-          {
-            _currentBulk = _detector.ExploreBulk(structure);
-            _cachedBulkTarget = structure;
-            _cachedBulk = _currentBulk;
-          }
-
-          _currentValidation = _validator.Validate(structure);
+          StopCoroutine(_explorationCoroutine);
+          _explorationCoroutine = null;
+          _isExploring = false;
         }
 
-        // Update tooltip with current bulk info
+        _currentTarget = structure;
+        _currentTargetInstanceID = structureID;
+        _explorationTarget = structure;
+
+        _explorationCoroutine = StartCoroutine(ExploreAsync(structure));
+      }
+
+      if (_currentBulk != null && _currentBulk.Count > 0 && !_isExploring)
+      {
         _tooltip.UpdateTooltip(
           GetBulkTypeName(structure),
-          _currentBulk?.Count ?? 0,
+          _currentBulk.Count,
           _currentValidation?.CanDeconstruct ?? false,
-          _currentValidation?.Reason // Pass the reason for invalid status
+          _currentValidation?.Reason
         );
       }
-      else
+      else if (_isExploring)
       {
-        ClearCurrentTarget();
+        _tooltip.UpdateTooltip(
+          GetBulkTypeName(structure),
+          0,
+          false,
+          "Scanning network..."
+        );
       }
     }
     else
@@ -337,13 +357,66 @@ public class BulkDeconstructionController : MonoBehaviour
     }
   }
 
-  private void ClearCurrentTarget()
+  /// <summary>
+  /// Explores bulk asynchronously to avoid blocking the main thread.
+  /// </summary>
+  private IEnumerator ExploreAsync(Structure structure)
   {
-    _currentTarget = null;
+    _isExploring = true;
     _currentBulk = null;
     _currentValidation = null;
-    _cachedBulkTarget = null;
-    _cachedBulk = null;
+
+    // Verify structure is still the target before starting
+    if (_explorationTarget != structure || _currentTarget != structure)
+    {
+      _isExploring = false;
+      yield break;
+    }
+
+    // Perform exploration using game's Network system (instantaneous)
+    List<Structure> bulk = _detector.ExploreBulk(structure);
+
+    // Verify IMMEDIATELY after exploration
+    if (_explorationTarget != structure || _currentTarget != structure)
+    {
+      _isExploring = false;
+      yield break;
+    }
+
+    // Check if exploration succeeded
+    if (bulk == null || bulk.Count == 0)
+    {
+      ZoopLog.Warn($"[BulkDeconstruction] Network exploration returned empty for {structure.PrefabName}");
+      _isExploring = false;
+      ClearCurrentTarget();
+      yield break;
+    }
+
+    // Assign results
+    _currentBulk = bulk;
+    _currentValidation = _validator.Validate(structure);
+    _isExploring = false;
+    _explorationCoroutine = null;
+
+    // Force immediate detection on next frame
+    _raycastThrottleFrames = RaycastThrottleInterval;
+  }
+
+  private void ClearCurrentTarget()
+  {
+    // Cancel ongoing exploration
+    if (_explorationCoroutine != null)
+    {
+      StopCoroutine(_explorationCoroutine);
+      _explorationCoroutine = null;
+    }
+
+    _isExploring = false;
+    _explorationTarget = null;
+    _currentTarget = null;
+    _currentTargetInstanceID = 0; // Reset instance ID
+    _currentBulk = null;
+    _currentValidation = null;
 
     // Restore original tooltip
     _tooltip.RestoreOriginalTooltip();
