@@ -2,89 +2,74 @@ using System.Collections.Generic;
 using Assets.Scripts.Objects;
 using Assets.Scripts.Objects.Electrical;
 using Assets.Scripts.Objects.Pipes;
+using Assets.Scripts.Networks;
+using ZoopMod.Zoop.Logging;
 
 namespace ZoopMod.Zoop.BulkDeconstruction;
 
 /// <summary>
 /// Detects and explores connected structures for bulk operations.
-/// Uses iterative approach with Stack to avoid stack overflow on large networks.
+/// Uses the game's native Network system (CableNetwork, PipeNetwork, ChuteNetwork).
 /// </summary>
 public class BulkDetector
 {
-  // Optimization: reusable collections to avoid allocations
-  private readonly HashSet<Structure> _visitedPool = new HashSet<Structure>();
-  private readonly List<Structure> _resultPool = new List<Structure>();
-  private readonly Stack<Structure> _toVisitPool = new Stack<Structure>();
-
   /// <summary>
-  /// Explores the entire group of connected structures.
+  /// Explores the entire group of connected structures using the game's Network system.
+  /// Much faster and more reliable than iterative exploration!
   /// </summary>
   /// <param name="startStructure">The structure to start exploration from</param>
   /// <returns>List of all connected structures in the bulk</returns>
   public List<Structure> ExploreBulk(Structure startStructure)
   {
     if (startStructure == null)
-      return new List<Structure>();
-
-    // Clear and reuse pooled collections
-    _visitedPool.Clear();
-    _resultPool.Clear();
-    _toVisitPool.Clear();
-
-    BulkType bulkType = GetBulkType(startStructure);
-
-    // Iterative exploration using explicit stack (avoids recursion stack overflow)
-    _toVisitPool.Push(startStructure);
-
-    while (_toVisitPool.Count > 0)
     {
-      Structure current = _toVisitPool.Pop();
+      ZoopLog.Warn("[BulkDetector] ExploreBulk called with NULL startStructure");
+      return new List<Structure>();
+    }
 
-      if (current == null || _visitedPool.Contains(current))
-        continue;
+    List<Structure> result = new List<Structure>();
 
-      _visitedPool.Add(current);
-      _resultPool.Add(current);
-
-      // Get direct neighbors using game's built-in Connected() method
-      if (!(current is SmallGrid smallGrid))
-        continue;
-
-      List<SmallGrid> neighbors = smallGrid.Connected();
-      if (neighbors == null || neighbors.Count == 0)
-        continue;
-
-      // Thread-safety: create defensive copy to avoid concurrent modification
-      // The neighbors list is modified by the game's network tick on another thread
-      SmallGrid[] neighborsCopy;
-      try
+    // Use the game's native Network system to get all connected structures
+    if (startStructure is Cable cable && cable.CableNetwork != null)
+    {
+      if (cable.CableNetwork.CableList != null)
       {
-        neighborsCopy = neighbors.ToArray();
+        result.AddRange(cable.CableNetwork.CableList);
       }
-      catch
+    }
+    else if (startStructure is Pipe pipe && pipe.PipeNetwork != null)
+    {
+      if (pipe.PipeNetwork.StructureList != null)
       {
-        // If ToArray fails due to concurrent modification, skip this structure's neighbors
-        continue;
-      }
-
-      // Iterate over the safe copy
-      foreach (SmallGrid neighbor in neighborsCopy)
-      {
-        if (neighbor == null || _visitedPool.Contains(neighbor))
-          continue;
-
-        BulkType neighborType = GetBulkType(neighbor);
-
-        // Only explore if same bulk type (cables with cables, pipes with pipes, etc.)
-        if (neighborType == bulkType)
+        foreach (var networkedStructure in pipe.PipeNetwork.StructureList)
         {
-          _toVisitPool.Push(neighbor);
+          if (networkedStructure is Structure structure)
+          {
+            result.Add(structure);
+          }
         }
       }
     }
+    else if (startStructure is Chute chute && chute.ChuteNetwork != null)
+    {
+      if (chute.ChuteNetwork.StructureList != null)
+      {
+        foreach (var networkedStructure in chute.ChuteNetwork.StructureList)
+        {
+          if (networkedStructure is Structure structure)
+          {
+            result.Add(structure);
+          }
+        }
+      }
+    }
+    else
+    {
+      ZoopLog.Warn($"[BulkDetector] Structure {startStructure.PrefabName} has no valid Network or is unsupported type");
+      result.Add(startStructure);
+    }
 
-    // Return a copy to avoid external modification of pooled list
-    return new List<Structure>(_resultPool);
+    return result;
   }
 
   private BulkType GetBulkType(Structure structure)

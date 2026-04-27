@@ -39,9 +39,9 @@ public class BulkDeconstructionTooltip
   /// </summary>
   public void UpdateTooltip(string structureType, int bulkSize, bool isValid, string invalidReason = null)
   {
-    // Optimization: skip update if values haven't changed
-    if (_cachedStructureType == structureType && _cachedBulkSize == bulkSize && _cachedIsValid == isValid && _cachedReason == invalidReason)
-      return;
+    // REMOVED: Cache optimization was preventing tooltip updates when targeting different
+    // structures of the same network. The game's tooltip resets on target change,
+    // so we MUST update our custom elements every time.
 
     _cachedStructureType = structureType;
     _cachedBulkSize = bulkSize;
@@ -50,7 +50,10 @@ public class BulkDeconstructionTooltip
 
     GameObject tooltip = GameObject.Find(TooltipPath);
     if (tooltip == null)
+    {
+      // Tooltip not found - this is normal if player isn't looking at anything
       return;
+    }
 
     // Get or create bulk info elements
     if (_bulkSizeInfo == null || _bulkStatusInfo == null || _bulkReasonInfo == null)
