@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Reflection;
 using Assets.Scripts.Inventory;
 using Assets.Scripts.Objects;
+using Assets.Scripts.Util;
 using UnityEngine;
 using ZoopMod.Zoop.Logging;
 using ZoopMod.Zoop.Placement;
@@ -23,6 +24,9 @@ internal sealed class ZoopBuildScheduler
     BindingFlags.NonPublic | BindingFlags.Instance, null,
     [typeof(InventoryManager.DelegateEvent), typeof(float), typeof(Structure)],
     null);
+
+  // Half-extent of the cell probe box, matching the small-grid cell probe the preview barrier scan uses.
+  private static readonly Vector3 CellProbeHalfExtent = Vector3.one * 0.05f;
 
   private readonly ZoopPreviewCoordinator previewCoordinator;
   private readonly IZoopController host;
@@ -149,6 +153,20 @@ internal sealed class ZoopBuildScheduler
     {
       var previewPiece = draft.PreviewPieces[structureIndex];
       var previewStructure = previewPiece.Structure;
+
+      // A zoop cell that lands on an existing long Straight variant of the same family (the 3 / 5 / 10
+      // segment pipe or super-heavy cable pieces) would merge onto it. That merge charges a negative item
+      // cost (the long piece costs more than the single tile that replaces it) and crashes in
+      // Stackable.OnUseItem with a negative RemoveRange count. The interactive cursor blocks the merge;
+      // this build path completes placement directly and skips that check. Drop the cell here so the long
+      // piece is left intact and the rest of the run still builds. See issue #22.
+      if (previewStructure is IGridMergeable && CellHoldsMergeableLongVariant(previewStructure))
+      {
+        ZoopLog.Debug(
+          $"[Build] Skipping {previewStructure.PrefabName} at index {structureIndex}: cell holds a long straight variant that cannot be merged onto.");
+        continue;
+      }
+
       var buildIndex =
         ZoopConstructableResolver.ResolveBuildIndex(draft, inventoryManager, previewStructure, structureIndex);
       if (buildIndex < 0)
@@ -173,6 +191,44 @@ internal sealed class ZoopBuildScheduler
     }
 
     return new ZoopBuildPlan(pieces);
+  }
+
+  // True when an existing world structure at the cursor's cell is a long Straight variant of the same
+  // family (the 3 / 5 / 10 segment pieces). Merging a single tile onto one charges the negative item cost
+  // that crashes the build. Matching the cursor's concrete type keeps a pipe run that merely crosses an
+  // existing cable (the two can share a cell) from being dropped. The preview pieces have their colliders
+  // disabled and the cursor is hidden, so the probe only finds real world structures.
+  private static bool CellHoldsMergeableLongVariant(Structure cursor)
+  {
+    var colliders = Physics.OverlapBox(cursor.transform.position, CellProbeHalfExtent, Quaternion.identity,
+      ~0, QueryTriggerInteraction.Ignore);
+    foreach (var collider in colliders)
+    {
+      var existing = collider.GetComponentInParent<Structure>();
+      if (existing == null || ReferenceEquals(existing, cursor))
+      {
+        continue;
+      }
+
+      if (existing is IGridMergeable &&
+          existing.GetType() == cursor.GetType() &&
+          SpansMultipleCells(existing))
+      {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  // A long Straight variant occupies more than one small-grid cell; a single tile occupies one. The
+  // connection type does not separate them for every family (the long super-heavy cables report Straight,
+  // not StraightAsymmetric), but the footprint always does.
+  private static bool SpansMultipleCells(Structure structure)
+  {
+    var cells = structure.GridBounds.GetLocalSmallGrid(structure.ThingTransformPosition,
+      structure.ThingTransformRotation);
+    return cells is System.Array array && array.Length > 1;
   }
 
   public void CancelPendingBuild()
@@ -310,14 +366,13 @@ internal sealed class ZoopBuildScheduler
     try
     {
       yield return ZoopBuildExecutor.BuildAll(inventoryManager, buildPlan);
+      ZoopLog.Debug($"[Build] Zoop build completed for {buildPlan.Count} piece(s); canceling placement cursor.");
     }
     finally
     {
       ClearBuildExecutionState();
+      inventoryManager.CancelPlacement();
     }
-
-    ZoopLog.Debug($"[Build] Zoop build completed for {buildPlan.Count} piece(s); canceling placement cursor.");
-    inventoryManager.CancelPlacement();
   }
 
   private static Assets.Scripts.ICreativeSpawnable ResolveSpawnPrefabForBuild(ZoopDraft draft,
