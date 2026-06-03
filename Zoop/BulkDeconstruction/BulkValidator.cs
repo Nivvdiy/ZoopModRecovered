@@ -1,6 +1,7 @@
 using Assets.Scripts.Objects;
 using Assets.Scripts.Objects.Electrical;
 using Assets.Scripts.Objects.Pipes;
+using ZoopMod.Zoop.UI;
 
 namespace ZoopMod.Zoop.BulkDeconstruction;
 
@@ -28,14 +29,14 @@ public class BulkValidator
   public ValidationResult Validate(Structure structure)
   {
     if (structure == null)
-      return ValidationResult.Failure("No target structure");
+      return ValidationResult.Failure(ZoopText.BulkReasonNoTarget);
 
     return structure switch
     {
       Cable cable => ValidateCableBulk(cable),
       Pipe pipe => ValidatePipeBulk(pipe),
       Chute chute => ValidateChuteBulk(chute),
-      _ => ValidationResult.Failure("Unknown bulk type")
+      _ => ValidationResult.Failure(ZoopText.BulkReasonUnknownType)
     };
   }
 
@@ -44,7 +45,7 @@ public class BulkValidator
     // Check if cable bulk has power using CableBulk.PotentialLoad
     if (cable.CableNetwork != null && cable.CableNetwork.PotentialLoad > 0f)
     {
-      return ValidationResult.Failure("Bulk is powered");
+      return ValidationResult.Failure(ZoopText.BulkReasonPowered);
     }
 
     return ValidationResult.Success();
@@ -58,7 +59,7 @@ public class BulkValidator
       var atmosphere = pipe.PipeNetwork.Atmosphere;
       if (atmosphere != null && atmosphere.PressureGassesAndLiquidsInPa > BulkDeconstructionConfig.SafePressureThreshold)
       {
-        return ValidationResult.Failure("Bulk under pressure");
+        return ValidationResult.Failure(ZoopText.BulkReasonUnderPressure);
       }
     }
 

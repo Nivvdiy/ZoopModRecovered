@@ -2,6 +2,7 @@ using UnityEngine;
 using TMPro;
 using Assets.Scripts;
 using ZoopMod.Zoop.Logging;
+using ZoopMod.Zoop.UI;
 
 namespace ZoopMod.Zoop.BulkDeconstruction;
 
@@ -75,7 +76,7 @@ public class BulkDeconstructionTooltip
         _originalTitleText = _itemTitleText.text;
         _isModified = true;
       }
-      _itemTitleText.text = $"{structureType} Bulk";
+      _itemTitleText.text = string.Format(ZoopText.BulkStructureTitleFormat, structureType);
     }
 
     // Update bulk size
@@ -87,7 +88,7 @@ public class BulkDeconstructionTooltip
     // Update validation status
     if (_bulkStatusValue != null)
     {
-      _bulkStatusValue.text = isValid ? "OK" : "INVALID";
+      _bulkStatusValue.text = isValid ? ZoopText.BulkValueOk : ZoopText.BulkValueInvalid;
       _bulkStatusValue.color = isValid ? new Color(0.0f, 1.0f, 0.0f) : new Color(1.0f, 0.0f, 0.0f);
     }
 
@@ -168,7 +169,7 @@ public class BulkDeconstructionTooltip
     _bulkSizeText = _bulkSizeInfo.GetComponent<TextMeshProUGUI>();
     if (_bulkSizeText != null)
     {
-      _bulkSizeText.text = "Network Size:";
+      _bulkSizeText.text = ZoopText.BulkLabelNetworkSize;
     }
 
     // Get value text component
@@ -191,7 +192,7 @@ public class BulkDeconstructionTooltip
     _bulkStatusText = _bulkStatusInfo.GetComponent<TextMeshProUGUI>();
     if (_bulkStatusText != null)
     {
-      _bulkStatusText.text = "Status:";
+      _bulkStatusText.text = ZoopText.BulkLabelStatus;
     }
 
     // Get value text component
@@ -214,7 +215,7 @@ public class BulkDeconstructionTooltip
     _bulkReasonText = _bulkReasonInfo.GetComponent<TextMeshProUGUI>();
     if (_bulkReasonText != null)
     {
-      _bulkReasonText.text = "Reason:";
+      _bulkReasonText.text = ZoopText.BulkLabelReason;
     }
 
     // Get value text component

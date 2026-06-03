@@ -10,36 +10,92 @@
       <Value>Zoop</Value>
     </Record>
     <Record>
-      <Key>SectionSettingsTitle1</Key>
-      <Value>Zoop Section 1</Value>
+      <Key>zoopNoDoubleWaypoints</Key>
+      <Value>You cannot add a waypoint at the same location as the previous one</Value>
     </Record>
     <Record>
-      <Key>SectionSettingsTitle2</Key>
-      <Value>Zoop Section 2</Value>
+      <Key>zoopLongPiecesTitle</Key>
+      <Value>Long Pieces</Value>
     </Record>
     <Record>
-      <Key>ElementSettingsText</Key>
-      <Value>Zoop Text Example</Value>
+      <Key>zoopBulkStatusTitle</Key>
+      <Value>Bulk Deconstruction</Value>
     </Record>
     <Record>
-      <Key>ElementSettingsBoolean</Key>
-      <Value>Zoop Boolean Example</Value>
+      <Key>zoopBulkStatusActive</Key>
+      <Value>Activated</Value>
     </Record>
     <Record>
-      <Key>ElementSettingsInt</Key>
-      <Value>Zoop Int Example</Value>
+      <Key>zoopBulkStructureTitleFormat</Key>
+      <Value>{0} Bulk</Value>
     </Record>
     <Record>
-      <Key>ElementSettingsFloat</Key>
-      <Value>Zoop Float Example</Value>
+      <Key>zoopBulkLabelNetworkSize</Key>
+      <Value>Network Size:</Value>
     </Record>
     <Record>
-      <Key>ElementSettingsStringList</Key>
-      <Value>Zoop List Example</Value>
+      <Key>zoopBulkLabelStatus</Key>
+      <Value>Status:</Value>
     </Record>
     <Record>
-      <Key>ElementSettingsString</Key>
-      <Value>Zoop String Example</Value>
+      <Key>zoopBulkLabelReason</Key>
+      <Value>Reason:</Value>
+    </Record>
+    <Record>
+      <Key>zoopBulkValueOk</Key>
+      <Value>OK</Value>
+    </Record>
+    <Record>
+      <Key>zoopBulkValueInvalid</Key>
+      <Value>INVALID</Value>
+    </Record>
+    <Record>
+      <Key>zoopBulkReasonNoTarget</Key>
+      <Value>No target structure</Value>
+    </Record>
+    <Record>
+      <Key>zoopBulkReasonUnknownType</Key>
+      <Value>Unknown network type</Value>
+    </Record>
+    <Record>
+      <Key>zoopBulkReasonPowered</Key>
+      <Value>Network is powered</Value>
+    </Record>
+    <Record>
+      <Key>zoopBulkReasonUnderPressure</Key>
+      <Value>Network under pressure</Value>
+    </Record>
+    <Record>
+      <Key>Zoop</Key>
+      <Value>Zoop</Value>
+    </Record>
+    <Record>
+      <Key>Zoop Hold</Key>
+      <Value>Zoop Hold</Value>
+    </Record>
+    <Record>
+      <Key>Zoop Switch</Key>
+      <Value>Zoop Switch</Value>
+    </Record>
+    <Record>
+      <Key>Zoop Add Waypoint</Key>
+      <Value>Zoop Add Waypoint</Value>
+    </Record>
+    <Record>
+      <Key>Zoop Remove Last Waypoint</Key>
+      <Value>Zoop Remove Last Waypoint</Value>
+    </Record>
+    <Record>
+      <Key>Zoop Allow More Long Pieces</Key>
+      <Value>Zoop Allow More Long Pieces</Value>
+    </Record>
+    <Record>
+      <Key>Zoop Restrict Long Pieces</Key>
+      <Value>Zoop Restrict Long Pieces</Value>
+    </Record>
+    <Record>
+      <Key>Zoop Bulk Deconstruct</Key>
+      <Value>Zoop Bulk Deconstruct</Value>
     </Record>
   </Interface>
 </Language>

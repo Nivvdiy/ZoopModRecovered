@@ -2,6 +2,7 @@ using UnityEngine;
 using TMPro;
 using Assets.Scripts.Inventory;
 using ZoopMod.Zoop.Logging;
+using ZoopMod.Zoop.UI;
 
 namespace ZoopMod.Zoop.BulkDeconstruction;
 
@@ -36,8 +37,6 @@ public class BulkDeconstructionStatusIndicator
   private const float TextLineSpacing = 5f; // Espace entre les deux lignes
   private const float PanelPadding = 8f; // Marge intérieure haut/bas
   private static readonly Vector2 FallbackPosition = new Vector2(0f, 100f); // Position absolue si inventaire non trouvé
-  private const string TitleText = "Bulk Deconstruction";
-  private const string StatusText = "Activated";
   private static readonly Color StatusActiveColor = new Color(0.0f, 1.0f, 0.0f); // Vert pour "Activated"
 
   /// <summary>
@@ -269,7 +268,7 @@ public class BulkDeconstructionStatusIndicator
     titleRect.anchoredPosition = Vector2.zero; // Centered in top half
 
     _titleText = titleObject.AddComponent<TextMeshProUGUI>();
-    _titleText.text = TitleText;
+    _titleText.text = ZoopText.BulkStatusTitle;
     _titleText.alignment = TextAlignmentOptions.Center;
     _titleText.verticalAlignment = VerticalAlignmentOptions.Middle; // Perfect vertical centering
 
@@ -302,7 +301,7 @@ public class BulkDeconstructionStatusIndicator
     statusRect.anchoredPosition = new Vector2(0f, 10f); // Remonté de 10px
 
     _statusText = statusObject.AddComponent<TextMeshProUGUI>();
-    _statusText.text = StatusText;
+    _statusText.text = ZoopText.BulkStatusActive;
     _statusText.alignment = TextAlignmentOptions.Center;
     _statusText.verticalAlignment = VerticalAlignmentOptions.Middle; // Perfect vertical centering
 

@@ -13,6 +13,66 @@ internal readonly struct LongVariant(int buildIndex, int cellSpan)
 
 internal static class ZoopLongVariantRules
 {
+  private const int MaxRestrictionLevel = 3;
+  private static int _restrictionLevel;
+
+  public static int RestrictionLevel => _restrictionLevel;
+
+  public static bool RestrictLongPieces()
+  {
+    if (_restrictionLevel >= MaxRestrictionLevel)
+    {
+      return false;
+    }
+
+    _restrictionLevel++;
+    return true;
+  }
+
+  public static bool AllowMoreLongPieces()
+  {
+    if (_restrictionLevel <= 0)
+    {
+      return false;
+    }
+
+    _restrictionLevel--;
+    return true;
+  }
+
+  public static void ResetRestrictions()
+  {
+    _restrictionLevel = 0;
+  }
+
+  public static bool IsLongSpanAllowed(int cellSpan)
+  {
+    return cellSpan switch
+    {
+      10 => _restrictionLevel < 1,
+      5 => _restrictionLevel < 2,
+      3 => _restrictionLevel < 3,
+      _ => true
+    };
+  }
+
+  public static void FilterAllowedLongVariants(List<LongVariant> source, List<LongVariant> result)
+  {
+    result.Clear();
+    if (source == null || source.Count == 0)
+    {
+      return;
+    }
+
+    foreach (var variant in source)
+    {
+      if (IsLongSpanAllowed(variant.CellSpan))
+      {
+        result.Add(variant);
+      }
+    }
+  }
+
   /// <summary>
   /// Scans the constructables list for long variants (cell span > 1) and returns them sorted by
   /// cell span descending so the greedy packing algorithm prefers the longest pieces first.

@@ -30,6 +30,7 @@ internal sealed class ZoopSmallGridPreviewStrategy(ZoopPreviewValidator previewV
 
   private readonly Dictionary<Structure, List<LongVariant>> _longVariantsByBasePiece = [];
   private readonly Dictionary<int, int> _longCounts = [];
+  private readonly List<LongVariant> _allowedLongVariants = [];
 
   private sealed class SmallGridPreviewLayoutAdapter(ZoopPreviewValidator previewValidator)
     : ISmallGridPreviewLayoutAdapter
@@ -356,12 +357,13 @@ internal sealed class ZoopSmallGridPreviewStrategy(ZoopPreviewValidator previewV
     }
     var runPlan = new List<int>();
     _longCounts.Clear();
+    ZoopLongVariantRules.FilterAllowedLongVariants(longVariants, _allowedLongVariants);
 
     var straight = 0;
     var corners = 0;
     var canBuildNext = true;
     ZoopPathPlanner.WalkSmallGridPath(segments, step =>
-      ProcessStep(context, longVariants, runPlan, step, ref straight, ref corners, ref canBuildNext));
+      ProcessStep(context, _allowedLongVariants, runPlan, step, ref straight, ref corners, ref canBuildNext));
   }
 
   private void ProcessStep(ZoopPreviewContext context, List<LongVariant> longVariants, List<int> runPlan,
