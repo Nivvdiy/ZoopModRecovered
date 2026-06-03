@@ -11,6 +11,8 @@ internal static class ZoopKeyBindings
   public static KeyCode Switch { get; private set; }
   public static KeyCode AddWaypoint { get; private set; }
   public static KeyCode RemoveWaypoint { get; private set; }
+  public static KeyCode IncreaseLongPieces { get; private set; }
+  public static KeyCode DecreaseLongPieces { get; private set; }
   public static KeyCode BulkDeconstruct { get; private set; }
 
   public static void Initialize()
@@ -25,6 +27,8 @@ internal static class ZoopKeyBindings
     Switch = KeyManager.GetKey("Zoop Switch");
     AddWaypoint = KeyManager.GetKey("Zoop Add Waypoint");
     RemoveWaypoint = KeyManager.GetKey("Zoop Remove Last Waypoint");
+    IncreaseLongPieces = KeyManager.GetKey("Zoop Allow More Long Pieces");
+    DecreaseLongPieces = KeyManager.GetKey("Zoop Restrict Long Pieces");
     BulkDeconstruct = KeyManager.GetKey("Zoop Bulk Deconstruct");
   }
 }

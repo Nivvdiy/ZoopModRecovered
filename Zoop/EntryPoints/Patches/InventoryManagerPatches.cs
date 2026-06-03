@@ -6,6 +6,8 @@ using JetBrains.Annotations;
 using ZoopMod.Zoop.EntryPoints.Configuration;
 using ZoopMod.Zoop.EntryPoints.Input;
 using ZoopMod.Zoop.Logging;
+using ZoopMod.Zoop.Placement;
+using ZoopMod.Zoop.UI;
 
 namespace ZoopMod.Zoop.EntryPoints.Patches;
 
@@ -107,11 +109,14 @@ internal static class InventoryManagerWaitUntilDonePatch
 [HarmonyPatch(typeof(InventoryManager), "PlacementMode")]
 internal static class InventoryManagerPlacementModePatch
 {
+  private static readonly ZoopLongPieceIndicator LongPieceIndicator = new();
+
   [UsedImplicitly]
   public static bool Prefix(InventoryManager __instance)
   {
     if (ZoopRuntime.Controller.IsBuildExecuting)
     {
+      LongPieceIndicator.Update(false, InventoryManager.ConstructionCursor);
       return false;
     }
 
@@ -121,6 +126,8 @@ internal static class InventoryManagerPlacementModePatch
     var spec = KeyManager.GetButtonDown(ZoopKeyBindings.Switch);
     var addWaypoint = KeyManager.GetButtonDown(ZoopKeyBindings.AddWaypoint);
     var removeWaypoint = KeyManager.GetButtonDown(ZoopKeyBindings.RemoveWaypoint);
+    var allowMoreLongPieces = KeyManager.GetButtonDown(ZoopKeyBindings.IncreaseLongPieces);
+    var restrictLongPieces = KeyManager.GetButtonDown(ZoopKeyBindings.DecreaseLongPieces);
 
     if ((ZoopRuntime.Controller.IsZoopKeyPressed && primary) || spec)
     {
@@ -132,6 +139,19 @@ internal static class InventoryManagerPlacementModePatch
     {
       ZoopLog.Debug(
         $"[Input] Add waypoint pressed. IsZooping={ZoopRuntime.Controller.IsZooping}, IsPreviewing={ZoopRuntime.Controller.IsPreviewing}, PreviewCount={ZoopRuntime.Controller.PreviewCount}.");
+    }
+
+    if (ZoopRuntime.Controller.IsZooping)
+    {
+      if (restrictLongPieces && ZoopLongVariantRules.RestrictLongPieces())
+      {
+        ZoopLog.Debug($"[Input] Long piece restriction level increased to {ZoopLongVariantRules.RestrictionLevel}.");
+      }
+
+      if (allowMoreLongPieces && ZoopLongVariantRules.AllowMoreLongPieces())
+      {
+        ZoopLog.Debug($"[Input] Long piece restriction level decreased to {ZoopLongVariantRules.RestrictionLevel}.");
+      }
     }
 
     if (addWaypoint && ZoopRuntime.Controller.IsPreviewing)
@@ -147,7 +167,7 @@ internal static class InventoryManagerPlacementModePatch
     if (primary && ZoopRuntime.Controller.IsZooping && !ZoopRuntime.Controller.IsZoopKeyPressed)
     {
       ZoopRuntime.Controller.ConfirmZoop(__instance);
-
+      UpdateLongPieceIndicator(__instance);
       return !ZoopRuntime.Controller.IsZooping;
     }
 
@@ -157,6 +177,24 @@ internal static class InventoryManagerPlacementModePatch
       ZoopRuntime.Controller.CancelZoop();
     }
 
+    UpdateLongPieceIndicator(__instance);
     return !ZoopRuntime.Controller.IsZoopKeyPressed;
+  }
+
+  private static void UpdateLongPieceIndicator(InventoryManager inventoryManager)
+  {
+    LongPieceIndicator.Update(ZoopRuntime.Controller.IsZooping, GetSelectedConstructable(inventoryManager));
+  }
+
+  private static Structure GetSelectedConstructable(InventoryManager inventoryManager)
+  {
+    var constructables = inventoryManager.ConstructionPanel.Parent.Constructables;
+    var selectedIndex = inventoryManager.ConstructionPanel.Parent.LastSelectedIndex;
+    if (selectedIndex >= 0 && selectedIndex < constructables.Count)
+    {
+      return constructables[selectedIndex];
+    }
+
+    return InventoryManager.ConstructionCursor;
   }
 }
