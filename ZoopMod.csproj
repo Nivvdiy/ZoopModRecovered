@@ -70,6 +70,14 @@
 			<HintPath>$(ManagedDirectory)UnityEngine.UI.dll</HintPath>
 			<Private>False</Private>
 		</Reference>
+    <Reference Include="mscorlib">
+      <HintPath>$(ManagedDirectory)mscorlib.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="netstandard">
+      <HintPath>$(ManagedDirectory)netstandard.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
 		<Reference Include="Assembly-CSharp">
 			<HintPath>$(ManagedDirectory)Assembly-CSharp.dll</HintPath>
 			<Private>False</Private>

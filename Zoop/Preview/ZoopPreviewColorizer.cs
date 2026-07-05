@@ -57,9 +57,9 @@ internal static class ZoopPreviewColorizer
   private static Color ApplySmallGridColors(InventoryManager inventoryManager, SmallGrid smallGrid,
     bool canConstruct, bool isStart, bool isWaypoint, Color color)
   {
-    var joiningOpenEnds = smallGrid.WillJoinNetwork() ?? [];
+    var joiningConnectionCount = CountJoiningConnections(smallGrid);
     var hasBlueprintMaterial = smallGrid.Wireframe?.BlueprintRenderer?.material != null;
-    var helperColor = ResolveHelperColor(inventoryManager, canConstruct, joiningOpenEnds.Count);
+    var helperColor = ResolveHelperColor(inventoryManager, canConstruct, joiningConnectionCount);
 
     // Some modded small-grid previews do not expose a blueprint renderer, so their mesh tint
     // needs to carry the start/waypoint/error color that vanilla previews show separately.
@@ -70,7 +70,51 @@ internal static class ZoopPreviewColorizer
     ApplyRendererColors(smallGrid, rendererColor, hasBlueprintMaterial);
     ApplyOpenEndColors(smallGrid, helperColor);
 
-    return canConstruct && joiningOpenEnds.Count > 0 ? Color.yellow : color;
+    return canConstruct && joiningConnectionCount > 0 ? Color.yellow : color;
+  }
+
+  private static int CountJoiningConnections(SmallGrid smallGrid)
+  {
+    if (smallGrid.OpenEnds == null || smallGrid.GridController == null)
+    {
+      return 0;
+    }
+
+    var count = 0;
+    foreach (var openEnd in smallGrid.OpenEnds)
+    {
+      if (openEnd?.Transform == null)
+      {
+        continue;
+      }
+
+      var localGrid = smallGrid.GridController.WorldToLocalGrid(openEnd.Transform.position,
+        SmallGrid.SmallGridSize, SmallGrid.SmallGridOffset);
+      var smallCell = smallGrid.GridController.GetSmallCell(localGrid);
+      if (smallCell == null)
+      {
+        continue;
+      }
+
+      count += CountIfConnected(smallCell.Pipe, smallGrid, openEnd);
+      count += CountIfConnected(smallCell.Device, smallGrid, openEnd);
+      count += CountIfConnected(smallCell.Cable, smallGrid, openEnd);
+      count += CountIfConnected(smallCell.Chute, smallGrid, openEnd);
+      count += CountIfConnected((SmallGrid)smallCell.Rail, smallGrid, openEnd);
+      count += CountIfConnected(smallCell.Other, smallGrid, openEnd);
+    }
+
+    return count;
+  }
+
+  private static int CountIfConnected(SmallGrid sibling, SmallGrid source, Connection openEnd)
+  {
+    if (sibling == null || sibling == source)
+    {
+      return 0;
+    }
+
+    return sibling.IsConnected(openEnd) ? 1 : 0;
   }
 
   // Intentional guard-clause loop — avoids .Where() enumerator allocation in this per-frame hot path.

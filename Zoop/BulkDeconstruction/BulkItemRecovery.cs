@@ -407,9 +407,16 @@ public class BulkItemRecovery
         }
       }
 
-      // Check neighboring cells for structures with bounds
-      List<Grid3> neighbors = new List<Grid3>();
-      GridController.World.GetGridNeighbours(gridPos, ref neighbors, horizontalOnly: false, includeCorners: false);
+      // Check neighboring cells for structures with bounds (6 cardinal neighbors)
+      Grid3[] neighbors =
+      {
+        gridPos + Grid3.North,
+        gridPos + Grid3.East,
+        gridPos + Grid3.South,
+        gridPos + Grid3.West,
+        gridPos + Grid3.Up,
+        gridPos + Grid3.Down
+      };
 
       foreach (Grid3 neighborGrid in neighbors)
       {

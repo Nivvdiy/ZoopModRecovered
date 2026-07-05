@@ -69,8 +69,8 @@ internal static class StructureDeconstructionHook
   {
     if (_isHookRegistered)
       return;
-
-    Structure.OnDeconstruct += OnStructureDeconstruct;
+    //Seems like to work without the hook, but leaving it here in case we need it for future
+    //Structure.OnDeconstruct += OnStructureDeconstruct;
     _isHookRegistered = true;
 
     ZoopLog.Info("[BulkDeconstruction] Registered Structure.OnDeconstruct hook");
