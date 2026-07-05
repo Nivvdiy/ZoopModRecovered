@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using Assets.Scripts.Objects;
 using Assets.Scripts.Objects.Items;
@@ -5,6 +6,7 @@ using Assets.Scripts.GridSystem;
 using Assets.Scripts;
 using UnityEngine;
 using ZoopMod.Zoop.Logging;
+using Random = UnityEngine.Random;
 
 namespace ZoopMod.Zoop.BulkDeconstruction;
 
@@ -14,6 +16,8 @@ namespace ZoopMod.Zoop.BulkDeconstruction;
 /// </summary>
 public class BulkItemRecovery
 {
+  private const int MaxNeighbourCells = 16;
+
   /// <summary>
   /// Collects all items from the bulk structures and spawns them as stacks.
   /// Returns a dictionary of item prefabs and their total quantities.
@@ -408,11 +412,13 @@ public class BulkItemRecovery
       }
 
       // Check neighboring cells for structures with bounds
-      List<Grid3> neighbors = new List<Grid3>();
-      GridController.World.GetGridNeighbours(gridPos, ref neighbors, horizontalOnly: false, includeCorners: false);
+      Span<Grid3> neighbors = stackalloc Grid3[MaxNeighbourCells];
+      var neighborCount = 0;
+      GridController.PopulateGridNeighbours(neighbors, ref neighborCount, gridPos, horizontalOnly: false, includeCorners: false);
 
-      foreach (Grid3 neighborGrid in neighbors)
+      for (var neighborIndex = 0; neighborIndex < neighborCount; neighborIndex++)
       {
+        var neighborGrid = neighbors[neighborIndex];
         Cell neighborCell = GridController.World.GetCell(neighborGrid);
         if (neighborCell != null && neighborCell.AllStructures != null)
         {

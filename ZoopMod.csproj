@@ -40,6 +40,7 @@
 		<TargetFramework>net48</TargetFramework>
 		<AllowUnsafeBlocks>true</AllowUnsafeBlocks>
 		<LangVersion>latest</LangVersion>
+		<NoStdLib>true</NoStdLib>
 		<GitVersion>false</GitVersion>
 		<Pdb2MdbPath Condition=" '$(Pdb2MdbPath)' == '' "></Pdb2MdbPath>
 		<Pdb2MdbOutputPath Condition=" '$(Pdb2MdbOutputPath)' == '' ">$(TargetPath).mdb</Pdb2MdbOutputPath>
@@ -62,6 +63,22 @@
 		<PackageReference Include="GitInfo" Version="3.6.0" PrivateAssets="all" IncludeAssets="runtime; build; native; contentfiles; analyzers" />
 		<PackageReference Include="UnityEngine.Modules" Version="2021.3.33" IncludeAssets="compile" />
 		<!-- Unity References -->
+		<Reference Include="mscorlib">
+			<HintPath>$(ManagedDirectory)mscorlib.dll</HintPath>
+			<Private>False</Private>
+		</Reference>
+		<Reference Include="System">
+			<HintPath>$(ManagedDirectory)System.dll</HintPath>
+			<Private>False</Private>
+		</Reference>
+		<Reference Include="System.Core">
+			<HintPath>$(ManagedDirectory)System.Core.dll</HintPath>
+			<Private>False</Private>
+		</Reference>
+		<Reference Include="netstandard">
+			<HintPath>$(ManagedDirectory)netstandard.dll</HintPath>
+			<Private>False</Private>
+		</Reference>
 		<Reference Include="Unity.TextMeshPro">
 			<HintPath>$(ManagedDirectory)Unity.TextMeshPro.dll</HintPath>
 			<Private>False</Private>
