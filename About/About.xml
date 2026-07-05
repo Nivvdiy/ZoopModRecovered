@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?><ModMetadata xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"><Name>ZoopMod [StationeersLaunchPad]</Name><Author>Nivvdiy, MerGatto</Author><Version>2026.04.06</Version><Description>
+<?xml version="1.0" encoding="utf-8"?><ModMetadata xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"><Name>ZoopMod [StationeersLaunchPad]</Name><Author>Nivvdiy, MerGatto</Author><Version>2026.05.07</Version><Description>
   [h1]ZoopMod[/h1]
 
   [b]WARNING:[/b]
@@ -87,6 +87,7 @@
 
   [b]Works for:[/b]
   [list]
+  [*]"The Sanitation Update" (July 2, 2026)
   [*]"The Gases Update" (March 19, 2026)
   [*]"Bug Fixing" update (December 12, 2024)
   [*]"Emergency Kit: Gas Masks and Engine Upgrade" update (December 11, 2024)

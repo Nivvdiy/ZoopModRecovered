@@ -79,6 +79,7 @@ This continuation is being developed collaboratively, with respect for the mod's
 ---
 
 ## Compatible With
+- **The Sanitation Update** (July 2, 2026) 
 - **The Gases Update** (March 19, 2026)  
 - **Short Circuit: Liquid Device Interactions** (October 28, 2024)  
 - **In World Water** (October 11, 2024)  
