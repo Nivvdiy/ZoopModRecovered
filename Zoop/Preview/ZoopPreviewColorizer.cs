@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using Assets.Scripts.Inventory;
 using Assets.Scripts.Objects;
@@ -15,6 +16,7 @@ internal static class ZoopPreviewColorizer
   private static readonly int ColorPropertyId = Shader.PropertyToID("_Color");
   private static readonly int BaseColorPropertyId = Shader.PropertyToID("_BaseColor");
   private static readonly MaterialPropertyBlock SharedPropertyBlock = new();
+  private const int MaxConnectionRefs = 64;
 
   public static void ApplyColor(InventoryManager inventoryManager, Structure structure,
     IReadOnlyList<Vector3> waypoints,
@@ -57,9 +59,12 @@ internal static class ZoopPreviewColorizer
   private static Color ApplySmallGridColors(InventoryManager inventoryManager, SmallGrid smallGrid,
     bool canConstruct, bool isStart, bool isWaypoint, Color color)
   {
-    var joiningOpenEnds = smallGrid.WillJoinNetwork() ?? [];
+    Span<ConnectionRef> joiningOpenEnds = stackalloc ConnectionRef[MaxConnectionRefs];
+    var joiningOpenEndCount = 0;
+    smallGrid.WillJoinNetwork(joiningOpenEnds, ref joiningOpenEndCount);
+
     var hasBlueprintMaterial = smallGrid.Wireframe?.BlueprintRenderer?.material != null;
-    var helperColor = ResolveHelperColor(inventoryManager, canConstruct, joiningOpenEnds.Count);
+    var helperColor = ResolveHelperColor(inventoryManager, canConstruct, joiningOpenEndCount);
 
     // Some modded small-grid previews do not expose a blueprint renderer, so their mesh tint
     // needs to carry the start/waypoint/error color that vanilla previews show separately.
@@ -70,7 +75,7 @@ internal static class ZoopPreviewColorizer
     ApplyRendererColors(smallGrid, rendererColor, hasBlueprintMaterial);
     ApplyOpenEndColors(smallGrid, helperColor);
 
-    return canConstruct && joiningOpenEnds.Count > 0 ? Color.yellow : color;
+    return canConstruct && joiningOpenEndCount > 0 ? Color.yellow : color;
   }
 
   // Intentional guard-clause loop — avoids .Where() enumerator allocation in this per-frame hot path.

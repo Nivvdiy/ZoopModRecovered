@@ -59,38 +59,6 @@ internal static class ToolUseDeconstructPatch
 }
 
 /// <summary>
-/// Hooks Structure.OnDeconstruct event as backup detection.
-/// </summary>
-internal static class StructureDeconstructionHook
-{
-  private static bool _isHookRegistered = false;
-
-  public static void Initialize()
-  {
-    if (_isHookRegistered)
-      return;
-
-    Structure.OnDeconstruct += OnStructureDeconstruct;
-    _isHookRegistered = true;
-
-    ZoopLog.Info("[BulkDeconstruction] Registered Structure.OnDeconstruct hook");
-  }
-
-  private static void OnStructureDeconstruct(Structure structure)
-  {
-    // Only log if our mode is active (for debugging)
-    if (BulkDeconstructionRuntime.IsActive)
-    {
-      var target = BulkDeconstructionRuntime.CurrentTarget;
-      if (target != null && structure == target)
-      {
-        ZoopLog.Debug($"[BulkDeconstruction] Structure deconstructed: {structure.PrefabName}");
-      }
-    }
-  }
-}
-
-/// <summary>
 /// Runtime state for bulk deconstruction system.
 /// </summary>
 public static class BulkDeconstructionRuntime
@@ -100,7 +68,6 @@ public static class BulkDeconstructionRuntime
   public static void Initialize(BulkDeconstructionController controller)
   {
     _controller = controller;
-    StructureDeconstructionHook.Initialize();
   }
 
   public static bool IsActive => _controller?.IsActive ?? false;
