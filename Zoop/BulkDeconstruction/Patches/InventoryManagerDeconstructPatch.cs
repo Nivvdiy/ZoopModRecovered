@@ -14,8 +14,8 @@ namespace ZoopMod.Zoop.BulkDeconstruction.Patches;
 /// </summary>
 
 /// <summary>
-/// Patches ToolUse.Deconstruct to completely replace bulk deconstruction.
-/// Uses Prefix to block game's deconstruction and handle it ourselves.
+/// Patches ToolUse.Deconstruct to extend vanilla deconstruction.
+/// The clicked structure must deconstruct normally so ToolUse.SpawnItem returns its item.
 /// </summary>
 [HarmonyPatch(typeof(ToolUse), "Deconstruct")]
 internal static class ToolUseDeconstructPatch
@@ -24,6 +24,14 @@ internal static class ToolUseDeconstructPatch
   public static bool Prefix(ToolUse __instance, ConstructionEventInstance eventInstance)
   {
     ZoopLog.Debug($"[BulkDeconstruction] ToolUse.Deconstruct Prefix - IsActive: {BulkDeconstructionRuntime.IsActive}");
+
+    // Bulk execution deliberately re-enters vanilla deconstruction through AttackWith.
+    // Let those calls pass so ToolUse.SpawnItem and the server-authoritative destroy path still run.
+    if (BulkDeconstructionRuntime.AllowVanillaDeconstruct)
+    {
+      ZoopLog.Debug("[BulkDeconstruction] Allowing vanilla deconstruction requested by bulk executor");
+      return true;
+    }
 
     // Only intercept if bulk deconstruction mode is active
     if (!BulkDeconstructionRuntime.IsActive)
@@ -50,11 +58,20 @@ internal static class ToolUseDeconstructPatch
 
     ZoopLog.Info($"[BulkDeconstruction] Intercepting deconstruction, will handle {BulkDeconstructionRuntime.CurrentBulkSize} structures");
 
-    // Start our own bulk deconstruction (with proper item spawning)
-    BulkDeconstructionRuntime.StartProgressiveDeconstruction();
+    // Let vanilla deconstruct the clicked structure first. This method is the vanilla item
+    // recovery point; blocking it destroys the structure but skips the returned item.
+    BulkDeconstructionRuntime.StartBulkAfterVanillaDeconstruct();
 
-    // Block the game's default deconstruction
-    return false;
+    return true;
+  }
+
+  [UsedImplicitly]
+  public static void Postfix()
+  {
+    if (BulkDeconstructionRuntime.ConsumeStartBulkAfterVanillaDeconstruct())
+    {
+      BulkDeconstructionRuntime.StartProgressiveDeconstruction();
+    }
   }
 }
 
@@ -64,6 +81,8 @@ internal static class ToolUseDeconstructPatch
 public static class BulkDeconstructionRuntime
 {
   private static BulkDeconstructionController _controller;
+  private static int _allowVanillaDeconstructDepth;
+  private static bool _startBulkAfterVanillaDeconstruct;
 
   public static void Initialize(BulkDeconstructionController controller)
   {
@@ -71,9 +90,26 @@ public static class BulkDeconstructionRuntime
   }
 
   public static bool IsActive => _controller?.IsActive ?? false;
+  public static bool AllowVanillaDeconstruct => _allowVanillaDeconstructDepth > 0;
   public static Structure CurrentTarget => _controller?.CurrentTarget;
   public static BulkValidator.ValidationResult CurrentValidation => _controller?.CurrentValidation;
   public static int CurrentBulkSize => _controller?.CurrentBulkSize ?? 0;
+
+  public static void StartBulkAfterVanillaDeconstruct()
+  {
+    _startBulkAfterVanillaDeconstruct = true;
+  }
+
+  public static bool ConsumeStartBulkAfterVanillaDeconstruct()
+  {
+    if (!_startBulkAfterVanillaDeconstruct || AllowVanillaDeconstruct)
+    {
+      return false;
+    }
+
+    _startBulkAfterVanillaDeconstruct = false;
+    return true;
+  }
 
   public static void StartProgressiveDeconstruction()
   {
@@ -82,6 +118,21 @@ public static class BulkDeconstructionRuntime
 
   public static void Reset()
   {
-    // Reset any flags if needed
+    _allowVanillaDeconstructDepth = 0;
+    _startBulkAfterVanillaDeconstruct = false;
+  }
+
+  public static void RunVanillaDeconstruct(Action action)
+  {
+    // Depth instead of bool keeps this safe if vanilla deconstruction synchronously nests calls.
+    _allowVanillaDeconstructDepth++;
+    try
+    {
+      action();
+    }
+    finally
+    {
+      _allowVanillaDeconstructDepth--;
+    }
   }
 }

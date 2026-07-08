@@ -66,6 +66,10 @@
       <Value>Network under pressure</Value>
     </Record>
     <Record>
+      <Key>zoopBulkReasonOffhandMismatch</Key>
+      <Value>Offhand item mismatch</Value>
+    </Record>
+    <Record>
       <Key>Zoop</Key>
       <Value>Zoop</Value>
     </Record>
