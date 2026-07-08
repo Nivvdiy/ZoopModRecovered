@@ -188,7 +188,7 @@ public class BulkDeconstructionController : MonoBehaviour
   /// Called by patch when a valid bulk deconstruction action is requested.
   /// Starts progressive deconstruction through the game's normal networked attack path.
   /// </summary>
-  public void StartProgressiveDeconstruction()
+  public void StartProgressiveDeconstruction(long skipReferenceId = 0)
   {
     if (_currentBulk == null || _currentBulk.Count == 0)
     {
@@ -203,13 +203,13 @@ public class BulkDeconstructionController : MonoBehaviour
     }
 
     ZoopLog.Info($"[BulkDeconstruction] Starting progressive deconstruction of {_currentBulk.Count} structures");
-    StartCoroutine(DeconstructProgressively());
+    StartCoroutine(DeconstructProgressively(skipReferenceId));
   }
 
   /// <summary>
   /// Progressively deconstructs structures through the game's normal multiplayer-aware action path.
   /// </summary>
-  private IEnumerator DeconstructProgressively()
+  private IEnumerator DeconstructProgressively(long skipReferenceId)
   {
     _isDeconstructing = true;
 
@@ -223,7 +223,7 @@ public class BulkDeconstructionController : MonoBehaviour
     var bulkSnapshot = new List<Structure>(_currentBulk.Count);
     foreach (var structure in _currentBulk)
     {
-      if (structure != null && structure.gameObject != null)
+      if (structure != null && structure.gameObject != null && structure.ReferenceId != skipReferenceId)
       {
         bulkSnapshot.Add(structure);
       }
@@ -231,8 +231,9 @@ public class BulkDeconstructionController : MonoBehaviour
 
     if (bulkSnapshot.Count == 0)
     {
-      ZoopLog.Error("[BulkDeconstruction] Bulk contains no valid structures - cannot deconstruct");
+      ZoopLog.Info("[BulkDeconstruction] No remaining structures after the initial vanilla deconstruct");
       _isDeconstructing = false;
+      DeactivateMode("Deconstruction complete");
       yield break;
     }
 

@@ -1,5 +1,7 @@
 using System;
+using Assets.Scripts;
 using Assets.Scripts.Inventory;
+using Assets.Scripts.Networking;
 using Assets.Scripts.Objects;
 using HarmonyLib;
 using JetBrains.Annotations;
@@ -76,6 +78,20 @@ internal static class ToolUseDeconstructPatch
 }
 
 /// <summary>
+/// Starts bulk deconstruction on multiplayer clients after the original vanilla attack has been sent.
+/// In multiplayer, ToolUse.Deconstruct executes on the server, which does not have the client's scanned bulk.
+/// </summary>
+[HarmonyPatch(typeof(OnServer), "AttackWith")]
+internal static class OnServerAttackWithBulkDeconstructPatch
+{
+  [UsedImplicitly]
+  public static void Postfix(long targetId)
+  {
+    BulkDeconstructionRuntime.StartProgressiveAfterClientAttack(targetId);
+  }
+}
+
+/// <summary>
 /// Runtime state for bulk deconstruction system.
 /// </summary>
 public static class BulkDeconstructionRuntime
@@ -114,6 +130,29 @@ public static class BulkDeconstructionRuntime
   public static void StartProgressiveDeconstruction()
   {
     _controller?.StartProgressiveDeconstruction();
+  }
+
+  public static void StartProgressiveAfterClientAttack(long targetId)
+  {
+    if (AllowVanillaDeconstruct || !NetworkManager.IsClient || GameManager.RunSimulation)
+    {
+      return;
+    }
+
+    var target = CurrentTarget;
+    if (!IsActive || target == null || target.ReferenceId != targetId)
+    {
+      return;
+    }
+
+    var validation = CurrentValidation;
+    if (validation == null || !validation.CanDeconstruct)
+    {
+      return;
+    }
+
+    ZoopLog.Info($"[BulkDeconstruction] Starting multiplayer bulk after vanilla attack for target {targetId}");
+    _controller?.StartProgressiveDeconstruction(skipReferenceId: targetId);
   }
 
   public static void Reset()
