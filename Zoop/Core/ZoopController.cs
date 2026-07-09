@@ -134,7 +134,7 @@ internal sealed class ZoopController : IZoopController
 
     if (InventoryManager.ConstructionCursor != null)
     {
-      var selectedConstructable = GetSelectedConstructable(inventoryManager);
+      var selectedConstructable = ZoopConstructableResolver.GetSelectedConstructable(inventoryManager);
       using (placementUpdateGate.BeginScope())
       {
         if (selectedConstructable != null)
@@ -228,18 +228,6 @@ internal sealed class ZoopController : IZoopController
     {
       InventoryManager.ConstructionCursor.gameObject.SetActive(true);
     }
-  }
-
-  private static Structure GetSelectedConstructable(InventoryManager inventoryManager)
-  {
-    var constructables = inventoryManager.ConstructionPanel.Parent.Constructables;
-    var selectedIndex = inventoryManager.ConstructionPanel.Parent.LastSelectedIndex;
-    if (selectedIndex >= 0 && selectedIndex < constructables.Count)
-    {
-      return constructables[selectedIndex];
-    }
-
-    return InventoryManager.ConstructionCursor;
   }
 
   private static Vector3 GetCardinalAxis(Vector3 vector)
