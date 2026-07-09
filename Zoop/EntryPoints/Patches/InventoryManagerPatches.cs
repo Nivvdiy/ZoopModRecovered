@@ -183,18 +183,8 @@ internal static class InventoryManagerPlacementModePatch
 
   private static void UpdateLongPieceIndicator(InventoryManager inventoryManager)
   {
-    LongPieceIndicator.Update(ZoopRuntime.Controller.IsZooping, GetSelectedConstructable(inventoryManager));
-  }
-
-  private static Structure GetSelectedConstructable(InventoryManager inventoryManager)
-  {
-    var constructables = inventoryManager.ConstructionPanel.Parent.Constructables;
-    var selectedIndex = inventoryManager.ConstructionPanel.Parent.LastSelectedIndex;
-    if (selectedIndex >= 0 && selectedIndex < constructables.Count)
-    {
-      return constructables[selectedIndex];
-    }
-
-    return InventoryManager.ConstructionCursor;
+    var isZooping = ZoopRuntime.Controller.IsZooping;
+    LongPieceIndicator.Update(isZooping,
+      isZooping ? ZoopConstructableResolver.GetSelectedConstructable(inventoryManager) : null);
   }
 }
