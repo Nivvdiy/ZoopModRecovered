@@ -9,6 +9,7 @@ using Assets.Scripts.Objects.Pipes;
 using UnityEngine;
 using ZoopMod.Zoop.EntryPoints.Input;
 using ZoopMod.Zoop.Logging;
+using ZoopMod.Zoop.UI;
 
 namespace ZoopMod.Zoop.BulkDeconstruction;
 
@@ -24,7 +25,6 @@ public class BulkDeconstructionController : MonoBehaviour
 
   private readonly BulkDetector _detector = new BulkDetector();
   private readonly BulkValidator _validator = new BulkValidator();
-  private readonly BulkItemRecovery _itemRecovery = new BulkItemRecovery();
   private readonly BulkDeconstructionStatusIndicator _statusIndicator = new BulkDeconstructionStatusIndicator();
   private readonly BulkDeconstructionTooltip _tooltip = new BulkDeconstructionTooltip();
 
@@ -35,7 +35,6 @@ public class BulkDeconstructionController : MonoBehaviour
   private List<Structure> _currentBulk;
   private BulkValidator.ValidationResult _currentValidation;
   private bool _isDeconstructing; // Currently executing deconstruction
-  private Coroutine _deconstructionCoroutine;
 
   // Async exploration tracking
   private Coroutine _explorationCoroutine;
@@ -45,6 +44,10 @@ public class BulkDeconstructionController : MonoBehaviour
   // Optimization: throttle raycast to reduce per-frame cost
   private int _raycastThrottleFrames = 0;
   private const int RaycastThrottleInterval = 2; // Only raycast every N frames (lowered from 3 to reduce detection lag)
+  private const float BulkDropSpacing = 0.65f;
+  private const int BulkDropTowerHeight = 5;
+  private const float BulkDropVerticalSpacing = 0.35f;
+  private const float OffhandDropWaitTimeoutSeconds = 1.5f;
 
   // Public properties for patches
   public bool IsActive => _isActive;
@@ -182,11 +185,10 @@ public class BulkDeconstructionController : MonoBehaviour
   }
 
   /// <summary>
-  /// Called by patch AFTER the first structure was deconstructed normally (items spawned by game).
-  /// Starts progressive deconstruction of remaining structures.
-  /// TODO: Find a way to spawn items properly for each structure.
+  /// Called by patch when a valid bulk deconstruction action is requested.
+  /// Starts progressive deconstruction through the game's normal networked attack path.
   /// </summary>
-  public void StartProgressiveDeconstruction()
+  public void StartProgressiveDeconstruction(long skipReferenceId = 0)
   {
     if (_currentBulk == null || _currentBulk.Count == 0)
     {
@@ -201,97 +203,371 @@ public class BulkDeconstructionController : MonoBehaviour
     }
 
     ZoopLog.Info($"[BulkDeconstruction] Starting progressive deconstruction of {_currentBulk.Count} structures");
-    _deconstructionCoroutine = StartCoroutine(DeconstructProgressively());
+    StartCoroutine(DeconstructProgressively(skipReferenceId));
   }
 
   /// <summary>
-  /// Progressively destroys structures and spawns items.
+  /// Progressively deconstructs structures through the game's normal multiplayer-aware action path.
   /// </summary>
-  private IEnumerator DeconstructProgressively()
+  private IEnumerator DeconstructProgressively(long skipReferenceId)
   {
     _isDeconstructing = true;
-
-    // Count total structures for logging
-    int totalStructures = _currentBulk?.Count ?? 0;
 
     if (_currentBulk == null || _currentBulk.Count == 0)
     {
       ZoopLog.Error("[BulkDeconstruction] Bulk is NULL or empty - cannot deconstruct");
       _isDeconstructing = false;
-      _deconstructionCoroutine = null;
       yield break;
     }
 
-    ZoopLog.Info($"[BulkDeconstruction] Starting deconstruction of {totalStructures} structures");
-
-    // Step 1: Collect all items from the bulk BEFORE destroying anything
-    ZoopLog.Info($"[BulkDeconstruction] Collecting items from {totalStructures} structures...");
-
-    Dictionary<Thing, int> collectedItems = null;
-    Vector3 spawnPosition = _currentBulk[0]?.transform.position ?? Vector3.zero;
-
-    try
+    var bulkSnapshot = new List<Structure>(_currentBulk.Count);
+    foreach (var structure in _currentBulk)
     {
-      collectedItems = _itemRecovery.CollectItemsFromBulk(_currentBulk);
-      ZoopLog.Info("[BulkDeconstruction] Item collection complete");
-    }
-    catch (System.Exception ex)
-    {
-      ZoopLog.Error($"[BulkDeconstruction] Item collection failed: {ex.Message}");
-      ZoopLog.Error($"[BulkDeconstruction] Stack trace: {ex.StackTrace}");
+      if (structure != null && structure.gameObject != null && structure.ReferenceId != skipReferenceId)
+      {
+        bulkSnapshot.Add(structure);
+      }
     }
 
-    // Step 2: Remove all structures from the bulk
-    ZoopLog.Info($"[BulkDeconstruction] Removing {totalStructures} structures...");
+    if (bulkSnapshot.Count == 0)
+    {
+      ZoopLog.Info("[BulkDeconstruction] No remaining structures after the initial vanilla deconstruct");
+      _isDeconstructing = false;
+      DeactivateMode("Deconstruction complete");
+      yield break;
+    }
+
+    int totalStructures = bulkSnapshot.Count;
+    // Vanilla ToolUse.SpawnItem drops leftovers at the ConstructionEventInstance position.
+    // We keep drops centered around the clicked structure for multiplayer-safe vanilla item
+    // recovery, but spread individual deconstructs into short towers so physics objects do
+    // not all spawn at the exact same coordinate or carpet the whole network path.
+    var dropOrigin = ResolveBulkDropOrigin(bulkSnapshot);
+    var expectedReturn = ResolvePrimaryReturnedStack(_currentTarget ?? bulkSnapshot[0]);
+    var offhandValidation = ValidateOffhandForBulk(_currentTarget ?? bulkSnapshot[0]);
+    if (!offhandValidation.CanDeconstruct)
+    {
+      ZoopLog.Info($"[BulkDeconstruction] Blocked before execution: {offhandValidation.Reason}");
+      _isDeconstructing = false;
+      DeactivateMode("Offhand no longer valid");
+      yield break;
+    }
+
+    ZoopLog.Info($"[BulkDeconstruction] Starting deconstruction of {totalStructures} structures; floor drops will be centered at {dropOrigin}");
 
     int removed = 0;
-    foreach (Structure structure in _currentBulk)
+    var dropStackIndex = 0;
+    var structureIndex = 0;
+    while (structureIndex < bulkSnapshot.Count)
     {
-      if (structure == null || structure.gameObject == null)
+      var batchSize = ResolveNextBatchSize(expectedReturn, bulkSnapshot.Count - structureIndex);
+      if (batchSize <= 0)
+      {
+        var offhandDrop = new OffhandDropState();
+        yield return DropOffhandStackIfNeeded(expectedReturn, dropOrigin, totalStructures, dropStackIndex, offhandDrop);
+        if (offhandDrop.DroppedStack)
+        {
+          dropStackIndex++;
+          continue;
+        }
+
+        batchSize = 1;
+      }
+
+      var expectedOffhandQuantityAfterBatch = ResolveExpectedOffhandQuantityAfterBatch(expectedReturn, batchSize);
+      var requestedInBatch = 0;
+      while (structureIndex < bulkSnapshot.Count && requestedInBatch < batchSize)
+      {
+        var structure = bulkSnapshot[structureIndex++];
+
+        var dropPosition = ResolveBulkDropPosition(dropOrigin, removed, totalStructures);
+        try
+        {
+          if (TryRequestVanillaDeconstruct(structure, dropPosition))
+          {
+            removed++;
+            requestedInBatch++;
+          }
+        }
+        catch (System.Exception ex)
+        {
+          ZoopLog.Error($"[BulkDeconstruction] Error deconstructing {structure.PrefabName}: {ex.Message}");
+        }
+      }
+
+      if (requestedInBatch <= 0)
+      {
         continue;
-
-      try
-      {
-        OnServer.Destroy(structure);
-        removed++;
-      }
-      catch (System.Exception ex)
-      {
-        ZoopLog.Error($"[BulkDeconstruction] Error removing {structure.PrefabName}: {ex.Message}");
       }
 
-      // Small delay every few structures
-      if (removed % 10 == 0)
+      var hasMoreStructures = structureIndex < bulkSnapshot.Count;
+      if (hasMoreStructures && expectedReturn != null)
       {
-        yield return null;
+        var offhandDrop = new OffhandDropState();
+        yield return DropOffhandStackAfterBatch(expectedReturn, expectedOffhandQuantityAfterBatch, dropOrigin,
+          totalStructures, dropStackIndex, offhandDrop);
+        if (offhandDrop.DroppedStack)
+        {
+          dropStackIndex++;
+        }
       }
+
+      yield return null;
     }
 
-    ZoopLog.Info($"[BulkDeconstruction] Removed {removed}/{totalStructures} structures");
-
-    // Step 3: Spawn all collected items as stacks
-    if (collectedItems != null && collectedItems.Count > 0)
-    {
-      ZoopLog.Info($"[BulkDeconstruction] Spawning collected items...");
-
-      try
-      {
-        _itemRecovery.SpawnCollectedItems(collectedItems, spawnPosition);
-        ZoopLog.Info("[BulkDeconstruction] Item spawning complete");
-      }
-      catch (System.Exception ex)
-      {
-        ZoopLog.Error($"[BulkDeconstruction] Item spawning failed: {ex.Message}");
-      }
-    }
-
-    ZoopLog.Info($"[BulkDeconstruction] Complete: {removed}/{totalStructures} structures removed with item recovery");
+    ZoopLog.Info($"[BulkDeconstruction] Complete: requested vanilla deconstruction for {removed}/{totalStructures} structures");
 
     _isDeconstructing = false;
-    _deconstructionCoroutine = null;
 
     // Deactivate mode after successful deconstruction
     DeactivateMode("Deconstruction complete");
+  }
+
+  private Vector3 ResolveBulkDropOrigin(List<Structure> bulkSnapshot)
+  {
+    // Prefer the live target because it is the structure the player intentionally clicked.
+    // That makes the drop pile appear where the action started, even for large networks.
+    if (_currentTarget?.transform != null)
+      return _currentTarget.transform.position;
+
+    // Position is a safe fallback if Unity has detached the transform while the Thing is still valid.
+    if (_currentTarget != null)
+      return _currentTarget.Position;
+
+    // If the target was cleared during execution, use the first still-valid structure from the snapshot.
+    foreach (var structure in bulkSnapshot)
+    {
+      if (structure?.transform != null)
+        return structure.transform.position;
+
+      if (structure != null)
+        return structure.Position;
+    }
+
+    // Last resort: keep drops near the player instead of sending them to an arbitrary world origin.
+    return InventoryManager.Parent?.Position ?? Vector3.zero;
+  }
+
+  private static Vector3 ResolveBulkDropPosition(Vector3 origin, int dropIndex, int totalDrops)
+  {
+    if (totalDrops <= 1)
+      return origin;
+
+    var towerCount = Mathf.CeilToInt(totalDrops / (float)BulkDropTowerHeight);
+    var columns = Mathf.CeilToInt(Mathf.Sqrt(towerCount));
+    var rows = Mathf.CeilToInt(towerCount / (float)columns);
+    var towerIndex = dropIndex / BulkDropTowerHeight;
+    var layer = dropIndex % BulkDropTowerHeight;
+    var row = towerIndex / columns;
+    var column = towerIndex % columns;
+
+    // Center the tower grid on the clicked structure. Each tower receives a few vertical
+    // layers before the layout moves sideways to the next tower.
+    var xOffset = (column - ((columns - 1) * 0.5f)) * BulkDropSpacing;
+    var zOffset = (row - ((rows - 1) * 0.5f)) * BulkDropSpacing;
+    var yOffset = layer * BulkDropVerticalSpacing;
+
+    return origin + new Vector3(xOffset, yOffset, zOffset);
+  }
+
+  private static Vector3 ResolveBulkStackDropPosition(Vector3 origin, int stackIndex, int totalStacks)
+  {
+    if (totalStacks <= 1)
+      return origin;
+
+    var columns = Mathf.CeilToInt(Mathf.Sqrt(totalStacks));
+    var rows = Mathf.CeilToInt(totalStacks / (float)columns);
+    var row = stackIndex / columns;
+    var column = stackIndex % columns;
+    var xOffset = (column - ((columns - 1) * 0.5f)) * BulkDropSpacing;
+    var zOffset = (row - ((rows - 1) * 0.5f)) * BulkDropSpacing;
+
+    return origin + new Vector3(xOffset, 0f, zOffset);
+  }
+
+  private static int ResolveNextBatchSize(ReturnedStack expectedReturn, int remainingStructures)
+  {
+    if (remainingStructures <= 0)
+      return 0;
+
+    if (expectedReturn == null)
+      return remainingStructures;
+
+    var inactiveSlot = InventoryManager.Instance?.InactiveHand?.Slot;
+    var heldStack = inactiveSlot?.Get() as Stackable;
+    if (heldStack == null)
+    {
+      var emptySlotCapacity = expectedReturn.MaxQuantity / expectedReturn.Quantity;
+      return emptySlotCapacity <= 0 ? 1 : Mathf.Min(remainingStructures, emptySlotCapacity);
+    }
+
+    if (!IsMatchingStack(heldStack, expectedReturn))
+      return 0;
+
+    var availableQuantity = heldStack.MaxQuantity - heldStack.Quantity;
+    if (availableQuantity < expectedReturn.Quantity)
+      return 0;
+
+    return Mathf.Min(remainingStructures, availableQuantity / expectedReturn.Quantity);
+  }
+
+  private static int ResolveExpectedOffhandQuantityAfterBatch(ReturnedStack expectedReturn, int batchSize)
+  {
+    if (expectedReturn == null || batchSize <= 0)
+      return 0;
+
+    var inactiveSlot = InventoryManager.Instance?.InactiveHand?.Slot;
+    var heldStack = inactiveSlot?.Get() as Stackable;
+    var currentQuantity = heldStack != null && IsMatchingStack(heldStack, expectedReturn)
+      ? heldStack.Quantity
+      : 0;
+
+    return Mathf.Min(expectedReturn.MaxQuantity, currentQuantity + (batchSize * expectedReturn.Quantity));
+  }
+
+  private IEnumerator DropOffhandStackAfterBatch(ReturnedStack expectedReturn, int expectedQuantity, Vector3 dropOrigin,
+    int totalStructures, int dropStackIndex, OffhandDropState dropState)
+  {
+    var timeoutAt = Time.time + OffhandDropWaitTimeoutSeconds;
+    while (Time.time < timeoutAt)
+    {
+      var heldStack = InventoryManager.Instance?.InactiveHand?.Slot?.Get() as Stackable;
+      if (heldStack != null && IsMatchingStack(heldStack, expectedReturn))
+      {
+        if (heldStack.Quantity >= expectedQuantity || heldStack.Quantity >= heldStack.MaxQuantity)
+        {
+          yield return DropOffhandStack(expectedReturn, dropOrigin, totalStructures, dropStackIndex, dropState, heldStack);
+          yield break;
+        }
+
+        // If the stack exists but is not full yet, continue the main loop immediately.
+        // The next batch will send only the amount that still fits, avoiding a long wait at 99/100.
+        yield break;
+      }
+
+      yield return null;
+    }
+
+    ZoopLog.Warn("[BulkDeconstruction] Timed out waiting for offhand stack to finish filling after batch; continuing without dropping it");
+  }
+
+  private IEnumerator DropOffhandStackIfNeeded(ReturnedStack expectedReturn, Vector3 dropOrigin, int totalStructures,
+    int dropStackIndex, OffhandDropState dropState)
+  {
+    if (expectedReturn == null)
+      yield break;
+
+    var inactiveSlot = InventoryManager.Instance?.InactiveHand?.Slot;
+    var heldStack = inactiveSlot?.Get() as Stackable;
+    if (heldStack == null || !IsMatchingStack(heldStack, expectedReturn))
+      yield break;
+
+    if (heldStack.Quantity + expectedReturn.Quantity <= heldStack.MaxQuantity)
+      yield break;
+
+    yield return DropOffhandStack(expectedReturn, dropOrigin, totalStructures, dropStackIndex, dropState, heldStack);
+  }
+
+  private IEnumerator DropOffhandStack(ReturnedStack expectedReturn, Vector3 dropOrigin, int totalStructures,
+    int dropStackIndex, OffhandDropState dropState, Stackable heldStack)
+  {
+    var inactiveSlot = InventoryManager.Instance?.InactiveHand?.Slot;
+    if (inactiveSlot == null || heldStack == null)
+      yield break;
+
+    var estimatedStackDrops = EstimateOffhandStackDropCount(totalStructures, heldStack.MaxQuantity, expectedReturn.Quantity);
+    var towerDropPosition = ResolveBulkStackDropPosition(dropOrigin, dropStackIndex, estimatedStackDrops);
+    dropState.DroppedStack = true;
+    OnServer.MoveToWorld(heldStack, towerDropPosition, heldStack.transform.rotation, Vector3.zero, Vector3.zero);
+
+    var timeoutAt = Time.time + OffhandDropWaitTimeoutSeconds;
+    while (inactiveSlot.Get() == heldStack && Time.time < timeoutAt)
+    {
+      yield return null;
+    }
+
+    if (inactiveSlot.Get() == heldStack)
+    {
+      ZoopLog.Warn("[BulkDeconstruction] Timed out waiting for offhand stack to drop; continuing with vanilla overflow behavior");
+    }
+  }
+
+  private static int EstimateOffhandStackDropCount(int structureCount, int maxQuantity, int returnedQuantity)
+  {
+    var quantityPerStack = Mathf.Max(1, maxQuantity);
+    var totalReturnedQuantity = Mathf.Max(1, structureCount * Mathf.Max(1, returnedQuantity));
+    return Mathf.Max(1, Mathf.CeilToInt(totalReturnedQuantity / (float)quantityPerStack));
+  }
+
+  private BulkValidator.ValidationResult ValidateOffhandForBulk(Structure structure)
+  {
+    var inactiveSlot = InventoryManager.Instance?.InactiveHand?.Slot;
+    var heldThing = inactiveSlot?.Get();
+    if (heldThing == null)
+      return BulkValidator.ValidationResult.Success();
+
+    var expectedReturn = ResolvePrimaryReturnedStack(structure);
+    if (expectedReturn != null && heldThing is Stackable heldStack && IsMatchingStack(heldStack, expectedReturn))
+      return BulkValidator.ValidationResult.Success();
+
+    return BulkValidator.ValidationResult.Failure(ZoopText.BulkReasonOffhandMismatch);
+  }
+
+  private static bool IsMatchingStack(Stackable stack, ReturnedStack expectedReturn)
+  {
+    return stack != null
+           && expectedReturn != null
+           && stack.GetPrefabHash() == expectedReturn.PrefabHash;
+  }
+
+  private static ReturnedStack ResolvePrimaryReturnedStack(Structure structure)
+  {
+    if (structure?.BuildStates == null || structure.BuildStates.Count == 0)
+      return null;
+
+    var tool = structure.BuildStates[0]?.Tool;
+    if (tool == null)
+      return null;
+
+    if (tool.ToolEntry is Stackable primary && tool.EntryQuantity > 0)
+    {
+      return new ReturnedStack(primary.GetPrefabHash(), tool.EntryQuantity, primary.MaxQuantity);
+    }
+
+    if (tool.ToolEntry2 is Stackable secondary && tool.EntryQuantity2 > 0)
+    {
+      return new ReturnedStack(secondary.GetPrefabHash(), tool.EntryQuantity2, secondary.MaxQuantity);
+    }
+
+    return null;
+  }
+
+  private static bool TryRequestVanillaDeconstruct(Structure structure, Vector3 dropPosition)
+  {
+    var inventoryManager = InventoryManager.Instance;
+    if (inventoryManager?.ActiveHand == null || inventoryManager.InactiveHand == null || InventoryManager.Parent == null)
+    {
+      ZoopLog.Error("[BulkDeconstruction] Unable to deconstruct: inventory state is not ready");
+      return false;
+    }
+
+    var activeSlotId = (byte)inventoryManager.ActiveHand.SlotId;
+    var inactiveSlotId = (byte)inventoryManager.InactiveHand.SlotId;
+
+    // AttackWith is Stationeers' normal networked tool-on-thing path. On clients it sends
+    // AttackWithMessage to the server, unlike direct OnServer.Destroy/Create calls.
+    Patches.BulkDeconstructionRuntime.RunVanillaDeconstruct(() =>
+      OnServer.AttackWith(
+        InventoryManager.Parent,
+        activeSlotId,
+        inactiveSlotId,
+        structure.ReferenceId,
+        dropPosition,
+        1f,
+        isDestroy: false,
+        isCopy: false));
+
+    return true;
   }
 
   private void UpdateDetection()
@@ -395,6 +671,11 @@ public class BulkDeconstructionController : MonoBehaviour
     // Assign results
     _currentBulk = bulk;
     _currentValidation = _validator.Validate(structure);
+    if (_currentValidation?.CanDeconstruct == true)
+    {
+      _currentValidation = ValidateOffhandForBulk(structure);
+    }
+
     _isExploring = false;
     _explorationCoroutine = null;
 
@@ -471,5 +752,24 @@ public class BulkDeconstructionController : MonoBehaviour
       return "Chute";
 
     return "Unknown";
+  }
+
+  private sealed class ReturnedStack
+  {
+    public ReturnedStack(int prefabHash, int quantity, int maxQuantity)
+    {
+      PrefabHash = prefabHash;
+      Quantity = quantity;
+      MaxQuantity = maxQuantity;
+    }
+
+    public int PrefabHash { get; }
+    public int Quantity { get; }
+    public int MaxQuantity { get; }
+  }
+
+  private sealed class OffhandDropState
+  {
+    public bool DroppedStack { get; set; }
   }
 }

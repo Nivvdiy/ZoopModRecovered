@@ -19,6 +19,7 @@ public static class ZoopText
   private static readonly int BulkReasonUnknownTypeHash = Animator.StringToHash("zoopBulkReasonUnknownType");
   private static readonly int BulkReasonPoweredHash = Animator.StringToHash("zoopBulkReasonPowered");
   private static readonly int BulkReasonUnderPressureHash = Animator.StringToHash("zoopBulkReasonUnderPressure");
+  private static readonly int BulkReasonOffhandMismatchHash = Animator.StringToHash("zoopBulkReasonOffhandMismatch");
 
   public static string msgNoDoubleWaypoints =>
     GetInterfaceText(NoDoubleWaypointsHash, "You cannot add a waypoint at the same location as the previous one");
@@ -36,6 +37,7 @@ public static class ZoopText
   public static string BulkReasonUnknownType => GetInterfaceText(BulkReasonUnknownTypeHash, "Unknown network type");
   public static string BulkReasonPowered => GetInterfaceText(BulkReasonPoweredHash, "Network is powered");
   public static string BulkReasonUnderPressure => GetInterfaceText(BulkReasonUnderPressureHash, "Network under pressure");
+  public static string BulkReasonOffhandMismatch => GetInterfaceText(BulkReasonOffhandMismatchHash, "Offhand item mismatch");
 
   private static string GetInterfaceText(int hash, string fallback)
   {
