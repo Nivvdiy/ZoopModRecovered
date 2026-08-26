@@ -649,8 +649,28 @@ public class BulkDeconstructionController : MonoBehaviour
       yield break;
     }
 
-    // Perform exploration using game's Network system (instantaneous)
-    List<Structure> bulk = _detector.ExploreBulk(structure);
+    // Perform exploration using game's Network system (instantaneous). Keep failures
+    // inside the controller so a game API change cannot leave detection stuck or spam
+    // an unhandled coroutine exception every time the cursor moves over a structure.
+    List<Structure> bulk = null;
+    System.Exception explorationError = null;
+    try
+    {
+      bulk = _detector.ExploreBulk(structure);
+    }
+    catch (System.Exception ex)
+    {
+      explorationError = ex;
+    }
+
+    if (explorationError != null)
+    {
+      ZoopLog.Error(explorationError, "[BulkDeconstruction] Network exploration failed");
+      _isExploring = false;
+      _explorationCoroutine = null;
+      DeactivateMode("Network exploration failed");
+      yield break;
+    }
 
     // Verify IMMEDIATELY after exploration
     if (_explorationTarget != structure || _currentTarget != structure)

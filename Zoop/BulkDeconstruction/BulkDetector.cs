@@ -1,8 +1,9 @@
+using System.Collections;
 using System.Collections.Generic;
+using System.Reflection;
 using Assets.Scripts.Objects;
 using Assets.Scripts.Objects.Electrical;
 using Assets.Scripts.Objects.Pipes;
-using Assets.Scripts.Networks;
 using ZoopMod.Zoop.Logging;
 
 namespace ZoopMod.Zoop.BulkDeconstruction;
@@ -29,39 +30,19 @@ public class BulkDetector
 
     List<Structure> result = new List<Structure>();
 
-    // Use the game's native Network system to get all connected structures
+    // Stationeers has changed these network collections between fields and properties.
+    // Resolve them by name so the mod does not encode the underlying member shape in IL.
     if (startStructure is Cable cable && cable.CableNetwork != null)
     {
-      if (cable.CableNetwork.CableList != null)
-      {
-        result.AddRange(cable.CableNetwork.CableList);
-      }
+      AddNetworkStructures(cable.CableNetwork, "CableList", result);
     }
     else if (startStructure is Pipe pipe && pipe.PipeNetwork != null)
     {
-      if (pipe.PipeNetwork.StructureList != null)
-      {
-        foreach (var networkedStructure in pipe.PipeNetwork.StructureList)
-        {
-          if (networkedStructure is Structure structure)
-          {
-            result.Add(structure);
-          }
-        }
-      }
+      AddNetworkStructures(pipe.PipeNetwork, "StructureList", result);
     }
     else if (startStructure is Chute chute && chute.ChuteNetwork != null)
     {
-      if (chute.ChuteNetwork.StructureList != null)
-      {
-        foreach (var networkedStructure in chute.ChuteNetwork.StructureList)
-        {
-          if (networkedStructure is Structure structure)
-          {
-            result.Add(structure);
-          }
-        }
-      }
+      AddNetworkStructures(chute.ChuteNetwork, "StructureList", result);
     }
     else
     {
@@ -70,6 +51,41 @@ public class BulkDetector
     }
 
     return result;
+  }
+
+  private static void AddNetworkStructures(object network, string memberName, List<Structure> result)
+  {
+    const BindingFlags flags = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
+    var networkType = network.GetType();
+    object memberValue = null;
+
+    var property = networkType.GetProperty(memberName, flags);
+    if (property != null)
+    {
+      memberValue = property.GetValue(network, null);
+    }
+    else
+    {
+      var field = networkType.GetField(memberName, flags);
+      if (field != null)
+      {
+        memberValue = field.GetValue(network);
+      }
+    }
+
+    if (!(memberValue is IEnumerable networkStructures))
+    {
+      ZoopLog.Warn($"[BulkDetector] {networkType.Name}.{memberName} is unavailable");
+      return;
+    }
+
+    foreach (var networkedStructure in networkStructures)
+    {
+      if (networkedStructure is Structure structure)
+      {
+        result.Add(structure);
+      }
+    }
   }
 
   private BulkType GetBulkType(Structure structure)
