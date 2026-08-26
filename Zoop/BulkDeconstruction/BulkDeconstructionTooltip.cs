@@ -85,17 +85,27 @@ public class BulkDeconstructionTooltip
       _bulkSizeValue.text = bulkSize.ToString();
     }
 
+    var hasWarning = isValid && !string.IsNullOrEmpty(invalidReason);
+
     // Update validation status
     if (_bulkStatusValue != null)
     {
-      _bulkStatusValue.text = isValid ? ZoopText.BulkValueOk : ZoopText.BulkValueInvalid;
-      _bulkStatusValue.color = isValid ? new Color(0.0f, 1.0f, 0.0f) : new Color(1.0f, 0.0f, 0.0f);
+      _bulkStatusValue.text = hasWarning
+        ? ZoopText.BulkValueWarning
+        : isValid
+          ? ZoopText.BulkValueOk
+          : ZoopText.BulkValueInvalid;
+      _bulkStatusValue.color = hasWarning
+        ? new Color(1.0f, 0.6f, 0.0f)
+        : isValid
+          ? new Color(0.0f, 1.0f, 0.0f)
+          : new Color(1.0f, 0.0f, 0.0f);
     }
 
-    // Update reason (only show if invalid)
+    // Show the reason for both blocking failures and non-blocking warnings.
     if (_bulkReasonInfo != null)
     {
-      if (!isValid && !string.IsNullOrEmpty(invalidReason))
+      if (!string.IsNullOrEmpty(invalidReason))
       {
         if (_bulkReasonValue != null)
         {

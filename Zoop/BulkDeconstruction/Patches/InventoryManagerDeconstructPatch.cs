@@ -85,6 +85,16 @@ internal static class ToolUseDeconstructPatch
 internal static class OnServerAttackWithBulkDeconstructPatch
 {
   [UsedImplicitly]
+  public static bool Prefix(long targetId)
+  {
+    if (!BulkDeconstructionRuntime.TryStartWithOffhandMismatch(targetId))
+      return true;
+
+    ZoopLog.Info($"[BulkDeconstruction] Delaying initial attack for bulk stack recovery on target {targetId}");
+    return false;
+  }
+
+  [UsedImplicitly]
   public static void Postfix(long targetId)
   {
     BulkDeconstructionRuntime.StartProgressiveAfterClientAttack(targetId);
@@ -130,6 +140,11 @@ public static class BulkDeconstructionRuntime
   public static void StartProgressiveDeconstruction()
   {
     _controller?.StartProgressiveDeconstruction();
+  }
+
+  public static bool TryStartWithOffhandMismatch(long targetId)
+  {
+    return !AllowVanillaDeconstruct && (_controller?.TryStartWithOffhandMismatch(targetId) ?? false);
   }
 
   public static void StartProgressiveAfterClientAttack(long targetId)

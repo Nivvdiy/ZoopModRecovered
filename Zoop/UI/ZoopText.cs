@@ -14,6 +14,7 @@ public static class ZoopText
   private static readonly int BulkLabelStatusHash = Animator.StringToHash("zoopBulkLabelStatus");
   private static readonly int BulkLabelReasonHash = Animator.StringToHash("zoopBulkLabelReason");
   private static readonly int BulkValueOkHash = Animator.StringToHash("zoopBulkValueOk");
+  private static readonly int BulkValueWarningHash = Animator.StringToHash("zoopBulkValueWarning");
   private static readonly int BulkValueInvalidHash = Animator.StringToHash("zoopBulkValueInvalid");
   private static readonly int BulkReasonNoTargetHash = Animator.StringToHash("zoopBulkReasonNoTarget");
   private static readonly int BulkReasonUnknownTypeHash = Animator.StringToHash("zoopBulkReasonUnknownType");
@@ -32,6 +33,7 @@ public static class ZoopText
   public static string BulkLabelStatus => GetInterfaceText(BulkLabelStatusHash, "Status:");
   public static string BulkLabelReason => GetInterfaceText(BulkLabelReasonHash, "Reason:");
   public static string BulkValueOk => GetInterfaceText(BulkValueOkHash, "OK");
+  public static string BulkValueWarning => GetInterfaceText(BulkValueWarningHash, "WARNING");
   public static string BulkValueInvalid => GetInterfaceText(BulkValueInvalidHash, "INVALID");
   public static string BulkReasonNoTarget => GetInterfaceText(BulkReasonNoTargetHash, "No target structure");
   public static string BulkReasonUnknownType => GetInterfaceText(BulkReasonUnknownTypeHash, "Unknown network type");

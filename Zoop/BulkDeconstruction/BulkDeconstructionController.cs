@@ -207,9 +207,41 @@ public class BulkDeconstructionController : MonoBehaviour
   }
 
   /// <summary>
+  /// Starts a complete bulk operation when another item occupies the offhand.
+  /// The mismatched item is moved out temporarily so vanilla recovery can aggregate
+  /// returned materials into stacks instead of spawning one item per structure.
+  /// </summary>
+  public bool TryStartWithOffhandMismatch(long targetId)
+  {
+    if (!_isActive || _isDeconstructing || _currentTarget == null || _currentTarget.ReferenceId != targetId)
+      return false;
+
+    if (_currentValidation == null || !_currentValidation.CanDeconstruct)
+      return false;
+
+    var expectedReturn = ResolvePrimaryReturnedStack(_currentTarget);
+    var heldThing = InventoryManager.Instance?.InactiveHand?.Slot?.Get();
+    if (heldThing == null || expectedReturn == null)
+      return false;
+
+    if (heldThing is Stackable heldStack && IsMatchingStack(heldStack, expectedReturn))
+      return false;
+
+    if (!(heldThing is DynamicThing displacedOffhand))
+    {
+      ZoopLog.Warn("[BulkDeconstruction] Offhand mismatch cannot be temporarily moved; using vanilla fallback");
+      return false;
+    }
+
+    ZoopLog.Warn($"[BulkDeconstruction] {ZoopText.BulkReasonOffhandMismatch}; temporarily clearing the offhand to create bulk stacks");
+    StartCoroutine(DeconstructProgressively(skipReferenceId: 0, displacedOffhand: displacedOffhand));
+    return true;
+  }
+
+  /// <summary>
   /// Progressively deconstructs structures through the game's normal multiplayer-aware action path.
   /// </summary>
-  private IEnumerator DeconstructProgressively(long skipReferenceId)
+  private IEnumerator DeconstructProgressively(long skipReferenceId, DynamicThing displacedOffhand = null)
   {
     _isDeconstructing = true;
 
@@ -243,6 +275,35 @@ public class BulkDeconstructionController : MonoBehaviour
     // recovery, but spread individual deconstructs into short towers so physics objects do
     // not all spawn at the exact same coordinate or carpet the whole network path.
     var dropOrigin = ResolveBulkDropOrigin(bulkSnapshot);
+    var inactiveSlot = InventoryManager.Instance?.InactiveHand?.Slot;
+
+    if (displacedOffhand != null)
+    {
+      if (inactiveSlot == null)
+      {
+        ZoopLog.Error("[BulkDeconstruction] Cannot prepare bulk stacks: inactive hand slot is unavailable");
+        _isDeconstructing = false;
+        yield break;
+      }
+
+      var holdingPosition = dropOrigin + new Vector3(0f, BulkDropVerticalSpacing, 0f);
+      var holdingRotation = displacedOffhand.transform != null ? displacedOffhand.transform.rotation : Quaternion.identity;
+      OnServer.MoveToWorld(displacedOffhand, holdingPosition, holdingRotation, Vector3.zero, Vector3.zero);
+
+      var clearTimeoutAt = Time.time + OffhandDropWaitTimeoutSeconds;
+      while (inactiveSlot.Get() == displacedOffhand && Time.time < clearTimeoutAt)
+      {
+        yield return null;
+      }
+
+      if (inactiveSlot.Get() == displacedOffhand)
+      {
+        ZoopLog.Error("[BulkDeconstruction] Timed out while temporarily clearing the mismatched offhand; bulk cancelled");
+        _isDeconstructing = false;
+        yield break;
+      }
+    }
+
     var expectedReturn = ResolvePrimaryReturnedStack(_currentTarget ?? bulkSnapshot[0]);
     var offhandValidation = ValidateOffhandForBulk(_currentTarget ?? bulkSnapshot[0]);
     if (!offhandValidation.CanDeconstruct)
@@ -251,6 +312,11 @@ public class BulkDeconstructionController : MonoBehaviour
       _isDeconstructing = false;
       DeactivateMode("Offhand no longer valid");
       yield break;
+    }
+
+    if (!string.IsNullOrEmpty(offhandValidation.Reason))
+    {
+      ZoopLog.Warn($"[BulkDeconstruction] {offhandValidation.Reason}; returned items will be dropped on the ground");
     }
 
     ZoopLog.Info($"[BulkDeconstruction] Starting deconstruction of {totalStructures} structures; floor drops will be centered at {dropOrigin}");
@@ -301,7 +367,7 @@ public class BulkDeconstructionController : MonoBehaviour
       }
 
       var hasMoreStructures = structureIndex < bulkSnapshot.Count;
-      if (hasMoreStructures && expectedReturn != null)
+      if ((hasMoreStructures || displacedOffhand != null) && expectedReturn != null)
       {
         var offhandDrop = new OffhandDropState();
         yield return DropOffhandStackAfterBatch(expectedReturn, expectedOffhandQuantityAfterBatch, dropOrigin,
@@ -313,6 +379,25 @@ public class BulkDeconstructionController : MonoBehaviour
       }
 
       yield return null;
+    }
+
+    if (displacedOffhand != null && inactiveSlot != null)
+    {
+      if (inactiveSlot.Get() == null)
+      {
+        OnServer.MoveToSlot(displacedOffhand, inactiveSlot);
+      }
+
+      var restoreTimeoutAt = Time.time + OffhandDropWaitTimeoutSeconds;
+      while (inactiveSlot.Get() != displacedOffhand && Time.time < restoreTimeoutAt)
+      {
+        yield return null;
+      }
+
+      if (inactiveSlot.Get() != displacedOffhand)
+      {
+        ZoopLog.Warn("[BulkDeconstruction] Could not restore the mismatched offhand item; it remains on the ground");
+      }
     }
 
     ZoopLog.Info($"[BulkDeconstruction] Complete: requested vanilla deconstruction for {removed}/{totalStructures} structures");
@@ -431,7 +516,16 @@ public class BulkDeconstructionController : MonoBehaviour
     var timeoutAt = Time.time + OffhandDropWaitTimeoutSeconds;
     while (Time.time < timeoutAt)
     {
-      var heldStack = InventoryManager.Instance?.InactiveHand?.Slot?.Get() as Stackable;
+      var heldThing = InventoryManager.Instance?.InactiveHand?.Slot?.Get();
+      if (heldThing != null && (!(heldThing is Stackable) || !IsMatchingStack((Stackable)heldThing, expectedReturn)))
+      {
+        // A different item already occupies the offhand. Vanilla deconstruction cannot
+        // stack the returned item there and therefore drops it at the requested world
+        // position. There is no offhand update to wait for in this case.
+        yield break;
+      }
+
+      var heldStack = heldThing as Stackable;
       if (heldStack != null && IsMatchingStack(heldStack, expectedReturn))
       {
         if (heldStack.Quantity >= expectedQuantity || heldStack.Quantity >= heldStack.MaxQuantity)
@@ -510,7 +604,9 @@ public class BulkDeconstructionController : MonoBehaviour
     if (expectedReturn != null && heldThing is Stackable heldStack && IsMatchingStack(heldStack, expectedReturn))
       return BulkValidator.ValidationResult.Success();
 
-    return BulkValidator.ValidationResult.Failure(ZoopText.BulkReasonOffhandMismatch);
+    // A mismatched offhand item is not unsafe. Keep bulk deconstruction available;
+    // execution temporarily clears the slot so vanilla recovery can build bulk stacks.
+    return BulkValidator.ValidationResult.Warning(ZoopText.BulkReasonOffhandMismatch);
   }
 
   private static bool IsMatchingStack(Stackable stack, ReturnedStack expectedReturn)

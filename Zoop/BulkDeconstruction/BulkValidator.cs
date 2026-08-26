@@ -20,6 +20,7 @@ public class BulkValidator
     public string Reason { get; set; }
 
     public static ValidationResult Success() => new ValidationResult { CanDeconstruct = true, Reason = "" };
+    public static ValidationResult Warning(string reason) => new ValidationResult { CanDeconstruct = true, Reason = reason };
     public static ValidationResult Failure(string reason) => new ValidationResult { CanDeconstruct = false, Reason = reason };
   }
 

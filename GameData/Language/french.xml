@@ -46,6 +46,10 @@
       <Value>OK</Value>
     </Record>
     <Record>
+      <Key>zoopBulkValueWarning</Key>
+      <Value>AVERTISSEMENT</Value>
+    </Record>
+    <Record>
       <Key>zoopBulkValueInvalid</Key>
       <Value>INVALIDE</Value>
     </Record>
@@ -64,6 +68,10 @@
     <Record>
       <Key>zoopBulkReasonUnderPressure</Key>
       <Value>Réseau sous pression</Value>
+    </Record>
+    <Record>
+      <Key>zoopBulkReasonOffhandMismatch</Key>
+      <Value>L'objet dans la main secondaire est différent</Value>
     </Record>
     <Record>
       <Key>Zoop</Key>

@@ -46,6 +46,10 @@
       <Value>OK</Value>
     </Record>
     <Record>
+      <Key>zoopBulkValueWarning</Key>
+      <Value>WARNING</Value>
+    </Record>
+    <Record>
       <Key>zoopBulkValueInvalid</Key>
       <Value>INVALID</Value>
     </Record>
