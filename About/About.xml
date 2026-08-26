@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?><ModMetadata xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"><Name>ZoopMod [StationeersLaunchPad]</Name><Author>Nivvdiy, MerGatto</Author><Version>2026.21.07</Version><Description>
+<?xml version="1.0" encoding="utf-8"?><ModMetadata xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"><Name>ZoopMod [StationeersLaunchPad]</Name><Author>Nivvdiy, MerGatto</Author><Version>2026.26.08</Version><Description>
   [h1]ZoopMod[/h1]
 
   [b]WARNING:[/b]
@@ -35,6 +35,7 @@
   [*]Zooping for frames.
   [*]Multiplayer client support.
   [*]Zooping for walls.
+  [*]Compatibility with The Power Line Update.
   [*]Compatibility with The Gases Update.
   [*]Bulk deconstruction mode for cables, pipes, and chutes.
   [/list]
@@ -56,6 +57,7 @@
   [*]jixxed for the advanced version
   [*]Katsuk for the updated version
   [*]tsholmes for somes fixes
+  [*]James Kingsley for the Power Line Update compatibility fix
   [*]The Stationeers community for their support and feedback
   [/list]
 
@@ -87,6 +89,7 @@
 
   [b]Works for:[/b]
   [list]
+  [*]"The Power Line Update" (August 12, 2026) - Hotfix v0.2.6428.27798
   [*]"The Sanitation Update" (July 2, 2026)
   [*]"The Gases Update" (March 19, 2026)
   [*]"Bug Fixing" update (December 12, 2024)
@@ -103,7 +106,7 @@
 Make sure you are unsubscribed from any previous versions. Installation details are available at <b><u><color=#00ccff>https://github.com/StationeersLaunchPad/StationeersLaunchPad</color></u></b>.
 <b>GitHub:</b> <b><u><color=#00ccff>https://github.com/Nivvdiy/ZoopModRecovered</color></u></b>
 
-Compatible with <b>The Gases Update</b> and works when joining multiplayer servers as a <b>client</b>.
+Compatible with <b>The Power Line Update</b> (Hotfix v0.2.6428.27798) and works when joining multiplayer servers as a <b>client</b>.
 
 <b>Cables, Pipes, Chutes</b>
 Allows you to build long lines between two points in a single action.

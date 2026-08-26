@@ -28,6 +28,7 @@ Allow you to build big surfaces of walls or frame in a single action.
 - Fixed completion time, ensuring consistency across building actions.
 - Key bindings support.
 - Multiplayer client support.
+- Compatibility with **The Power Line Update**.
 - Compatibility with **The Gases Update**.
 
 ---
@@ -48,6 +49,7 @@ All keys can be customized in the Stationeers settings.
 - **jixxed** for the initial update  
 - **Katsuk** for the latest update  
 - **tsholmes** for the final fixes  
+- **James Kingsley** for the Power Line Update compatibility fix
 - **The Stationeers community** for their support and feedback  
 
 ---
@@ -79,6 +81,7 @@ This continuation is being developed collaboratively, with respect for the mod's
 ---
 
 ## Compatible With
+- **The Power Line Update** (August 12, 2026) — Hotfix `v0.2.6428.27798`
 - **The Sanitation Update** (July 2, 2026) 
 - **The Gases Update** (March 19, 2026)  
 - **Short Circuit: Liquid Device Interactions** (October 28, 2024)  
